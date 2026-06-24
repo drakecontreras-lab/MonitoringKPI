@@ -1238,7 +1238,7 @@ def process_ready_excel(file_path, semana_num):
                     continue
 
                 pto_trabajo = "N/A"
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_tp:
                     group_tp[key] = {'planificado': 0.0, 'sinHr': 0.0, 'imprevistos': 0.0}
 
@@ -1315,7 +1315,7 @@ def process_ready_excel(file_path, semana_num):
                     continue
 
                 pto_trabajo = "N/A"
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_prog:
                     group_prog[key] = {'cumple': 0.0, 'noCumple': 0.0,
                                        'sumTotalOp': 0.0, 'sumIndicadorCumple': 0.0}
@@ -1390,7 +1390,7 @@ def process_ready_excel(file_path, semana_num):
                     continue
 
                 pto_trabajo = "N/A"
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_matriz:
                     group_matriz[key] = {'cumple': 0.0, 'noCumple': 0.0}
 
