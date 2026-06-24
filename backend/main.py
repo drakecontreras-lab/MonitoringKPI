@@ -20,6 +20,7 @@ from backend.modules.powerbi_module import PowerBIModule
 from backend.modules.kpi_auto_module import KpiAutoModule
 from backend.utils.kpi_excel_processor import process_kpi_excels, process_ready_excel, preview_file
 from backend.utils.kpi_email_sender import send_kpi_report_email
+from backend.utils.supabase_client import supabase
 
 # Inicializar Flask
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"))
