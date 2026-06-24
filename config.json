@@ -1,0 +1,72 @@
+{
+    "app": {
+        "nombre": "Monitoring KPI 2",
+        "version": "1.0.0",
+        "output_dir": "output",
+        "port": 3001
+    },
+    "auth_entra": {
+        "client_id": "7023ca62-0113-497c-8e3d-1b3b8c0e3abb",
+        "tenant_id": "562bdbde-7f4b-4858-828d-9834da023b9d",
+        "authority": "https://login.microsoftonline.com/562bdbde-7f4b-4858-828d-9834da023b9d",
+        "redirect_uri": "http://localhost:5000",
+        "scopes": [
+            "User.Read"
+        ]
+    },
+    "navegador": {
+        "headless": false,
+        "timeout_ms": 60000,
+        "url_base": "https://cobreapps.codelco.cl/fiori"
+    },
+    "credenciales": {
+        "contrasena": "X-%JEe$132",
+        "usuario": "jcont085@contratistas.codelco.cl"
+    },
+    "modules": {
+        "iw29": {
+            "nombre": "Confiabilidad (IW29 SAP)",
+            "layout_sap": "/JC_KPI",
+            "lista_uts": [
+                "chss-su*",
+                "chss-se*",
+                "cdee*"
+            ]
+        },
+        "proyecciones": {
+            "nombre": "Planificación (Proyecciones Masivas)",
+            "lista_uts": [
+                "CDEE*",
+                "CTAL*",
+                "CHSS-SE*",
+                "CHSS-SU*",
+                "CHSS-PL*",
+                "CHCO-IN-INF*"
+            ],
+            "grupo_planif": "CI0",
+            "grupo_planif_st": "CI0, C89, C73, C70, C71, C72, C74, C84, CB1",
+            "layout_avi": "/JC_KPI",
+            "layout_ot": "/BDYTD_25_OT"
+        }
+    },
+    "smtp": {
+        "email": "jose.contreras@monitoring.cl",
+        "password": "D2453d0k"
+    },
+    "recipients": "erwin.leon@monitoring.cl",
+    "cc": "jose.contreras@monitoring.cl",
+    "email_settings": {
+        "header_tag": "■ &nbsp; DIVISIÓN CHUQUICAMATA &nbsp;·&nbsp; GSYS",
+        "title": "Reporte Semanal de KPIs Corporativos",
+        "subtitle": "Sistema Operativo de Mantenimiento (SOMA)",
+        "body_p1": "Favor revisar la información y proceder de acuerdo con el flujograma establecido por directriz. Se solicita enviar HOY el plan de acción a Francisco Toro para su correspondiente revisión y validación.",
+        "body_p2": "⚠️  Se enfatiza la importancia de generar oportunamente el plan, con el objetivo de corregir de manera inmediata las desviaciones detectadas.",
+        "generado_nombre": "José Contreras Luna",
+        "generado_email": "jose.contreras@monitoring.cl",
+        "avisos_target": "10",
+        "ordenes_target": "13",
+        "tp_target": 80,
+        "ps_target": 85,
+        "pm_target": "50"
+    }
+}

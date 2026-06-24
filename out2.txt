@@ -1,0 +1,122 @@
+[ExcelProcessor] Procesando Excel consolidado semana 24...
+TP Grupos:
+[
+  {
+    "proceso": "Esenciales infra. serv.",
+    "grPlanif": "C71",
+    "grPlanifPM": "Pl.Maestranza.Cent",
+    "planificado": 0.0,
+    "sinHr": 0.049699999999999994,
+    "imprevistos": 0.0,
+    "total": 0.049699999999999994,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Esenciales infra. serv.",
+    "grPlanif": "C81",
+    "grPlanifPM": "Pl.Termoelec.Chuq.",
+    "planificado": 0.021,
+    "sinHr": 0.0,
+    "imprevistos": 0.0,
+    "total": 0.021,
+    "cumplimiento": 1.0
+  },
+  {
+    "proceso": "Esenciales infra. serv.",
+    "grPlanif": "C82",
+    "grPlanifPM": "Pl.Dist.Energ.Elec",
+    "planificado": 0.016,
+    "sinHr": 0.0,
+    "imprevistos": 0.0,
+    "total": 0.016,
+    "cumplimiento": 1.0
+  },
+  {
+    "proceso": "Infraestruc conc",
+    "grPlanif": "CO0",
+    "grPlanifPM": "Concentradora A0",
+    "planificado": 0.0,
+    "sinHr": 0.0,
+    "imprevistos": 0.006,
+    "total": 0.006,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Plantas de suministros",
+    "grPlanif": "C81",
+    "grPlanifPM": "Pl.Termoelec.Chuq.",
+    "planificado": 0.6284000000000003,
+    "sinHr": 0.0,
+    "imprevistos": 0.017,
+    "total": 0.6454000000000003,
+    "cumplimiento": 0.9736597458940192
+  },
+  {
+    "proceso": "Suministro electrico",
+    "grPlanif": "C82",
+    "grPlanifPM": "Pl.Dist.Energ.Elec",
+    "planificado": 0.068,
+    "sinHr": 0.0,
+    "imprevistos": 0.041999999999999996,
+    "total": 0.11,
+    "cumplimiento": 0.6181818181818183
+  }
+]
+
+PM Grupos:
+[
+  {
+    "proceso": "Esenciales infra. serv.",
+    "grPlanif": "C71",
+    "grPlanifPM": "Pl.Maestranza.Cent",
+    "cumple": 0.0,
+    "noCumple": 0.0,
+    "total": 0.0,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Esenciales infra. serv.",
+    "grPlanif": "C81",
+    "grPlanifPM": "Pl.Termoelec.Chuq.",
+    "cumple": 0.0,
+    "noCumple": 100.0,
+    "total": 100.0,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Esenciales infra. serv.",
+    "grPlanif": "C82",
+    "grPlanifPM": "Pl.Dist.Energ.Elec",
+    "cumple": 0.0,
+    "noCumple": 600.0,
+    "total": 600.0,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Infraestruc conc",
+    "grPlanif": "CO0",
+    "grPlanifPM": "Concentradora A0",
+    "cumple": 0.0,
+    "noCumple": 0.0,
+    "total": 0.0,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Plantas de suministros",
+    "grPlanif": "C81",
+    "grPlanifPM": "Pl.Termoelec.Chuq.",
+    "cumple": 0.0,
+    "noCumple": 5900.0,
+    "total": 5900.0,
+    "cumplimiento": 0.0
+  },
+  {
+    "proceso": "Suministro electrico",
+    "grPlanif": "C82",
+    "grPlanifPM": "Pl.Dist.Energ.Elec",
+    "cumple": 0.0,
+    "noCumple": 200.0,
+    "total": 200.0,
+    "cumplimiento": 0.0
+  }
+]

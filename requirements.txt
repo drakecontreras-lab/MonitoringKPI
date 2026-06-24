@@ -1,0 +1,15 @@
+flask
+flask-cors
+pandas
+openpyxl
+numpy
+pywin32
+pywebview
+msal
+playwright
+pyperclip
+lxml
+html5lib
+cryptography
+supabase
+

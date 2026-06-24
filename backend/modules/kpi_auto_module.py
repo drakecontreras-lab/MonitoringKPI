@@ -1,0 +1,118 @@
+import os
+import asyncio
+from typing import Dict, Any
+
+from backend.modules.base_module import BaseModule
+from backend.utils.browser import BrowserManager
+from backend.utils.sap import LoginManager
+
+class KpiAutoModule(BaseModule):
+    """
+    Módulo Automatizado para la Descarga Secuencial de KPIs Corporativos.
+    """
+    def __init__(self, app_api):
+        super().__init__("kpi_auto", app_api)
+        self.browser_mgr = None
+
+    async def ejecutar(self, params: Dict[str, Any]):
+        """
+        Ejecuta la descarga batch de OTs (IW39) y Órdenes (IW37N).
+        """
+        self.running = True
+        self.paused = False
+        self.pause_event.set()
+
+        try:
+            excel_trab_plan = params.get("excel_trab_plan")
+            excel_plan_matriz = params.get("excel_plan_matriz")
+            
+            # Use fixed standard UTs for corporate KPIs
+            lista_uts = ['CDEE*','CTAL*','CHSS-SE*','CHSS-SU*','CHSS-PL*','CHCO-IN-INF*']
+
+            # Obtener configuración global
+            config_glob = self.app_api.config_data
+            usuario = config_glob["credenciales"]["usuario"]
+            contrasena = config_glob["credenciales"]["contrasena"]
+            url_base = config_glob["navegador"]["url_base"]
+            headless = config_glob["navegador"].get("headless", False)
+
+            self.log("🚀 Iniciando automatización SAP para KPIs Corporativos...", "info")
+            self.actualizar_progreso(0.10)
+
+            # Iniciar navegador
+            self.browser_mgr = BrowserManager(headless=headless, user_data_dir="browser_session")
+            page = await self.browser_mgr.iniciar()
+
+            # Conectar visor embebido
+            await self.browser_mgr.iniciar_transmision(self.actualizar_visor)
+
+            self.log("🌐 Conectando a SAP Fiori...", "info")
+            await page.goto(url_base, wait_until="load", timeout=60000)
+            await asyncio.sleep(3)
+
+            login_mgr = LoginManager(page, usuario, contrasena, self.log)
+
+            # Detectar si la sesión expiró comprobando la URL actual
+            url_actual = page.url
+            necesita_login = (
+                "login.microsoftonline.com" in url_actual
+                or "login.live.com" in url_actual
+                or "saml2" in url_actual
+                or "sso_reload" in url_actual
+                or not await login_mgr.esta_logueado()
+            )
+
+            if necesita_login:
+                self.log("🔐 Sesión no detectada o expirada. Iniciando sesión interactiva con Microsoft...")
+                self.actualizar_progreso(0.15)
+                
+                async def _get_mfa() -> str:
+                    self.app_api.mfa_event.clear()
+                    self.app_api.mfa_code = None
+                    self.app_api.emit_solicitar_mfa()
+                    self.log("📱 Esperando código MFA del usuario en el panel de KPIs...", "warn")
+                    await self.app_api.mfa_event.wait()
+                    return self.app_api.mfa_code
+                
+                exito_login = await login_mgr.login_microsoft(async_get_otp_code=_get_mfa)
+                if not exito_login:
+                    self.log("❌ Autenticación corporativa fallida o cancelada.", "error")
+                    await self.browser_mgr.cerrar()
+                    self.running = False
+                    return
+                # Volver a la URL base tras el login
+                await page.goto(url_base, wait_until="load", timeout=60000)
+                await asyncio.sleep(2)
+            else:
+                self.log("✅ Sesión SAP activa detectada.")
+
+            self.actualizar_progreso(0.25)
+            await self.manejar_pausa()
+
+            # Importar handlers
+            from backend.utils.proyeccion_ots_handler import ProyeccionOtsHandler
+            from backend.utils.proyeccion_ordenes_handler import ProyeccionOrdenesHandler
+
+            h_ots = ProyeccionOtsHandler(page, self.log, url_base)
+            h_ordenes = ProyeccionOrdenesHandler(page, self.log, url_base)
+
+            self.log("🗂️ Ejecutando batch de KPIs (OTs + Órdenes) en una misma sesión...")
+            
+            # IW39
+            await h_ots.ejecutar(lista_uts=lista_uts, excel_trab_plan=excel_trab_plan)
+            self.actualizar_progreso(0.50)
+            await self.manejar_pausa()
+            
+            # IW37N
+            await h_ordenes.ejecutar(lista_uts=lista_uts, excel_plan_matriz=excel_plan_matriz)
+            self.actualizar_progreso(1.0)
+
+            self.log("✅ Descargas batch de KPIs Corporativos finalizadas.", "ok")
+
+        except Exception as e:
+            self.log(f"❌ Error crítico en automatización SAP (KPIs): {e}", "error")
+        finally:
+            self.running = False
+            if self.browser_mgr:
+                await self.browser_mgr.cerrar()
+                self.browser_mgr = None
