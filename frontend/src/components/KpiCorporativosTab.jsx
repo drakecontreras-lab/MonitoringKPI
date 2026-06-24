@@ -228,6 +228,14 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     }
   };
 
+
+  // React to toggle changes
+  useEffect(() => {
+    if (kpiData && !processing) {
+       handleProcessKpis({ preventDefault: () => {} });
+    }
+  }, [usePtoTrabajo]);
+
   const handleCapturePowerBI = async () => {
     setPbiCapturing(true);
     setPbiImage(null);
@@ -870,21 +878,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                           <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-center font-number">{Math.round(kpiData.planMatriz.total.cumple)}</td><td className="text-center font-number">{Math.round(kpiData.planMatriz.total.noCumple)}</td><td className="text-center font-number font-bold">{Math.round(kpiData.planMatriz.total.total)}</td><td className="text-center">{renderCumpPill(kpiData.planMatriz.total.cumplimiento)}</td></tr></tfoot>
                         </table>
                       </div>
-                      {/* Options / Options Panel */}
-                      <div className="glass-card" style={{ padding: '1rem', marginTop: '1rem' }}>
-                        <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>Opciones de Reporte</h4>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={usePtoTrabajo} 
-                              onChange={(e) => setUsePtoTrabajo(e.target.checked)} 
-                              style={{ width: '1.2rem', height: '1.2rem' }}
-                            />
-                            <span>Agrupar tablas por <b>Puesto de Trabajo</b> (en lugar de Gr.Planif PM)</span>
-                          </label>
-                        </div>
-                      </div>
+
                     </div>
                   </div>
                 </div>

@@ -413,13 +413,13 @@ def extract_ordenes(path):
     # DataFrame limpio
     df_clean = data_rows.copy()
     headers = _make_unique_headers(list(df.iloc[0]))
-    rename_map = {1: 'Gr. Planif', 6: 'Txt. breve', 12: 'Pto. Trabajo'}
+    rename_map = {1: 'Gr. Planif', 6: 'Txt. breve', 12: 'Pto. Trabajo Descripcion', 13: 'Pto. Trabajo'}
     for idx, name in rename_map.items():
         if idx < len(headers):
             headers[idx] = name
     df_clean.columns = headers
 
-    for col_name in ('Gr. Planif', 'Txt. breve', 'Pto. Trabajo'):
+    for col_name in ('Gr. Planif', 'Txt. breve', 'Pto. Trabajo', 'Pto. Trabajo Descripcion'):
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].astype(str).str.replace('CH01/', '', regex=False)
 
@@ -615,6 +615,12 @@ def extract_trabajo_planificado(path, ots_mapping=None):
     merged = _make_unique_headers(merged)
     df_clean.columns = merged
 
+    # Renombrar explícitamente col 15 a % Trabajo Planificado
+    if len(df_clean.columns) > 15:
+        cols = list(df_clean.columns)
+        cols[15] = '% Trabajo Planificado'
+        df_clean.columns = cols
+
     # Sobrescribir nombres de columnas 4 y 5 para que process_ready_excel las encuentre
     if len(df_clean.columns) > 5:
         cols = list(df_clean.columns)
@@ -738,6 +744,13 @@ def extract_programa_semanal(path):
             merged.append(f'Col_{i}')
     merged = _make_unique_headers(merged)
     df_clean.columns = merged
+
+    # Renombrar explícitamente columnas
+    if len(df_clean.columns) > 7:
+        cols = list(df_clean.columns)
+        cols[5] = 'Pto. Trabajo Descripcion'
+        cols[7] = 'Pto. Trabajo'
+        df_clean.columns = cols
 
     # Limpiar CH01/ en col Gr.planif (col 1) y Puesto trabajo (col 7)
     for ci in [1, 7]:
