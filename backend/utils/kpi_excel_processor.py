@@ -652,25 +652,19 @@ def extract_trabajo_planificado(path, ots_mapping=None):
     merged = _make_unique_headers(merged)
     df_clean.columns = merged
 
-    # Renombrar explícitamente col 15 a % Trabajo Planificado
+    # Renombrar explícitamente col 15 a % Trabajo Planificado y 4 y 5 a Puesto de Trabajo
     if len(df_clean.columns) > 15:
         cols = list(df_clean.columns)
         cols[15] = '% Trabajo Planificado'
+        cols[4] = 'Pto. Trabajo Descripcion'
+        cols[5] = 'Pto. Trabajo'
         df_clean.columns = cols
 
-    # Renombrar columnas 12 y 13 para Puesto de Trabajo
-    if len(df_clean.columns) > 13:
-        cols = list(df_clean.columns)
-        cols[12] = 'Pto. Trabajo Descripcion'
-        cols[13] = 'Pto. Trabajo'
-        df_clean.columns = cols
-
-    # Sobrescribir nombres de columnas 4 y 5 para que process_ready_excel las encuentre
-    if len(df_clean.columns) > 5:
-        cols = list(df_clean.columns)
-        cols[4] = 'Gr.planif.PM'
-        cols[5] = 'Gr.planif'
-        df_clean.columns = cols
+    # Asignar Criterio y añadir los grupos calculados como nuevas columnas
+    if len(df_clean) == len(criterios_col):
+        df_clean['Criterio'] = criterios_col
+        df_clean['Gr.planif.PM'] = gr_planif_pm_col
+        df_clean['Gr.planif'] = gr_planif_col
 
     # Limpiar columnas
     for col_name in ('Gr.planif.PM', 'Gr.planif', 'Gr. Planif', 'Gr. planif'):
@@ -681,13 +675,6 @@ def extract_trabajo_planificado(path, ots_mapping=None):
             df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
     if '% Trabajo Planificado' in df_clean.columns:
         df_clean['% Trabajo Planificado'] = df_clean['% Trabajo Planificado'].apply(clean_cumplimiento_val)
-
-    # Asignar Criterio y los grupos calculados
-    if len(df_clean) == len(criterios_col):
-        df_clean['Criterio'] = criterios_col
-        if len(df_clean.columns) > 5:
-            df_clean.iloc[:, 4] = gr_planif_pm_col
-            df_clean.iloc[:, 5] = gr_planif_col
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
