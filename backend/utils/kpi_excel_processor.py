@@ -181,6 +181,37 @@ def strip_ch01(val):
     return s[5:] if s.startswith('CH01/') else s
 
 
+def clean_pto_trabajo(val):
+    """Limpia el puesto de trabajo quitando el prefijo CH01/ y eliminando duplicados si vienen repetidos."""
+    s = str(val or '').strip()
+    if s.startswith('CH01/'):
+        s = s[5:].strip()
+    # Si viene repetido como "CGSSERME CGSSERME" o similar
+    parts = s.split()
+    if len(parts) == 2 and parts[0] == parts[1]:
+        s = parts[0]
+    return s
+
+
+def clean_cumplimiento_val(val):
+    """Parsea el cumplimiento eliminando decimales y convirtiendo enteros como 10000 a 100."""
+    if pd.isna(val) or val is None:
+        return None
+    s = str(val).strip()
+    if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
+        return None
+    try:
+        if ',' in s:
+            s = s.replace('.', '').replace(',', '.')
+        num = float(s)
+        if num > 100.01:
+            num = num / 100.0
+        return int(round(num))
+    except Exception:
+        return val
+
+
+
 def parse_sap_hh(val):
     """
     Parsea valores de HH exportados por SAP.
@@ -352,10 +383,13 @@ def extract_avisos(path):
             headers[idx] = name
     df_clean.columns = headers
 
-    # Limpiar prefijo CH01/ en columnas Gr. Planif y Pto. Trabajo
-    for col_name in ('Gr. Planif', 'Pto. Trabajo'):
+    # Limpiar prefijo CH01/ en columnas Gr. Planif y aplicar clean_pto_trabajo a Pto. Trabajo
+    for col_name in ('Gr. Planif', 'Gr. planif', 'Gr.planif'):
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].astype(str).str.replace('CH01/', '', regex=False)
+    for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -419,9 +453,12 @@ def extract_ordenes(path):
             headers[idx] = name
     df_clean.columns = headers
 
-    for col_name in ('Gr. Planif', 'Txt. breve', 'Pto. Trabajo', 'Pto. Trabajo Descripcion'):
+    for col_name in ('Gr. Planif', 'Gr. planif', 'Gr.planif'):
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].astype(str).str.replace('CH01/', '', regex=False)
+    for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -621,12 +658,29 @@ def extract_trabajo_planificado(path, ots_mapping=None):
         cols[15] = '% Trabajo Planificado'
         df_clean.columns = cols
 
+    # Renombrar columnas 12 y 13 para Puesto de Trabajo
+    if len(df_clean.columns) > 13:
+        cols = list(df_clean.columns)
+        cols[12] = 'Pto. Trabajo Descripcion'
+        cols[13] = 'Pto. Trabajo'
+        df_clean.columns = cols
+
     # Sobrescribir nombres de columnas 4 y 5 para que process_ready_excel las encuentre
     if len(df_clean.columns) > 5:
         cols = list(df_clean.columns)
         cols[4] = 'Gr.planif.PM'
         cols[5] = 'Gr.planif'
         df_clean.columns = cols
+
+    # Limpiar columnas
+    for col_name in ('Gr.planif.PM', 'Gr.planif', 'Gr. Planif', 'Gr. planif'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].astype(str).str.replace('CH01/', '', regex=False)
+    for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
+    if '% Trabajo Planificado' in df_clean.columns:
+        df_clean['% Trabajo Planificado'] = df_clean['% Trabajo Planificado'].apply(clean_cumplimiento_val)
 
     # Asignar Criterio y los grupos calculados
     if len(df_clean) == len(criterios_col):
@@ -752,11 +806,18 @@ def extract_programa_semanal(path):
         cols[7] = 'Pto. Trabajo'
         df_clean.columns = cols
 
-    # Limpiar CH01/ en col Gr.planif (col 1) y Puesto trabajo (col 7)
-    for ci in [1, 7]:
-        col_n = merged[ci] if ci < len(merged) else None
-        if col_n and col_n in df_clean.columns:
-            df_clean[col_n] = df_clean[col_n].astype(str).str.replace('CH01/', '', regex=False)
+    # Limpiar columnas de grupo y puesto de trabajo
+    for col_name in ('Gr. Planif', 'Gr. planif', 'Gr.planif'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].astype(str).str.replace('CH01/', '', regex=False)
+    for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
+
+    # Limpiar cumplimiento (columna 14)
+    if len(df_clean.columns) > 14:
+        col_cumpl = df_clean.columns[14]
+        df_clean[col_cumpl] = df_clean[col_cumpl].apply(clean_cumplimiento_val)
 
     df_clean = df_clean.copy()
     df_clean['Criterio'] = criterios_col
@@ -901,11 +962,25 @@ def extract_plan_matriz(path, export_ops_mapping=None):
     merged = _make_unique_headers(merged)
     df_clean.columns = merged
 
-    # Limpiar CH01/ en col Gr.planif (col 5) y Puesto (col 13)
-    for ci in [5, 13]:
-        col_n = merged[ci] if ci < len(merged) else None
-        if col_n and col_n in df_clean.columns:
-            df_clean[col_n] = df_clean[col_n].astype(str).str.replace('CH01/', '', regex=False)
+    # Renombrar columnas 12 y 13 para Puesto de Trabajo
+    if len(df_clean.columns) > 13:
+        cols = list(df_clean.columns)
+        cols[12] = 'Pto. Trabajo Descripcion'
+        cols[13] = 'Pto. Trabajo'
+        df_clean.columns = cols
+
+    # Limpiar columnas de grupo y puesto de trabajo
+    for col_name in ('Gr. Planif', 'Gr. planif', 'Gr.planif'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].astype(str).str.replace('CH01/', '', regex=False)
+    for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
+        if col_name in df_clean.columns:
+            df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
+
+    # Limpiar cumplimiento (columna 14)
+    if len(df_clean.columns) > 14:
+        col_cumpl = df_clean.columns[14]
+        df_clean[col_cumpl] = df_clean[col_cumpl].apply(clean_cumplimiento_val)
 
     df_clean = df_clean.copy()
     df_clean['Criterio'] = criterios_col
