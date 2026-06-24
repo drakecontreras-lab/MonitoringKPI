@@ -2092,7 +2092,7 @@ function generateTemplate7(data) {
     <tr>
       <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
       <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
-      <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanifPM || ''}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.planificado)}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.sinHr)}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.imprevistos)}</td>
@@ -2113,7 +2113,7 @@ function generateTemplate7(data) {
     <tr>
       <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
       <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanifPM || ''}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.cumple)}</td>
       <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.noCumple)}</td>
       <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${getBadgeProgMatriz(g.cumplimiento || 0)}</td>
@@ -2132,7 +2132,7 @@ function generateTemplate7(data) {
     <tr>
       <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
       <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanifPM || ''}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.cumple)}</td>
       <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.noCumple)}</td>
       <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${getBadgeProgMatriz(g.cumplimiento || 0)}</td>
@@ -2147,7 +2147,7 @@ function generateTemplate7(data) {
       <tr>
         <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso || ''}</td>
         <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanif || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanifPM || ''}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajo || '') : (item.grPlanifPM || '')}</td>
         <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad || 0}</td>
       </tr>
     `).join('');
@@ -2186,7 +2186,7 @@ function generateTemplate7(data) {
       <tr>
         <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso || ''}</td>
         <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanif || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanifPM || ''}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajo || '') : (item.grPlanifPM || '')}</td>
         <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad || 0}</td>
       </tr>
     `).join('');

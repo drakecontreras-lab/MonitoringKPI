@@ -323,6 +323,8 @@ def extract_avisos(path):
         proceso_raw   = str(row_list[2]  if len(row_list) > 2  else '').strip()
         gr_planif_pm  = str(row_list[10] if len(row_list) > 10 else '').strip()
         gr_planif_raw = str(row_list[11] if len(row_list) > 11 else '').strip()
+        pto_trabajo_raw = str(row_list[15] if len(row_list) > 15 else '').strip()
+        pto_trabajo = pto_trabajo_raw.replace('CH01/', '').strip() if pto_trabajo_raw else 'N/A'
         gr_planif     = strip_ch01(gr_planif_raw)
 
         if not proceso_raw or proceso_raw == 'nan':
@@ -334,7 +336,7 @@ def extract_avisos(path):
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
 
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
         total += 1
 
@@ -358,8 +360,10 @@ def extract_avisos(path):
 
     distribucion = []
     for key in sorted(group.keys()):
-        p, gp, gppm = key.split('||')
-        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'cantidad': group[key]})
+        parts = key.split('||')
+        p, gp, gppm = parts[0], parts[1], parts[2]
+        pto = parts[3] if len(parts) > 3 else 'N/A'
+        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajo': pto, 'cantidad': group[key]})
 
     return df_clean, {'total': total, 'distribucion': distribucion}
 
@@ -388,6 +392,8 @@ def extract_ordenes(path):
         gr_planif_raw = str(row_list[1] if len(row_list) > 1 else '').strip()
         gr_planif     = strip_ch01(gr_planif_raw)
         proceso_raw   = str(row_list[3] if len(row_list) > 3 else '').strip()
+        pto_trabajo_raw = str(row_list[12] if len(row_list) > 12 else '').strip()
+        pto_trabajo = pto_trabajo_raw.replace('CH01/', '').strip() if pto_trabajo_raw else 'N/A'
 
         if not proceso_raw or proceso_raw == 'nan':
             continue
@@ -398,7 +404,7 @@ def extract_ordenes(path):
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
 
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
         total += 1
 
@@ -419,8 +425,10 @@ def extract_ordenes(path):
 
     distribucion = []
     for key in sorted(group.keys()):
-        p, gp, gppm = key.split('||')
-        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'cantidad': group[key]})
+        parts = key.split('||')
+        p, gp, gppm = parts[0], parts[1], parts[2]
+        pto = parts[3] if len(parts) > 3 else 'N/A'
+        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajo': pto, 'cantidad': group[key]})
 
     return df_clean, {'total': total, 'distribucion': distribucion}
 
@@ -549,7 +557,7 @@ def extract_trabajo_planificado(path, ots_mapping=None):
 
         criterios_col.append(criterio)
 
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'planificado': 0.0, 'sinHr': 0.0, 'sinHorizonte': 0.0, 'imprevistos': 0.0}
 
@@ -571,12 +579,14 @@ def extract_trabajo_planificado(path, ots_mapping=None):
 
     grupos = []
     for key in sorted(group.keys()):
-        p, gp, gppm = key.split('||')
+        parts = key.split('||')
+        p, gp, gppm = parts[0], parts[1], parts[2]
+        pto = parts[3] if len(parts) > 3 else 'N/A'
         vals = group[key]
         rt   = vals['planificado'] + vals['sinHr'] + vals.get('sinHorizonte', 0.0) + vals['imprevistos']
         c    = vals['planificado'] / rt if rt > 0 else 0.0
         grupos.append({
-            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm,
+            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
             'planificado': vals['planificado'],
             'sinHr': vals['sinHr'],
             'sinHorizonte': vals.get('sinHorizonte', 0.0),
@@ -680,7 +690,7 @@ def extract_programa_semanal(path):
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
 
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'cumple': 0.0, 'noCumple': 0.0, 'sumIndCumple': 0.0, 'sumTotalOp': 0.0}
 
@@ -698,11 +708,13 @@ def extract_programa_semanal(path):
 
     grupos = []
     for key in sorted(group.keys()):
-        p, gp, gppm = key.split('||')
+        parts = key.split('||')
+        p, gp, gppm = parts[0], parts[1], parts[2]
+        pto = parts[3] if len(parts) > 3 else 'N/A'
         vals = group[key]
         cump = vals['sumIndCumple'] / vals['sumTotalOp'] if vals['sumTotalOp'] > 0 else 0.0
         grupos.append({
-            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm,
+            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
             'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
             'total': vals['sumTotalOp'], 'cumplimiento': cump
         })
@@ -829,7 +841,7 @@ def extract_plan_matriz(path, export_ops_mapping=None):
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
 
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'ejec': 0.0, 'total_plan': 0.0}
 
@@ -842,11 +854,13 @@ def extract_plan_matriz(path, export_ops_mapping=None):
 
     grupos = []
     for key in sorted(group.keys()):
-        p, gp, gppm = key.split('||')
+        parts = key.split('||')
+        p, gp, gppm = parts[0], parts[1], parts[2]
+        pto = parts[3] if len(parts) > 3 else 'N/A'
         vals = group[key]
         cump = vals['ejec'] / vals['total_plan'] if vals['total_plan'] > 0 else 0.0
         grupos.append({
-            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm,
+            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
             'cumple': vals['ejec'],
             'noCumple': vals['total_plan'] - vals['ejec'],
             'total': vals['total_plan'],
@@ -1129,7 +1143,7 @@ def process_ready_excel(file_path, semana_num):
                 if not gr_planif_pm or gr_planif_pm == 'nan':
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_avisos[key] = group_avisos.get(key, 0) + 1
                 total_avisos_count += 1
 
@@ -1165,7 +1179,7 @@ def process_ready_excel(file_path, semana_num):
                 if not gr_planif_pm or gr_planif_pm == 'nan':
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_ordenes[key] = group_ordenes.get(key, 0) + 1
                 total_ordenes_count += 1
 
@@ -1216,7 +1230,7 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_tp:
                     group_tp[key] = {'planificado': 0.0, 'sinHr': 0.0, 'imprevistos': 0.0}
 
@@ -1239,7 +1253,7 @@ def process_ready_excel(file_path, semana_num):
         rt   = vals['planificado'] + vals['sinHr'] + vals['imprevistos']
         c    = vals['planificado'] / rt if rt > 0 else 0.0
         cump_trabajo_planificado.append({
-            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm,
+            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
             'planificado': vals['planificado'], 'sinHr': vals['sinHr'],
             'imprevistos': vals['imprevistos'], 'total': rt, 'cumplimiento': c
         })
@@ -1292,7 +1306,7 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_prog:
                     group_prog[key] = {'cumple': 0.0, 'noCumple': 0.0,
                                        'sumTotalOp': 0.0, 'sumIndicadorCumple': 0.0}
@@ -1317,7 +1331,7 @@ def process_ready_excel(file_path, semana_num):
         vals = group_prog[key]
         c = vals['sumIndicadorCumple'] / vals['sumTotalOp'] if vals['sumTotalOp'] > 0 else 0.0
         cump_programa_semanal.append({
-            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm,
+            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
             'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
             'total': vals['sumTotalOp'], 'cumplimiento': c
         })
@@ -1366,7 +1380,7 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_matriz:
                     group_matriz[key] = {'cumple': 0.0, 'noCumple': 0.0}
 
@@ -1386,7 +1400,7 @@ def process_ready_excel(file_path, semana_num):
         rt   = vals['cumple'] + vals['noCumple']
         c    = vals['cumple'] / rt if rt > 0 else 0.0
         cump_plan_matriz.append({
-            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm,
+            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
             'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
             'total': rt, 'cumplimiento': c
         })
@@ -1408,7 +1422,7 @@ def process_ready_excel(file_path, semana_num):
             'total': total_avisos_count,
             'distribucion': [
                 {'proceso': k.split('||')[0], 'grPlanif': k.split('||')[1],
-                 'grPlanifPM': k.split('||')[2], 'cantidad': group_avisos[k]}
+                 'grPlanifPM': k.split('||')[2], 'ptoTrabajo': k.split('||')[3] if len(k.split('||')) > 3 else 'N/A', 'cantidad': group_avisos[k]}
                 for k in sorted(group_avisos.keys())
             ]
         },
@@ -1416,7 +1430,7 @@ def process_ready_excel(file_path, semana_num):
             'total': total_ordenes_count,
             'distribucion': [
                 {'proceso': k.split('||')[0], 'grPlanif': k.split('||')[1],
-                 'grPlanifPM': k.split('||')[2], 'cantidad': group_ordenes[k]}
+                 'grPlanifPM': k.split('||')[2], 'ptoTrabajo': k.split('||')[3] if len(k.split('||')) > 3 else 'N/A', 'cantidad': group_ordenes[k]}
                 for k in sorted(group_ordenes.keys())
             ]
         },

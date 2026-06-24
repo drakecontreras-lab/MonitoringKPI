@@ -23,7 +23,7 @@
   --text-muted: hsl(220, 15%, 45%); 
   --text-muted-dark: hsl(220, 15%, 35%);
   
-  --success: hsl(142, 60%, 35%);
+  --success: hsl(142, 70%, 25%);
   --success-glow: hsla(142, 60%, 35%, 0.15);
   --success-gradient: linear-gradient(135deg, hsl(142, 60%, 45%) 0%, hsl(142, 60%, 30%) 100%);
   --error: hsl(350, 75%, 45%);
@@ -1448,6 +1448,68 @@ h1, h2, h3, h4 {
 /* Proyecciones - Robot SAP Screencast & HUD */
 .live-screencast-container {
   width: 100%;
+}
+
+/* =========================================
+   REGLAS DE IMPRESIÓN (PDF NATIVO)
+   ========================================= */
+@media print {
+  @page {
+    size: letter landscape;
+    margin: 10mm;
+  }
+  
+  body, html {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  
+  /* Ocultar barra lateral y menús de pestañas */
+  .sidebar,
+  .no-print,
+  .sub-tab-navigation,
+  .main-header,
+  .auth-splash {
+    display: none !important;
+  }
+  
+  /* Expandir contenedor principal al 100% */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* Ajustar las tarjetas para que no tengan fondo oscuro ni sombras */
+  .glass-card {
+    background: #fff !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    color: #000 !important;
+    page-break-inside: avoid;
+    margin-bottom: 2rem !important;
+  }
+  
+  /* Asegurar colores de las tablas */
+  .premium-table th {
+    background: #f1f5f9 !important;
+    color: #000 !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+  }
+  
+  .premium-table td {
+    color: #000 !important;
+  }
+  
+  /* Forzar colores de fondo de CSS (como las etiquetas de éxito/peligro) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
+
+.live-screencast-container {
+  width: 100%;
   background: #000;
   border-radius: var(--radius-sm);
   border: 1px solid var(--bg-card-border);
@@ -1562,3 +1624,22 @@ h1, h2, h3, h4 {
 .pct-badge.error { background: rgba(248, 113, 113, 0.15); color: #f87171; }
 
 
+
+/* Fix para inputs de tablas editables */
+.cell-input {
+  width: 100%;
+  background-color: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.cell-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: var(--bg-input-focus);
+}
+.text-green { color: var(--success); }
+.text-cyan { color: var(--cyan); }

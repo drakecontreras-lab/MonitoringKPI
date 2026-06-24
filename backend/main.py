@@ -115,9 +115,84 @@ class AppState:
 # Instanciar estado
 state = AppState()
 
-# ============================================================
-# ENDPOINTS REST DE FLASK
-# ============================================================
+# =============================================================================
+# API ENDPOINTS DE DASHBOARD Y MÉTRICAS
+# =============================================================================
+
+@app.route('/api/db/tables', methods=['GET'])
+def get_db_tables():
+    """Retorna la definición de las tablas para el CRUD."""
+    tables_meta = {
+        "divisiones": {
+            "name": "Divisiones",
+            "columns": [{"key": "nombre", "label": "Nombre", "type": "text", "required": True}]
+        },
+        "gerencias": {
+            "name": "Gerencias",
+            "columns": [
+                {"key": "nombre", "label": "Nombre", "type": "text", "required": True},
+                {"key": "division_id", "label": "ID División", "type": "text", "required": True}
+            ]
+        },
+        "areas": {
+            "name": "Áreas (Superintendencias)",
+            "columns": [
+                {"key": "nombre", "label": "Nombre", "type": "text", "required": True},
+                {"key": "gerencia_id", "label": "ID Gerencia", "type": "text", "required": True}
+            ]
+        },
+        "procesos": {
+            "name": "Procesos",
+            "columns": [
+                {"key": "nombre", "label": "Nombre", "type": "text", "required": True},
+                {"key": "area_id", "label": "ID Área", "type": "text", "required": True}
+            ]
+        }
+    }
+    return jsonify({"success": True, "tables": tables_meta})
+
+@app.route('/api/db/tables/<table_name>', methods=['GET'])
+def get_table_rows(table_name):
+    if not supabase:
+        return jsonify({"success": False, "error": "Supabase no configurado"}), 500
+    try:
+        res = supabase.table(table_name).select("*").order("created_at", desc=True).execute()
+        return jsonify({"success": True, "rows": res.data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/db/tables/<table_name>', methods=['POST'])
+def create_table_row(table_name):
+    if not supabase: return jsonify({"success": False, "error": "No Supabase"}), 500
+    data = request.json
+    try:
+        # Excluir el campo id si viene vacío
+        if "id" in data and not data["id"]: del data["id"]
+        res = supabase.table(table_name).insert(data).execute()
+        return jsonify({"success": True, "data": res.data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/db/tables/<table_name>/<row_id>', methods=['PUT'])
+def update_table_row(table_name, row_id):
+    if not supabase: return jsonify({"success": False, "error": "No Supabase"}), 500
+    data = request.json
+    try:
+        if "id" in data: del data["id"]
+        if "created_at" in data: del data["created_at"]
+        res = supabase.table(table_name).update(data).eq("id", row_id).execute()
+        return jsonify({"success": True, "data": res.data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/db/tables/<table_name>/<row_id>', methods=['DELETE'])
+def delete_table_row(table_name, row_id):
+    if not supabase: return jsonify({"success": False, "error": "No Supabase"}), 500
+    try:
+        res = supabase.table(table_name).delete().eq("id", row_id).execute()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
@@ -377,6 +452,9 @@ def api_process_kpis():
         if area_id:
             # Upsert de datos
             save_kpi_to_supabase(area_id, anio, semana_num, summary_data, "sistema@monitoring.cl")
+
+        use_pto_trabajo = str(request.form.get('use_pto_trabajo', 'false')).lower() == 'true'
+        summary_data["use_pto_trabajo"] = use_pto_trabajo
 
         return jsonify({"success": True, "data": summary_data})
         

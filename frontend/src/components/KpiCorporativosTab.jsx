@@ -187,6 +187,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
 
     const formData = new FormData();
     formData.append('semana', semana);
+    formData.append('use_pto_trabajo', usePtoTrabajo);
 
     let url = '/api/process-kpis';
 
@@ -692,6 +693,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                               <img src={`data:image/jpeg;base64,${pbiStatus.visor}`} alt="Vista del Navegador Power BI" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }} />
                             </div>
                           )}
+
                           <div className="flex gap-0.5" style={{ marginTop: '0.5rem' }}>
                             <button type="button" onClick={async () => { await fetch('/api/pausar-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'powerbi' }) }); }} className="btn btn-secondary flex-1" style={{ fontSize: '0.75rem', padding: '0.35rem' }}>Pausar</button>
                             <button type="button" onClick={async () => { await fetch('/api/detener-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'powerbi' }) }); setPbiCapturing(false); }} className="btn btn-danger flex-1" style={{ fontSize: '0.75rem', padding: '0.35rem' }}>Detener</button>
@@ -866,6 +868,21 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                           </tbody>
                           <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-center font-number">{Math.round(kpiData.planMatriz.total.cumple)}</td><td className="text-center font-number">{Math.round(kpiData.planMatriz.total.noCumple)}</td><td className="text-center font-number font-bold">{Math.round(kpiData.planMatriz.total.total)}</td><td className="text-center">{renderCumpPill(kpiData.planMatriz.total.cumplimiento)}</td></tr></tfoot>
                         </table>
+                      </div>
+                      {/* Options / Options Panel */}
+                      <div className="glass-card" style={{ padding: '1rem', marginTop: '1rem' }}>
+                        <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>Opciones de Reporte</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={usePtoTrabajo} 
+                              onChange={(e) => setUsePtoTrabajo(e.target.checked)} 
+                              style={{ width: '1.2rem', height: '1.2rem' }}
+                            />
+                            <span>Agrupar tablas por <b>Puesto de Trabajo</b> (en lugar de Gr.Planif PM)</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>

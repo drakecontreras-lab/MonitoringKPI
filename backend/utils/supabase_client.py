@@ -61,66 +61,91 @@ def sync_hierarchy(division_name, gerencia_name, area_name):
         print(f"[Supabase] Error sincronizando jerarquía: {e}")
         return None
 
+def sync_proceso(area_id, proceso_name):
+    """Sincroniza un proceso asociado a un área y devuelve su ID."""
+    if not supabase or not area_id: return None
+    try:
+        proc_res = supabase.table("procesos").select("id").eq("area_id", area_id).eq("nombre", proceso_name).execute()
+        if not proc_res.data:
+            proc_res = supabase.table("procesos").insert({"area_id": area_id, "nombre": proceso_name}).execute()
+        return proc_res.data[0]["id"]
+    except Exception as e:
+        print(f"[Supabase] Error sincronizando proceso {proceso_name}: {e}")
+        return None
+
 def save_kpi_to_supabase(area_id, anio, semana, data, user_email=""):
-    """Guarda/Sobrescribe el reporte y sus métricas en Supabase."""
+    """Guarda/Sobrescribe el reporte y sus métricas en Supabase separando por PROCESO."""
     if not supabase or not area_id: return False
     
     try:
-        # 1. Buscar si ya existe el reporte
-        rep_res = supabase.table("kpi_reports").select("id").eq("area_id", area_id).eq("anio", anio).eq("semana", semana).execute()
+        # Extraemos todos los procesos presentes en la data
+        procesos_encontrados = set()
         
-        if rep_res.data:
-            report_id = rep_res.data[0]["id"]
-            # Upsert implícito: Si ya existe, se actualiza el created_by o modified
-            supabase.table("kpi_reports").update({"created_by": user_email}).eq("id", report_id).execute()
-            # Eliminar métricas antiguas para sobrescribir (UPSERT approach)
-            supabase.table("kpi_metrics").delete().eq("report_id", report_id).execute()
-        else:
-            rep_res = supabase.table("kpi_reports").insert({
-                "area_id": area_id,
-                "anio": anio,
-                "semana": semana,
-                "created_by": user_email
-            }).execute()
-            report_id = rep_res.data[0]["id"]
-            
-        # 2. Preparar métricas a insertar
-        metrics_to_insert = []
-        
-        # Helper interno para extraer grupos
-        def procesar_grupos(kpi_type, grupos):
+        def recolectar_procesos(grupos):
             for g in grupos:
-                metrics_to_insert.append({
-                    "report_id": report_id,
-                    "kpi_type": kpi_type,
-                    "grupo_planificacion": g.get("grPlanif", "N/A"),
-                    "proceso": g.get("proceso", "N/A"),
-                    "valor_absoluto": g.get("total") if "total" in g else g.get("cantidad"),
-                    "porcentaje": g.get("cumplimiento"),
-                    "metadata": g
-                })
+                p = g.get("proceso")
+                if p: procesos_encontrados.add(p)
 
-        if "resumenAvisos" in data and "distribucion" in data["resumenAvisos"]:
-            procesar_grupos("avisos_pendientes", data["resumenAvisos"]["distribucion"])
+        if "resumenAvisos" in data: recolectar_procesos(data["resumenAvisos"].get("distribucion", []))
+        if "resumenOrdenes" in data: recolectar_procesos(data["resumenOrdenes"].get("distribucion", []))
+        if "trabajoPlanificado" in data: recolectar_procesos(data["trabajoPlanificado"].get("grupos", []))
+        if "programaSemanal" in data: recolectar_procesos(data["programaSemanal"].get("grupos", []))
+        if "planMatriz" in data: recolectar_procesos(data["planMatriz"].get("grupos", []))
+
+        # Iteramos por cada proceso para crear un reporte separado
+        for nombre_proceso in procesos_encontrados:
+            proceso_id = sync_proceso(area_id, nombre_proceso)
+            if not proceso_id: continue
             
-        if "resumenOrdenes" in data and "distribucion" in data["resumenOrdenes"]:
-            procesar_grupos("ordenes_pendientes", data["resumenOrdenes"]["distribucion"])
+            # 1. Buscar si ya existe el reporte para esta área, proceso y semana
+            rep_res = supabase.table("kpi_reports").select("id")\
+                .eq("area_id", area_id)\
+                .eq("proceso_id", proceso_id)\
+                .eq("anio", anio)\
+                .eq("semana", semana).execute()
             
-        if "trabajoPlanificado" in data and "grupos" in data["trabajoPlanificado"]:
-            procesar_grupos("trabajo_planificado", data["trabajoPlanificado"]["grupos"])
+            if rep_res.data:
+                report_id = rep_res.data[0]["id"]
+                supabase.table("kpi_reports").update({"created_by": user_email}).eq("id", report_id).execute()
+                supabase.table("kpi_metrics").delete().eq("report_id", report_id).execute()
+            else:
+                rep_res = supabase.table("kpi_reports").insert({
+                    "area_id": area_id,
+                    "proceso_id": proceso_id,
+                    "anio": anio,
+                    "semana": semana,
+                    "created_by": user_email
+                }).execute()
+                report_id = rep_res.data[0]["id"]
+                
+            # 2. Preparar métricas a insertar (solo las que coincidan con este proceso)
+            metrics_to_insert = []
             
-        if "programaSemanal" in data and "grupos" in data["programaSemanal"]:
-            procesar_grupos("programa_semanal", data["programaSemanal"]["grupos"])
+            def procesar_grupos(kpi_type, grupos):
+                for g in grupos:
+                    if g.get("proceso") != nombre_proceso: continue
+                    metrics_to_insert.append({
+                        "report_id": report_id,
+                        "kpi_type": kpi_type,
+                        "grupo_planificacion": g.get("grPlanif", "N/A"),
+                        "proceso": g.get("proceso", "N/A"),
+                        "valor_absoluto": g.get("total") if "total" in g else g.get("cantidad"),
+                        "porcentaje": g.get("cumplimiento"),
+                        "metadata": g
+                    })
+
+            if "resumenAvisos" in data: procesar_grupos("avisos_pendientes", data["resumenAvisos"].get("distribucion", []))
+            if "resumenOrdenes" in data: procesar_grupos("ordenes_pendientes", data["resumenOrdenes"].get("distribucion", []))
+            if "trabajoPlanificado" in data: procesar_grupos("trabajo_planificado", data["trabajoPlanificado"].get("grupos", []))
+            if "programaSemanal" in data: procesar_grupos("programa_semanal", data["programaSemanal"].get("grupos", []))
+            if "planMatriz" in data: procesar_grupos("plan_matriz", data["planMatriz"].get("grupos", []))
+                
+            # 3. Insertar métricas masivamente
+            if metrics_to_insert:
+                supabase.table("kpi_metrics").insert(metrics_to_insert).execute()
+                
+            print(f"[Supabase] Reporte Semana {semana} guardado exitosamente para proceso {nombre_proceso} (Report ID: {report_id})")
             
-        if "planMatriz" in data and "grupos" in data["planMatriz"]:
-            procesar_grupos("plan_matriz", data["planMatriz"]["grupos"])
-            
-        # 3. Insertar métricas masivamente
-        if metrics_to_insert:
-            # Batch inserts to avoid payload limits if too big, but usually under 100 rows
-            supabase.table("kpi_metrics").insert(metrics_to_insert).execute()
-            
-        print(f"[Supabase] Reporte Semana {semana} guardado exitosamente (Report ID: {report_id})")
         return True
     except Exception as e:
         print(f"[Supabase] Error guardando KPI: {e}")

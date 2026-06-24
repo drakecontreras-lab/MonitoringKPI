@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ComposedChart, Line, Cell, PieChart, Pie,
   RadarChart, Radar, PolarGrid, PolarAngleAxis
 } from 'recharts';
 import { supabase } from '../utils/supabaseClient';
-import html2pdf from 'html2pdf.js';
 
 /* ─── Paleta de colores premium ─── */
 const C = {
@@ -60,6 +59,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
   const [areas, setAreas] = useState([]);
   const [selectedWeek, setSelectedWeek] = useState(currentWeek || '');
   const [selectedAreaId, setSelectedAreaId] = useState('');
+  const [selectedPtoTrabajo, setSelectedPtoTrabajo] = useState('');
   
   // Efecto inicial: Cargar opciones de filtros
   useEffect(() => {
@@ -184,32 +184,65 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
   // Si hay initialData (nuevo excel subido), prevalece. Sino, usamos el de DB.
   const displayData = initialData || dbData;
 
-  const handlePdfExport = () => {
-    const element = document.getElementById('kpi-dashboard-print');
+  
+  // Filter logic
+  const { filteredData, availablePtos } = useMemo(() => {
+    if (!displayData) return { filteredData: null, availablePtos: [] };
     
-    // Configuración para html2pdf
-    const opt = {
-      margin:       [10, 10, 10, 10],
-      filename:     `Dashboard_KPI_Semana_${selectedWeek || currentWeek}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'letter', orientation: 'landscape' }
+    // Extraer Puestos de Trabajo unicos
+    const ptos = new Set();
+    const extractPtos = (arr) => arr?.forEach(item => { if(item.ptoTrabajo) ptos.add(item.ptoTrabajo); });
+    extractPtos(displayData.resumenAvisos?.distribucion);
+    extractPtos(displayData.trabajoPlanificado?.grupos);
+    const availablePtos = Array.from(ptos).sort();
+
+    if (!selectedPtoTrabajo) return { filteredData: displayData, availablePtos };
+
+    const filterArray = (arr) => arr?.filter(item => item.ptoTrabajo === selectedPtoTrabajo) || [];
+    
+    const reconstructed = { ...displayData };
+    reconstructed.resumenAvisos = { ...reconstructed.resumenAvisos, distribucion: filterArray(reconstructed.resumenAvisos?.distribucion) };
+    reconstructed.resumenOrdenes = { ...reconstructed.resumenOrdenes, distribucion: filterArray(reconstructed.resumenOrdenes?.distribucion) };
+    reconstructed.trabajoPlanificado = { ...reconstructed.trabajoPlanificado, grupos: filterArray(reconstructed.trabajoPlanificado?.grupos) };
+    reconstructed.programaSemanal = { ...reconstructed.programaSemanal, grupos: filterArray(reconstructed.programaSemanal?.grupos) };
+    reconstructed.planMatriz = { ...reconstructed.planMatriz, grupos: filterArray(reconstructed.planMatriz?.grupos) };
+    
+    const calcTotal = (groups, keys) => {
+      const sum = {}; keys.forEach(k => sum[k] = 0);
+      groups.forEach(g => keys.forEach(k => sum[k] += (Number(g[k]) || 0)));
+      return sum;
     };
     
-    // Inyectamos estilo temporal para ocultar cosas
-    const style = document.createElement('style');
-    style.innerHTML = `
-      .no-print { display: none !important; }
-      .glass-card { box-shadow: none !important; border: 1px solid #ddd !important; background: #fff !important; }
-      .premium-table th { background: #f0f0f0 !important; color: #000 !important; }
-      .premium-table td { color: #333 !important; }
-      * { color: #000; }
-    `;
-    document.head.appendChild(style);
+    reconstructed.resumenAvisos.total = calcTotal(reconstructed.resumenAvisos.distribucion, ['cantidad']).cantidad;
+    reconstructed.resumenOrdenes.total = calcTotal(reconstructed.resumenOrdenes.distribucion, ['cantidad']).cantidad;
     
-    html2pdf().set(opt).from(element).save().then(() => {
-      document.head.removeChild(style);
-    });
+    const tpTotals = calcTotal(reconstructed.trabajoPlanificado.grupos, ['planificado', 'sinHr', 'imprevistos', 'total']);
+    tpTotals.cumplimiento = tpTotals.total > 0 ? tpTotals.planificado / tpTotals.total : 0;
+    reconstructed.trabajoPlanificado.total = tpTotals;
+
+    const psTotals = calcTotal(reconstructed.programaSemanal.grupos, ['cumple', 'noCumple', 'total']);
+    psTotals.cumplimiento = psTotals.total > 0 ? psTotals.cumple / psTotals.total : 0;
+    reconstructed.programaSemanal.total = psTotals;
+
+    const pmTotals = calcTotal(reconstructed.planMatriz.grupos, ['cumple', 'noCumple', 'total']);
+    pmTotals.cumplimiento = pmTotals.total > 0 ? pmTotals.cumple / pmTotals.total : 0;
+    reconstructed.planMatriz.total = pmTotals;
+    
+    reconstructed.indicadores = {
+      avisosPendientes: reconstructed.resumenAvisos.total,
+      ordenesPendientes: reconstructed.resumenOrdenes.total,
+      trabajoPlanificado: Math.round(tpTotals.cumplimiento * 100),
+      programaSemanal: Math.round(psTotals.cumplimiento * 100),
+      planMatriz: Math.round(pmTotals.cumplimiento * 100)
+    };
+    
+    return { filteredData: reconstructed, availablePtos };
+  }, [displayData, selectedPtoTrabajo]);
+
+  const handlePdfExport = () => {
+    // La vista nativa de impresión se dispara
+    // El CSS ocultará lo que no pertenece al Dashboard
+    window.print();
   };
 
   return (
@@ -223,7 +256,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
               Filtros e Histórico de Dashboard
             </span>
           </div>
-          <button onClick={handlePdfExport} className="btn btn-primary flex-center gap-0.5" disabled={!displayData}>
+          <button onClick={handlePdfExport} className="btn btn-primary flex-center gap-0.5" disabled={!filteredData}>
             <span className="material-icons">download</span>
             <span>Generar y Descargar PDF</span>
           </button>
@@ -244,6 +277,14 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
               {weeks.map(w => <option key={w} value={w}>Semana {w}</option>)}
             </select>
           </div>
+          <div className="form-group">
+            <label>Puesto de Trabajo</label>
+            <select className="form-control" value={selectedPtoTrabajo} onChange={e => setSelectedPtoTrabajo(e.target.value)}>
+              <option value="">Todos los Puestos</option>
+              {availablePtos.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
         </div>
       </div>
 
@@ -254,14 +295,14 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
         </div>
       )}
 
-      {!loading && !displayData && (
+      {!loading && !filteredData && (
         <div className="glass-card flex-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
           No hay datos disponibles para el filtro seleccionado.
         </div>
       )}
 
       {/* ─── Contenido imprimible ─── */}
-      {!loading && displayData && (
+      {!loading && filteredData && (
         <div id="kpi-dashboard-print" ref={printRef} style={{ background: 'var(--bg-app)', color: 'var(--text-main)' }}>
           
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -272,11 +313,11 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
           <SectionCard title="Resumen Ejecutivo" icon="dashboard">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
               {[
-                { label: 'Avisos Pend.', val: displayData.indicadores.avisosPendientes, icon: 'notification_important', reverse: true },
-                { label: 'Órdenes Pend.', val: displayData.indicadores.ordenesPendientes, icon: 'assignment_late', reverse: true },
-                { label: '% Trab.Plan.', val: displayData.indicadores.trabajoPlanificado, icon: 'insights', isPercent: true },
-                { label: 'Prog.Semanal', val: displayData.indicadores.programaSemanal, icon: 'date_range', isPercent: true },
-                { label: 'Plan Matriz', val: displayData.indicadores.planMatriz, icon: 'view_list', isPercent: true },
+                { label: 'Avisos Pend.', val: filteredData.indicadores.avisosPendientes, icon: 'notification_important', reverse: true },
+                { label: 'Órdenes Pend.', val: filteredData.indicadores.ordenesPendientes, icon: 'assignment_late', reverse: true },
+                { label: '% Trab.Plan.', val: filteredData.indicadores.trabajoPlanificado, icon: 'insights', isPercent: true },
+                { label: 'Prog.Semanal', val: filteredData.indicadores.programaSemanal, icon: 'date_range', isPercent: true },
+                { label: 'Plan Matriz', val: filteredData.indicadores.planMatriz, icon: 'view_list', isPercent: true },
               ].map(({ label, val, icon, reverse, isPercent }) => {
                 const status = reverse
                   ? (val === 0 ? 'success' : val < 10 ? 'warning' : 'danger')
