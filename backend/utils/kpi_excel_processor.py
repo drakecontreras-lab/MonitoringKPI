@@ -336,6 +336,7 @@ def extract_avisos(path):
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
 
+        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
         total += 1
@@ -404,6 +405,7 @@ def extract_ordenes(path):
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
 
+        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
         total += 1
@@ -557,6 +559,7 @@ def extract_trabajo_planificado(path, ots_mapping=None):
 
         criterios_col.append(criterio)
 
+        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'planificado': 0.0, 'sinHr': 0.0, 'sinHorizonte': 0.0, 'imprevistos': 0.0}
@@ -690,6 +693,7 @@ def extract_programa_semanal(path):
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
 
+        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'cumple': 0.0, 'noCumple': 0.0, 'sumIndCumple': 0.0, 'sumTotalOp': 0.0}
@@ -841,6 +845,7 @@ def extract_plan_matriz(path, export_ops_mapping=None):
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
 
+        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'ejec': 0.0, 'total_plan': 0.0}
@@ -1143,7 +1148,8 @@ def process_ready_excel(file_path, semana_num):
                 if not gr_planif_pm or gr_planif_pm == 'nan':
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                pto_trabajo = "N/A"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_avisos[key] = group_avisos.get(key, 0) + 1
                 total_avisos_count += 1
 
@@ -1179,7 +1185,8 @@ def process_ready_excel(file_path, semana_num):
                 if not gr_planif_pm or gr_planif_pm == 'nan':
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                pto_trabajo = "N/A"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_ordenes[key] = group_ordenes.get(key, 0) + 1
                 total_ordenes_count += 1
 
@@ -1230,7 +1237,8 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                pto_trabajo = "N/A"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_tp:
                     group_tp[key] = {'planificado': 0.0, 'sinHr': 0.0, 'imprevistos': 0.0}
 
@@ -1306,7 +1314,8 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                pto_trabajo = "N/A"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_prog:
                     group_prog[key] = {'cumple': 0.0, 'noCumple': 0.0,
                                        'sumTotalOp': 0.0, 'sumIndicadorCumple': 0.0}
@@ -1380,7 +1389,8 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                pto_trabajo = "N/A"
+        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_matriz:
                     group_matriz[key] = {'cumple': 0.0, 'noCumple': 0.0}
 
