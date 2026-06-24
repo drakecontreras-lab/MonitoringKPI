@@ -1149,7 +1149,7 @@ def process_ready_excel(file_path, semana_num):
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
                 pto_trabajo = "N/A"
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_avisos[key] = group_avisos.get(key, 0) + 1
                 total_avisos_count += 1
 
@@ -1186,7 +1186,7 @@ def process_ready_excel(file_path, semana_num):
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
                 pto_trabajo = "N/A"
-        key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
+                key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_ordenes[key] = group_ordenes.get(key, 0) + 1
                 total_ordenes_count += 1
 
