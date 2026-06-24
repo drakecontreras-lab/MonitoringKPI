@@ -62,6 +62,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState({ success: false, error: '', message: '' });
   const [selectedTemplate, setSelectedTemplate] = useState(7);
+  const [usePtoTrabajo, setUsePtoTrabajo] = useState(false);
 
   // ─── Efectos ───
 
