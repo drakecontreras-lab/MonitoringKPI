@@ -26,9 +26,6 @@ class KpiAutoModule(BaseModule):
             excel_trab_plan = params.get("excel_trab_plan")
             excel_plan_matriz = params.get("excel_plan_matriz")
             
-            # Use fixed standard UTs for corporate KPIs
-            lista_uts = ['CDEE*','CTAL*','CHSS-SE*','CHSS-SU*','CHSS-PL*','CHCO-IN-INF*']
-
             # Obtener configuración global
             config_glob = self.app_api.config_data
             usuario = config_glob["credenciales"]["usuario"]
@@ -99,12 +96,16 @@ class KpiAutoModule(BaseModule):
             self.log("🗂️ Ejecutando batch de KPIs (OTs + Órdenes) en una misma sesión...")
             
             # IW39
-            await h_ots.ejecutar(lista_uts=lista_uts, excel_trab_plan=excel_trab_plan)
+            await h_ots.ejecutar(lista_uts=None, excel_trab_plan=excel_trab_plan)
             self.actualizar_progreso(0.50)
             await self.manejar_pausa()
             
+            # Pausa para asegurar que SAP termine de procesar IW39 antes de IW37N
+            self.log("⏳ Esperando estabilización de SAP antes de IW37N...")
+            await asyncio.sleep(4)
+            
             # IW37N
-            await h_ordenes.ejecutar(lista_uts=lista_uts, excel_plan_matriz=excel_plan_matriz)
+            await h_ordenes.ejecutar(lista_uts=None, excel_plan_matriz=excel_plan_matriz)
             self.actualizar_progreso(1.0)
 
             self.log("✅ Descargas batch de KPIs Corporativos finalizadas.", "ok")

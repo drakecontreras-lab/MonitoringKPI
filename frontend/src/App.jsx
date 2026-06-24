@@ -12,6 +12,7 @@ import KpiUsoSapTab from './components/KpiUsoSapTab';
  */
 export default function App() {
   const [activeTab, setActiveTab] = useState('kpis'); // 'kpis' | 'sap-uso' | 'proyecciones' | 'config'
+  const [theme, setTheme] = useState('dark');
 
   // ─── Autenticación ───
   const [logged, setLogged] = useState(false);
@@ -83,6 +84,11 @@ export default function App() {
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) { }
     setLogged(false); setUser(null);
   };
+
+  // ─── Tema ───
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // ─── Carga inicial ───
   useEffect(() => {
@@ -226,6 +232,14 @@ export default function App() {
         </nav>
 
         <div className="user-section">
+          <button 
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
+            className="btn-logout" 
+            title="Alternar Tema"
+            style={{ marginRight: '0.5rem' }}
+          >
+            <span className="material-icons">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+          </button>
           <div className="user-profile">
             <span className="material-icons user-avatar">account_circle</span>
             <div className="user-meta">

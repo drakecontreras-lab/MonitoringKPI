@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import EmailPreview from './EmailPreview';
 import SettingsModal from './SettingsModal';
 import { createPortal } from 'react-dom';
+import KpiDashboardCharts from './KpiDashboardCharts';
 
 // Archivos requeridos para el procesamiento de KPIs
 const REQUIRED_FILES = [
@@ -19,9 +20,10 @@ const REQUIRED_FILES = [
  */
 export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, defaultSemana, emailSettings, setEmailSettings }) {
   // ─── Estado KPI ───
-  const [kpiSubTab, setKpiSubTab] = useState('visualizacion');
+  const [kpiSubTab, setKpiSubTab] = useState('dashboard');
   const [semana, setSemana] = useState(defaultSemana || '23');
   const [uploadMode, setUploadMode] = useState('raw');
+  const [isEditing, setIsEditing] = useState(false);
   const [files, setFiles] = useState({
     avisos: null, ordenes: null, trabajoPlanificado: null,
     programaSemanal: null, planMatriz: null, proyOts: null, proy37n: null
@@ -32,7 +34,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
   const [processingError, setProcessingError] = useState('');
   const [processingSuccess, setProcessingSuccess] = useState(false);
   const [kpiData, setKpiData] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+
 
   // ─── Estado Robot SAP interno de esta pestaña (AISLADO) ───
   const [kpiRobotRunning, setKpiRobotRunning] = useState(false);
@@ -434,8 +436,11 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     <div className="kpis-container">
       {/* Sub-navegación */}
       <div className="sub-tab-navigation flex gap-2 mb-2">
+        <button className={`btn ${kpiSubTab === 'dashboard' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setKpiSubTab('dashboard')}>
+          <span className="material-icons">analytics</span> Dashboard Histórico
+        </button>
         <button className={`btn ${kpiSubTab === 'visualizacion' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setKpiSubTab('visualizacion')}>
-          <span className="material-icons">bar_chart</span> Visualización de Indicadores
+          <span className="material-icons">bar_chart</span> Carga y Visualización
         </button>
         <button className={`btn ${kpiSubTab === 'envio' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setKpiSubTab('envio')} disabled={!kpiData}>
           <span className="material-icons">preview</span> Previsualizar Reporte
@@ -722,7 +727,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                   </div>
                 </div>
 
-                {/* Tablas detalle */}
+                {/* Tablas Editables de Detalle */}
                 <div className="glass-card flex-col gap-1">
                   <div className="flex-between border-b pb-1">
                     <h2 className="card-title">
@@ -805,11 +810,11 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                           <tfoot>
                             <tr className="footer-row">
                               <td colSpan="3">TOTAL GENERAL</td>
-                              <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={kpiData.trabajoPlanificado.total.planificado} onChange={(e) => handleTotalChange('trabajoPlanificado', 'planificado', e.target.value)} /> : Math.round(kpiData.trabajoPlanificado.total.planificado)}</td>
-                              <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={kpiData.trabajoPlanificado.total.sinHr} onChange={(e) => handleTotalChange('trabajoPlanificado', 'sinHr', e.target.value)} /> : Math.round(kpiData.trabajoPlanificado.total.sinHr)}</td>
-                              <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={kpiData.trabajoPlanificado.total.imprevistos} onChange={(e) => handleTotalChange('trabajoPlanificado', 'imprevistos', e.target.value)} /> : Math.round(kpiData.trabajoPlanificado.total.imprevistos)}</td>
-                              <td className="text-right font-number font-bold">{isEditing ? <input type="number" className="cell-input text-right font-bold" value={kpiData.trabajoPlanificado.total.total} onChange={(e) => handleTotalChange('trabajoPlanificado', 'total', e.target.value)} /> : Math.round(kpiData.trabajoPlanificado.total.total)}</td>
-                              <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(kpiData.trabajoPlanificado.total.cumplimiento * 100)} onChange={(e) => handleTotalChange('trabajoPlanificado', 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(kpiData.trabajoPlanificado.total.cumplimiento)}</td>
+                              <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.planificado)}</td>
+                              <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.sinHr)}</td>
+                              <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.imprevistos)}</td>
+                              <td className="text-right font-number font-bold">{Math.round(kpiData.trabajoPlanificado.total.total)}</td>
+                              <td className="text-center">{renderCumpPill(kpiData.trabajoPlanificado.total.cumplimiento)}</td>
                             </tr>
                           </tfoot>
                         </table>
@@ -830,20 +835,12 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                                 <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM} onChange={(e) => handleTableChange('programaSemanal', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.cumple} onChange={(e) => handleTableChange('programaSemanal', idx, 'cumple', e.target.value)} /> : Math.round(g.cumple)}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.noCumple} onChange={(e) => handleTableChange('programaSemanal', idx, 'noCumple', e.target.value)} /> : Math.round(g.noCumple)}</td>
-                                <td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={g.total} onChange={(e) => handleTableChange('programaSemanal', idx, 'total', e.target.value)} /> : Math.round(g.total)}</td>
+                                <td className="text-center font-number font-bold">{Math.round(g.total)}</td>
                                 <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(g.cumplimiento * 100)} onChange={(e) => handleTableChange('programaSemanal', idx, 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(g.cumplimiento)}</td>
                               </tr>
                             ))}
                           </tbody>
-                          <tfoot>
-                            <tr className="footer-row">
-                              <td colSpan="3">TOTAL</td>
-                              <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={kpiData.programaSemanal.total.cumple} onChange={(e) => handleTotalChange('programaSemanal', 'cumple', e.target.value)} /> : Math.round(kpiData.programaSemanal.total.cumple)}</td>
-                              <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={kpiData.programaSemanal.total.noCumple} onChange={(e) => handleTotalChange('programaSemanal', 'noCumple', e.target.value)} /> : Math.round(kpiData.programaSemanal.total.noCumple)}</td>
-                              <td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={kpiData.programaSemanal.total.total} onChange={(e) => handleTotalChange('programaSemanal', 'total', e.target.value)} /> : Math.round(kpiData.programaSemanal.total.total)}</td>
-                              <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(kpiData.programaSemanal.total.cumplimiento * 100)} onChange={(e) => handleTotalChange('programaSemanal', 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(kpiData.programaSemanal.total.cumplimiento)}</td>
-                            </tr>
-                          </tfoot>
+                          <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-center font-number">{Math.round(kpiData.programaSemanal.total.cumple)}</td><td className="text-center font-number">{Math.round(kpiData.programaSemanal.total.noCumple)}</td><td className="text-center font-number font-bold">{Math.round(kpiData.programaSemanal.total.total)}</td><td className="text-center">{renderCumpPill(kpiData.programaSemanal.total.cumplimiento)}</td></tr></tfoot>
                         </table>
                       </div>
                     </div>
@@ -862,20 +859,12 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                                 <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM} onChange={(e) => handleTableChange('planMatriz', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.cumple} onChange={(e) => handleTableChange('planMatriz', idx, 'cumple', e.target.value)} /> : Math.round(g.cumple)}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.noCumple} onChange={(e) => handleTableChange('planMatriz', idx, 'noCumple', e.target.value)} /> : Math.round(g.noCumple)}</td>
-                                <td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={g.total} onChange={(e) => handleTableChange('planMatriz', idx, 'total', e.target.value)} /> : Math.round(g.total)}</td>
+                                <td className="text-center font-number font-bold">{Math.round(g.total)}</td>
                                 <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(g.cumplimiento * 100)} onChange={(e) => handleTableChange('planMatriz', idx, 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(g.cumplimiento)}</td>
                               </tr>
                             ))}
                           </tbody>
-                          <tfoot>
-                            <tr className="footer-row">
-                              <td colSpan="3">TOTAL</td>
-                              <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={kpiData.planMatriz.total.cumple} onChange={(e) => handleTotalChange('planMatriz', 'cumple', e.target.value)} /> : Math.round(kpiData.planMatriz.total.cumple)}</td>
-                              <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={kpiData.planMatriz.total.noCumple} onChange={(e) => handleTotalChange('planMatriz', 'noCumple', e.target.value)} /> : Math.round(kpiData.planMatriz.total.noCumple)}</td>
-                              <td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={kpiData.planMatriz.total.total} onChange={(e) => handleTotalChange('planMatriz', 'total', e.target.value)} /> : Math.round(kpiData.planMatriz.total.total)}</td>
-                              <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(kpiData.planMatriz.total.cumplimiento * 100)} onChange={(e) => handleTotalChange('planMatriz', 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(kpiData.planMatriz.total.cumplimiento)}</td>
-                            </tr>
-                          </tfoot>
+                          <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-center font-number">{Math.round(kpiData.planMatriz.total.cumple)}</td><td className="text-center font-number">{Math.round(kpiData.planMatriz.total.noCumple)}</td><td className="text-center font-number font-bold">{Math.round(kpiData.planMatriz.total.total)}</td><td className="text-center">{renderCumpPill(kpiData.planMatriz.total.cumplimiento)}</td></tr></tfoot>
                         </table>
                       </div>
                     </div>
@@ -915,6 +904,11 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
             )}
           </div>
         </div>
+      )}
+
+      {/* Sub-pestaña Dashboard */}
+      {kpiSubTab === 'dashboard' && (
+        <KpiDashboardCharts data={kpiData} semana={semana} />
       )}
 
       {/* Sub-pestaña Envío */}

@@ -362,6 +362,21 @@ def api_process_kpis():
         # Agregar URLs de descarga para React
         summary_data["downloadUrl"] = f"/reports/{filename}"
         summary_data["filename"] = filename
+        
+        # --- Guardar en Supabase ---
+        from backend.utils.supabase_client import sync_hierarchy, save_kpi_to_supabase
+        jerarquia = state.config_data.get("jerarquia", {})
+        div_name = jerarquia.get("division", "Sin División")
+        ger_name = jerarquia.get("gerencia", "Sin Gerencia")
+        area_name = jerarquia.get("area", "Sin Área")
+        
+        anio = datetime.now().year
+        
+        # Obtener o crear jerarquía
+        area_id = sync_hierarchy(div_name, ger_name, area_name)
+        if area_id:
+            # Upsert de datos
+            save_kpi_to_supabase(area_id, anio, semana_num, summary_data, "sistema@monitoring.cl")
 
         return jsonify({"success": True, "data": summary_data})
         

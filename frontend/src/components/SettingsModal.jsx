@@ -9,20 +9,31 @@ import React, { useState, useEffect } from 'react';
  * @param {function} props.onClose - Función callback para cerrar el modal.
  * @param {function} props.onSave - Función callback disparada al guardar exitosamente la configuración.
  */
-export default function SettingsModal({ isOpen, onClose, onSave }) {
+export default function SettingsModal({ isOpen, onClose, onSave, initialConfig }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isStoredPassword, setIsStoredPassword] = useState(false);
+  
+  // Nuevos campos de ubicación
+  const [division, setDivision] = useState('Chuquicamata');
+  const [gerencia, setGerencia] = useState('Gerencia de servicios y suministros');
+  const [area, setArea] = useState('');
 
   // Cargar credenciales guardadas en localStorage al montar el componente
   useEffect(() => {
     if (isOpen) {
       const savedEmail = localStorage.getItem('outlook_email') || '';
       const savedPassword = localStorage.getItem('outlook_password') || '';
+      const savedDivision = localStorage.getItem('app_division') || 'Chuquicamata';
+      const savedGerencia = localStorage.getItem('app_gerencia') || 'Gerencia de servicios y suministros';
+      const savedArea = localStorage.getItem('app_area') || '';
       
       setEmail(savedEmail);
+      setDivision(savedDivision);
+      setGerencia(savedGerencia);
+      setArea(savedArea);
 
       if (savedPassword) {
         setPassword('__STORED_PASSWORD_PLACEHOLDER__');
@@ -34,10 +45,6 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
     }
   }, [isOpen]);
 
-  /**
-   * Maneja el cambio de la contraseña. Si ya existía una guardada y el usuario digita,
-   * limpia la máscara de seguridad para capturar la nueva clave limpia.
-   */
   const handlePasswordChange = (e) => {
     const val = e.target.value;
     if (isStoredPassword && val !== '__STORED_PASSWORD_PLACEHOLDER__') {
@@ -48,16 +55,13 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
     }
   };
 
-  /**
-   * Manejador del submit del formulario.
-   * Guarda los valores de configuración en localStorage de forma local.
-   * 
-   * @param {Event} e - Evento de submit del formulario.
-   */
   const handleSubmit = (e) => {
     e.preventDefault();
     
     localStorage.setItem('outlook_email', email.trim());
+    localStorage.setItem('app_division', division.trim());
+    localStorage.setItem('app_gerencia', gerencia.trim());
+    localStorage.setItem('app_area', area.trim());
     
     let passwordToSave = password;
     if (password === '__STORED_PASSWORD_PLACEHOLDER__') {
@@ -68,12 +72,16 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
     
     setSaveSuccess(true);
     
-    // Notificar al componente padre que se actualizaron las configuraciones
     if (onSave) {
-      onSave({ email, password: passwordToSave });
+      onSave({ 
+        email, 
+        password: passwordToSave,
+        division: division.trim(),
+        gerencia: gerencia.trim(),
+        area: area.trim()
+      });
     }
     
-    // Ocultar mensaje de éxito y cerrar el modal tras un breve retraso
     setTimeout(() => {
       setSaveSuccess(false);
       onClose();
@@ -88,7 +96,7 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
         <div style={modalStyles.header}>
           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem' }}>
             <i className="bi bi-gear-fill" style={{ marginRight: '8px', color: 'var(--secondary)' }}></i>
-            Configuración SMTP Outlook
+            Configuración General
           </h3>
           <button onClick={onClose} style={modalStyles.closeBtn}>
             <i className="bi bi-x-lg"></i>
@@ -96,12 +104,29 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
         </div>
         
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '-0.5rem 0 0.5rem 0', lineHeight: '1.4' }}>
-          Configura tus credenciales SMTP de Outlook/Office 365 para el envío de informes. Las credenciales se guardan localmente en tu navegador.
+          Configura tu ubicación organizativa y las credenciales SMTP para el envío de informes.
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           
-          {/* Input Correo Remitente */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>División</label>
+              <input type="text" className="form-control" value={division} onChange={(e) => setDivision(e.target.value)} placeholder="Ej. Chuquicamata" required />
+            </div>
+            <div className="form-group">
+              <label>Gerencia</label>
+              <input type="text" className="form-control" value={gerencia} onChange={(e) => setGerencia(e.target.value)} placeholder="Gerencia de Servicios..." required />
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label>Área / Superintendencia</label>
+            <input type="text" className="form-control" value={area} onChange={(e) => setArea(e.target.value)} placeholder="Opcional: Área específica" />
+          </div>
+          
+          <div style={{ height: '1px', background: 'var(--bg-card-border)', margin: '0.5rem 0' }}></div>
+
           <div className="form-group">
             <label htmlFor="outlook-email">Correo Outlook Remitente</label>
             <div className="input-wrapper">
@@ -110,7 +135,7 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
                 type="email"
                 required
                 className="form-control"
-                placeholder="ejemplo@miempresa.cl o @outlook.com"
+                placeholder="ejemplo@codelco.cl o @outlook.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -118,11 +143,8 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Input Contraseña / App Password */}
           <div className="form-group">
-            <label htmlFor="outlook-password">
-              Contraseña de Cuenta o de Aplicación
-            </label>
+            <label htmlFor="outlook-password">Contraseña de Aplicación / Cuenta</label>
             <div className="input-wrapper">
               <input
                 id="outlook-password"
@@ -135,38 +157,27 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
               />
               <i className="bi bi-shield-lock-fill"></i>
               {!isStoredPassword && (
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={modalStyles.togglePasswordBtn}
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={modalStyles.togglePasswordBtn}>
                   <i className={showPassword ? "bi bi-eye-slash-fill" : "bi bi-eye-fill"}></i>
                 </button>
               )}
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted-dark)' }}>
-              🔑 Si tu cuenta tiene MFA/2FA, debes usar una <strong>Contraseña de aplicación</strong> generada en Microsoft Office 365.
+              🔑 Si usas MFA, genera una <strong>Contraseña de aplicación</strong>.
             </span>
           </div>
 
-          {/* Banner de Éxito al guardar */}
           {saveSuccess && (
             <div className="alert-banner alert-success" style={{ padding: '0.65rem 1rem' }}>
               <i className="bi bi-check-circle-fill"></i>
-              <span>Credenciales guardadas con éxito.</span>
+              <span>Configuración guardada con éxito.</span>
             </div>
           )}
 
-          {/* Botones de acción */}
           <div style={modalStyles.actions}>
-            <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary" style={{ flex: 2 }}>
-              <i className="bi bi-save2-fill"></i> Guardar Credenciales
-            </button>
+            <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 2 }}><i className="bi bi-save2-fill"></i> Guardar</button>
           </div>
-
         </form>
       </div>
     </div>

@@ -63,6 +63,8 @@ class ProyeccionOrdenesHandler:
 
         self.log(f"[IW37N] 📋 Iniciando Proyección IW37N{suffix}...")
         await self.nav.abrir_transaccion_gui_url("IW37N")
+        # Esperar que la página cargue completamente antes de interactuar
+        await asyncio.sleep(3)
 
         # --- VERIFICACIÓN DE CUENTA (Login Bloqueo) ---
         try:
