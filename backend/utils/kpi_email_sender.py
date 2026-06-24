@@ -201,7 +201,7 @@ def generate_template_6(data):
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:10px;">
           <tr style="background-color:#f1f5f9;border-bottom:1px solid #cbd5e1;">
             <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
-            <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. Planif</td>
+            <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
             <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr.planif.PM</td>
             <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Órdenes</td>
           </tr>
@@ -330,8 +330,8 @@ def generate_template_6(data):
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;">
       <tr style="background-color:#f1f5f9;border-bottom:1px solid #cbd5e1;">
         <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
-        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
-        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">HH Plan.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin HR</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Imprevistos</td>
@@ -357,8 +357,8 @@ def generate_template_6(data):
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:20px;">
       <tr style="background-color:#f1f5f9;">
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
@@ -376,8 +376,8 @@ def generate_template_6(data):
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
       <tr style="background-color:#f1f5f9;">
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
@@ -979,8 +979,8 @@ def generate_template_7(data):
             <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
               <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
                 <td style="padding:9px 10px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr. planif</td>
-                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr. planif.PM</td>
+                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
+                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">HH Plan.</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin HR</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Imprevistos</td>

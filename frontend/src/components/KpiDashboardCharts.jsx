@@ -100,23 +100,24 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
       
       setLoading(true);
       try {
-        const { data: report, error: rErr } = await supabase
+        const { data: reports, error: rErr } = await supabase
           .from('kpi_reports')
           .select('id')
           .eq('semana', selectedWeek)
-          .eq('area_id', selectedAreaId)
-          .single();
+          .eq('area_id', selectedAreaId);
           
-        if (rErr) {
+        if (rErr || !reports || reports.length === 0) {
           setDbData(null);
           setLoading(false);
           return;
         }
 
+        const reportIds = reports.map(r => r.id);
+
         const { data: metrics, error: mErr } = await supabase
           .from('kpi_metrics')
           .select('*')
-          .eq('report_id', report.id);
+          .in('report_id', reportIds);
           
         if (mErr) throw mErr;
 
@@ -346,7 +347,6 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                 <Bar yAxisId="left" dataKey="Planificado" stackId="a" fill={C.indigo} radius={[0,0,0,0]} />
                 <Bar yAxisId="left" dataKey="Sin HR" stackId="a" fill={C.purple} radius={[0,0,0,0]} />
                 <Bar yAxisId="left" dataKey="Imprevistos" stackId="a" fill={C.orange} radius={[4,4,0,0]} />
-                <Line yAxisId="right" type="monotone" dataKey="cumplimiento" name="Cumplimiento %" stroke={C.cyan} strokeWidth={4} dot={{ r: 6, fill: C.cyan, strokeWidth: 2, stroke: '#fff' }} />
               </ComposedChart>
             </ResponsiveContainer>
           </SectionCard>
@@ -365,7 +365,6 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                     <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
                     <Bar yAxisId="left" dataKey="Cumple" stackId="a" fill={C.green} radius={[0,0,0,0]} />
                     <Bar yAxisId="left" dataKey="No Cumple" stackId="a" fill={C.red} radius={[4,4,0,0]} />
-                    <Line yAxisId="right" type="monotone" dataKey="cumplimiento" name="Cump.%" stroke={C.yellow} strokeWidth={3} dot={{ r: 5 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -381,7 +380,6 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                     <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
                     <Bar yAxisId="left" dataKey="Cumple" stackId="a" fill={C.cyan} radius={[0,0,0,0]} />
                     <Bar yAxisId="left" dataKey="No Cumple" stackId="a" fill={C.purple} radius={[4,4,0,0]} />
-                    <Line yAxisId="right" type="monotone" dataKey="cumplimiento" name="Cump.%" stroke={C.primary} strokeWidth={3} dot={{ r: 5 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>

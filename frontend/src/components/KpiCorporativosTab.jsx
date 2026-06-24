@@ -477,6 +477,33 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                 <input type="number" min="1" max="53" required className="form-control" value={semana} onChange={(e) => setSemana(e.target.value)} />
               </div>
 
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginTop: '0.5rem', background: 'rgba(59, 130, 246, 0.05)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                <label style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }} htmlFor="togglePtoTrabajo">
+                  <span className="material-icons" style={{ color: usePtoTrabajo ? '#3b82f6' : 'var(--text-muted)' }}>account_tree</span>
+                  Agrupar Informe por Puesto de Trabajo
+                </label>
+                <div style={{ position: 'relative', width: '44px', height: '24px' }}>
+                  <input
+                    id="togglePtoTrabajo"
+                    type="checkbox"
+                    checked={usePtoTrabajo}
+                    onChange={(e) => setUsePtoTrabajo(e.target.checked)}
+                    style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                  />
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                    background: usePtoTrabajo ? '#3b82f6' : '#cbd5e1',
+                    borderRadius: '24px', cursor: 'pointer', transition: '0.3s'
+                  }} onClick={() => setUsePtoTrabajo(!usePtoTrabajo)}>
+                    <div style={{
+                      position: 'absolute', top: '2px', left: usePtoTrabajo ? '22px' : '2px',
+                      width: '20px', height: '20px', background: 'white', borderRadius: '50%',
+                      transition: '0.3s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }} />
+                  </div>
+                </div>
+              </div>
+
               <div className="upload-tabs flex gap-0.5 mt-1 mb-1" style={{ display: 'flex', flexDirection: 'row', gap: '10px', width: '100%', flexWrap: 'nowrap' }}>
                 <button type="button" className={`btn flex-1 flex-center gap-0.25 ${uploadMode === 'raw' ? 'btn-primary' : 'btn-outline'}`}
                   style={{ fontSize: '0.78rem', padding: '0.5rem 0.2rem', whiteSpace: 'nowrap', minWidth: 0 }}
