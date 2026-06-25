@@ -82,6 +82,27 @@ export default function App() {
 
   const cerrarSesion = async () => {
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) { }
+    
+    localStorage.removeItem('outlook_email');
+    localStorage.removeItem('outlook_password');
+    setGeneralConfig({
+      credenciales: { usuario: '', contrasena: '' },
+      navegador: { url_base: '', headless: false }
+    });
+    setSmtpConfig({ email: '', password: '' });
+    
+    try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credenciales: { usuario: '', contrasena: '' },
+          navegador: { url_base: '', headless: false },
+          smtp: { email: '', password: '' }
+        })
+      });
+    } catch (e) {}
+    
     setLogged(false); setUser(null);
   };
 

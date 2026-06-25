@@ -424,10 +424,32 @@ def api_process_kpis():
         filename = f"KPI GSYS SEM{semana_num}.xlsx"
         output_path = os.path.join(OUTPUT_DIR, filename)
         
+        div_name = str(request.form.get('division', 'Sin División')).strip() or 'Sin División'
+        ger_name = str(request.form.get('gerencia', 'Sin Gerencia')).strip() or 'Sin Gerencia'
+        sup_name = str(request.form.get('superintendencia', '')).strip()
+        user_email = str(request.form.get('user_email', 'sistema@monitoring.cl')).strip() or 'sistema@monitoring.cl'
+
+        metadata = {
+            "division": div_name,
+            "gerencia": ger_name,
+            "superintendencia": sup_name,
+            "user_email": user_email
+        }
+        puestos_mapping = {}
+        if supabase:
+            try:
+                res = supabase.table("puestos_trabajo").select("puesto_trabajo,descripcion").execute()
+                if hasattr(res, 'data') and res.data:
+                    puestos_mapping = {str(item.get("puesto_trabajo", "")).strip(): str(item.get("descripcion", "")).strip() for item in res.data if item.get("puesto_trabajo")}
+            except Exception as e:
+                state.emit_log("api", f"Error obteniendo puestos_trabajo de DB: {e}", "warn")
+
         summary_data = process_kpi_excels(
             file_paths, semana_num, output_path,
             ots_mapping=ots_mapping,
-            export_ops_mapping=export_ops_mapping
+            export_ops_mapping=export_ops_mapping,
+            puestos_mapping=puestos_mapping,
+            metadata=metadata
         )
 
         # Eliminar temporales
@@ -441,10 +463,11 @@ def api_process_kpis():
         
         # --- Guardar en Supabase ---
         from backend.utils.supabase_client import sync_hierarchy, save_kpi_to_supabase
-        jerarquia = state.config_data.get("jerarquia", {})
-        div_name = jerarquia.get("division", "Sin División")
-        ger_name = jerarquia.get("gerencia", "Sin Gerencia")
-        area_name = jerarquia.get("area", "Sin Área")
+
+        if not sup_name:
+            area_name = "Nivel Gerencia"
+        else:
+            area_name = sup_name
         
         anio = datetime.now().year
         
@@ -452,10 +475,11 @@ def api_process_kpis():
         area_id = sync_hierarchy(div_name, ger_name, area_name)
         if area_id:
             # Upsert de datos
-            save_kpi_to_supabase(area_id, anio, semana_num, summary_data, "sistema@monitoring.cl")
+            save_kpi_to_supabase(area_id, anio, semana_num, summary_data, user_email)
 
         use_pto_trabajo = str(request.form.get('use_pto_trabajo', 'false')).lower() == 'true'
         summary_data["use_pto_trabajo"] = use_pto_trabajo
+
 
         return jsonify({"success": True, "data": summary_data})
         
@@ -516,8 +540,18 @@ def api_process_ready_excel():
         output_path = os.path.join(OUTPUT_DIR, filename)
         f.save(output_path)
 
+        # Cargar mapping de puestos de trabajo desde Supabase
+        puestos_mapping = {}
+        if supabase:
+            try:
+                res = supabase.table("puestos_trabajo").select("puesto_trabajo,descripcion").execute()
+                if hasattr(res, 'data') and res.data:
+                    puestos_mapping = {str(item.get("puesto_trabajo", "")).strip(): str(item.get("descripcion", "")).strip() for item in res.data if item.get("puesto_trabajo")}
+            except Exception as e:
+                state.emit_log("api", f"Error obteniendo puestos_trabajo de DB: {e}", "warn")
+
         # Extraer estadísticas
-        summary_data = process_ready_excel(output_path, semana_num)
+        summary_data = process_ready_excel(output_path, semana_num, puestos_mapping=puestos_mapping)
         summary_data["downloadUrl"] = f"/reports/{filename}"
         summary_data["filename"] = filename
 
@@ -716,6 +750,26 @@ def api_enviar_mfa():
         state.loop.call_soon_threadsafe(state.mfa_event.set)
         state.emit_log("auth", "🔑 Código OTP MFA enviado al navegador.", "info")
         return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/org-structure", methods=["GET"])
+def api_get_org_structure():
+    from backend.utils.supabase_client import supabase
+    if not supabase:
+        return jsonify({"success": False, "error": "Supabase no configurado"}), 500
+    try:
+        div_res = supabase.table("divisiones").select("*").execute()
+        ger_res = supabase.table("gerencias").select("*").execute()
+        area_res = supabase.table("areas").select("*").execute()
+        
+        return jsonify({
+            "success": True,
+            "divisiones": div_res.data if hasattr(div_res, 'data') else [],
+            "gerencias": ger_res.data if hasattr(ger_res, 'data') else [],
+            "superintendencias": area_res.data if hasattr(area_res, 'data') else []
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

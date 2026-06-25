@@ -60,6 +60,8 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
   const [selectedWeek, setSelectedWeek] = useState(currentWeek || '');
   const [selectedAreaId, setSelectedAreaId] = useState('');
   const [selectedPtoTrabajo, setSelectedPtoTrabajo] = useState('');
+  const [selectedProceso, setSelectedProceso] = useState('');
+  const [selectedGrPlanif, setSelectedGrPlanif] = useState('');
   
   // Efecto inicial: Cargar opciones de filtros
   useEffect(() => {
@@ -187,19 +189,28 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
 
   
   // Filter logic
-  const { filteredData, availablePtos } = useMemo(() => {
-    if (!displayData) return { filteredData: null, availablePtos: [] };
+  const { filteredData, availableProcesos, availableGrPlanif, availablePtos } = useMemo(() => {
+    if (!displayData) return { filteredData: null, availableProcesos: [], availableGrPlanif: [], availablePtos: [] };
     
-    // Extraer Puestos de Trabajo unicos
-    const ptos = new Set();
-    const extractPtos = (arr) => arr?.forEach(item => { if(item.ptoTrabajo) ptos.add(item.ptoTrabajo); });
-    extractPtos(displayData.resumenAvisos?.distribucion);
-    extractPtos(displayData.trabajoPlanificado?.grupos);
-    const availablePtos = Array.from(ptos).sort();
+    const extractKeys = (arr, key) => {
+      const s = new Set();
+      arr?.forEach(item => { if(item[key]) s.add(item[key]); });
+      return Array.from(s).sort();
+    };
 
-    if (!selectedPtoTrabajo) return { filteredData: displayData, availablePtos };
+    const ptosSrc = displayData.trabajoPlanificado?.grupos || displayData.resumenAvisos?.distribucion || [];
+    const availableProcesos = extractKeys(ptosSrc, 'proceso');
+    const availableGrPlanif = extractKeys(ptosSrc, 'grPlanif');
+    const availablePtos = extractKeys(ptosSrc, 'ptoTrabajo');
 
-    const filterArray = (arr) => arr?.filter(item => item.ptoTrabajo === selectedPtoTrabajo) || [];
+    if (!selectedPtoTrabajo && !selectedProceso && !selectedGrPlanif) return { filteredData: displayData, availableProcesos, availableGrPlanif, availablePtos };
+
+    const filterArray = (arr) => arr?.filter(item => {
+      if (selectedProceso && item.proceso !== selectedProceso) return false;
+      if (selectedGrPlanif && item.grPlanif !== selectedGrPlanif) return false;
+      if (selectedPtoTrabajo && item.ptoTrabajo !== selectedPtoTrabajo) return false;
+      return true;
+    }) || [];
     
     const reconstructed = { ...displayData };
     reconstructed.resumenAvisos = { ...reconstructed.resumenAvisos, distribucion: filterArray(reconstructed.resumenAvisos?.distribucion) };
@@ -237,8 +248,8 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
       planMatriz: Math.round(pmTotals.cumplimiento * 100)
     };
     
-    return { filteredData: reconstructed, availablePtos };
-  }, [displayData, selectedPtoTrabajo]);
+    return { filteredData: reconstructed, availableProcesos, availableGrPlanif, availablePtos };
+  }, [displayData, selectedPtoTrabajo, selectedProceso, selectedGrPlanif]);
 
   const handlePdfExport = () => {
     // La vista nativa de impresión se dispara
@@ -285,20 +296,35 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
               {availablePtos.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+          <div className="form-group">
+            <label>Proceso</label>
+            <select className="form-control" value={selectedProceso} onChange={e => setSelectedProceso(e.target.value)} aria-label="Filtrar por proceso">
+              <option value="">Todos los Procesos</option>
+              {availableProcesos.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Gr. Planificaci&oacute;n</label>
+            <select className="form-control" value={selectedGrPlanif} onChange={e => setSelectedGrPlanif(e.target.value)} aria-label="Filtrar por grupo de planificaci&oacute;n">
+              <option value="">Todos los Grupos</option>
+              {availableGrPlanif.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
 
         </div>
       </div>
 
       {loading && (
         <div className="glass-card flex-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
-          <span className="material-icons" style={{ fontSize: '2rem', animation: 'spin 2s linear infinite' }}>sync</span>
-          <span style={{ marginLeft: '1rem' }}>Cargando datos históricos...</span>
+          <div className="skeleton-shimmer" style={{ width: '100%', height: '300px', borderRadius: '12px' }} />
         </div>
       )}
 
       {!loading && !filteredData && (
-        <div className="glass-card flex-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
-          No hay datos disponibles para el filtro seleccionado.
+        <div className="glass-card flex-col flex-center" style={{ padding: '4rem', color: 'var(--text-muted)' }}>
+          <span className="material-icons" style={{ fontSize: '5rem', opacity: 0.3, marginBottom: '1rem' }}>analytics</span>
+          <h3 style={{ margin: 0, fontWeight: 700, color: 'var(--text-main)' }}>Sin datos para mostrar</h3>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>Selecciona un Área y Semana disponibles en los filtros superiores.</p>
         </div>
       )}
 
@@ -308,11 +334,11 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
           
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
              <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>DASHBOARD KPI MANTENIMIENTO</h1>
-             <p style={{ color: 'var(--text-muted)' }}>Semana: {selectedWeek || currentWeek} | Área seleccionada</p>
+             <p style={{ color: 'var(--text-muted)' }}>Semana: {selectedWeek || currentWeek} | {areas.find(a => a.id == selectedAreaId)?.nombre || 'Área seleccionada'}</p>
           </div>
 
           <SectionCard title="Resumen Ejecutivo" icon="dashboard">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
               {[
                 { label: 'Avisos Pend.', val: filteredData.indicadores.avisosPendientes, icon: 'notification_important', reverse: true },
                 { label: 'Órdenes Pend.', val: filteredData.indicadores.ordenesPendientes, icon: 'assignment_late', reverse: true },
@@ -337,7 +363,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
 
           <SectionCard title="Análisis de Trabajo Planificado" icon="insights">
             <ResponsiveContainer width="100%" height={350}>
-              <ComposedChart data={(displayData.trabajoPlanificado?.grupos || []).map(g => ({...g, Planificado: Math.round(g.planificado), 'Sin HR': Math.round(g.sinHr), Imprevistos: Math.round(g.imprevistos)}))} margin={{ top: 20, right: 40, left: 10, bottom: 5 }}>
+              <ComposedChart data={(filteredData.trabajoPlanificado?.grupos || []).map(g => ({...g, Planificado: Math.round(g.planificado), 'Sin HR': Math.round(g.sinHr), Imprevistos: Math.round(g.imprevistos)}))} margin={{ top: 20, right: 40, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-card-border)" vertical={false} />
                 <XAxis dataKey="proceso" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
                 <YAxis yAxisId="left" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
@@ -356,7 +382,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
               <div>
                 <h4 style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '1rem' }}>Programa Semanal</h4>
                 <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={(displayData.programaSemanal?.grupos || []).map(g => ({...g, Cumple: Math.round(g.cumple), 'No Cumple': Math.round(g.noCumple)}))} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <ComposedChart data={(filteredData.programaSemanal?.grupos || []).map(g => ({...g, Cumple: Math.round(g.cumple), 'No Cumple': Math.round(g.noCumple)}))} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-card-border)" vertical={false} />
                     <XAxis dataKey="proceso" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
                     <YAxis yAxisId="left" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
@@ -371,7 +397,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
               <div>
                 <h4 style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '1rem' }}>Plan Matriz</h4>
                 <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={(displayData.planMatriz?.grupos || []).map(g => ({...g, Cumple: Math.round(g.cumple), 'No Cumple': Math.round(g.noCumple)}))} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <ComposedChart data={(filteredData.planMatriz?.grupos || []).map(g => ({...g, Cumple: Math.round(g.cumple), 'No Cumple': Math.round(g.noCumple)}))} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-card-border)" vertical={false} />
                     <XAxis dataKey="proceso" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
                     <YAxis yAxisId="left" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
@@ -389,7 +415,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
           <SectionCard title="Backlog de Pendientes (Avisos y Órdenes)" icon="assignment">
              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={(displayData.resumenAvisos?.distribucion || []).map(g => ({ name: g.proceso || g.grPlanif, cantidad: g.cantidad || 0 }))} layout="vertical" margin={{ left: 10, right: 30 }}>
+                <BarChart data={(filteredData.resumenAvisos?.distribucion || []).map(g => ({ name: g.proceso || g.grPlanif, cantidad: g.cantidad || 0 }))} layout="vertical" margin={{ left: 10, right: 30 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-card-border)" horizontal={false} />
                   <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
@@ -398,7 +424,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                 </BarChart>
               </ResponsiveContainer>
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={(displayData.resumenOrdenes?.distribucion || []).map(g => ({ name: g.proceso || g.grPlanif, cantidad: g.cantidad || 0 }))} layout="vertical" margin={{ left: 10, right: 30 }}>
+                <BarChart data={(filteredData.resumenOrdenes?.distribucion || []).map(g => ({ name: g.proceso || g.grPlanif, cantidad: g.cantidad || 0 }))} layout="vertical" margin={{ left: 10, right: 30 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-card-border)" horizontal={false} />
                   <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
@@ -417,7 +443,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
               <table className="premium-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                 <thead><tr><th>Proceso</th><th>Gr.Planif</th><th>Gr.Planif PM</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumpl.</th></tr></thead>
                 <tbody>
-                  {(displayData.trabajoPlanificado?.grupos || []).map((g, i) => (
+                  {(filteredData.trabajoPlanificado?.grupos || []).map((g, i) => (
                     <tr key={i}>
                       <td>{g.proceso}</td><td>{g.grPlanif}</td><td>{g.grPlanifPM}</td>
                       <td className="text-right font-number">{Math.round(g.planificado)}</td>
@@ -428,11 +454,11 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                     </tr>
                   ))}
                 </tbody>
-                <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-right font-number">{Math.round(displayData.trabajoPlanificado?.total?.planificado || 0)}</td><td className="text-right font-number">{Math.round(displayData.trabajoPlanificado?.total?.sinHr || 0)}</td><td className="text-right font-number">{Math.round(displayData.trabajoPlanificado?.total?.imprevistos || 0)}</td><td className="text-right font-number font-bold">{Math.round(displayData.trabajoPlanificado?.total?.total || 0)}</td><td className="text-center font-bold" style={{ color: semColors(displayData.trabajoPlanificado?.total?.cumplimiento || 0) }}>{Math.round((displayData.trabajoPlanificado?.total?.cumplimiento || 0) * 100)}%</td></tr></tfoot>
+                    <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.planificado || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.sinHr || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.imprevistos || 0)}</td><td className="text-right font-number font-bold">{Math.round(filteredData.trabajoPlanificado?.total?.total || 0)}</td><td className="text-center font-bold" style={{ color: semColors(filteredData.trabajoPlanificado?.total?.cumplimiento || 0) }}>{Math.round((filteredData.trabajoPlanificado?.total?.cumplimiento || 0) * 100)}%</td></tr></tfoot>
               </table>
             </SectionCard>
 
-            {[['Programa Semanal', 'date_range', displayData.programaSemanal], ['Plan Matriz', 'view_list', displayData.planMatriz]].map(([title, icon, sec]) => (
+            {[['Programa Semanal', 'date_range', filteredData.programaSemanal], ['Plan Matriz', 'view_list', filteredData.planMatriz]].map(([title, icon, sec]) => (
               <SectionCard key={title} title={`Detalle: ${title}`} icon={icon}>
                 <table className="premium-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                   <thead><tr><th>Proceso</th><th>Gr.Planif</th><th>Gr.Planif PM</th><th className="text-center">Cumple</th><th className="text-center">No Cumple</th><th className="text-center">Total</th><th className="text-center">Cumpl.</th></tr></thead>

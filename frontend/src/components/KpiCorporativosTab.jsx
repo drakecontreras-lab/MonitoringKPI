@@ -33,7 +33,59 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
   const [processing, setProcessing] = useState(false);
   const [processingError, setProcessingError] = useState('');
   const [processingSuccess, setProcessingSuccess] = useState(false);
+  const [kpiDataOriginal, setKpiDataOriginal] = useState(null);
   const [kpiData, setKpiData] = useState(null);
+
+  const agruparKpiData = (dataOriginal, agruparPorPto) => {
+    if (!dataOriginal) return null;
+    const newData = JSON.parse(JSON.stringify(dataOriginal));
+    newData.use_pto_trabajo = agruparPorPto;
+
+    const agruparArray = (arr, propsNum, isCump = false) => {
+      const mapa = {};
+      arr.forEach(item => {
+        let clave = agruparPorPto 
+          ? `${item.proceso}||${item.ptoTrabajo}` 
+          : `${item.proceso}||${item.grPlanif}||${item.grPlanifPM}`;
+        if (!mapa[clave]) {
+          mapa[clave] = { ...item };
+          propsNum.forEach(p => mapa[clave][p] = 0);
+        }
+        propsNum.forEach(p => mapa[clave][p] += (Number(item[p]) || 0));
+      });
+      const res = Object.values(mapa);
+      if (isCump) {
+        res.forEach(item => {
+          if (item.planificado !== undefined) {
+             item.total = (item.planificado||0) + (item.sinHr||0) + (item.imprevistos||0);
+             item.cumplimiento = item.total > 0 ? (item.planificado||0) / item.total : 0;
+          } else if (item.cumple !== undefined) {
+             item.total = (item.cumple||0) + (item.noCumple||0);
+             item.cumplimiento = item.total > 0 ? (item.cumple||0) / item.total : 0;
+          }
+        });
+      }
+      return res;
+    };
+
+    if (newData.resumenAvisos) {
+      newData.resumenAvisos.distribucion = agruparArray(newData.resumenAvisos.distribucion, ['cantidad']);
+    }
+    if (newData.resumenOrdenes) {
+      newData.resumenOrdenes.distribucion = agruparArray(newData.resumenOrdenes.distribucion, ['cantidad']);
+    }
+    if (newData.trabajoPlanificado) {
+      newData.trabajoPlanificado.grupos = agruparArray(newData.trabajoPlanificado.grupos, ['planificado', 'sinHr', 'sinHorizonte', 'imprevistos'], true);
+    }
+    if (newData.programaSemanal) {
+      newData.programaSemanal.grupos = agruparArray(newData.programaSemanal.grupos, ['cumple', 'noCumple'], true);
+    }
+    if (newData.planMatriz) {
+      newData.planMatriz.grupos = agruparArray(newData.planMatriz.grupos, ['cumple', 'noCumple'], true);
+    }
+
+    return newData;
+  };
 
 
   // ─── Estado Robot SAP interno de esta pestaña (AISLADO) ───
@@ -64,7 +116,22 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
   const [selectedTemplate, setSelectedTemplate] = useState(7);
   const [usePtoTrabajo, setUsePtoTrabajo] = useState(false);
 
+  const [orgOptions, setOrgOptions] = useState({ divisiones: [], gerencias: [], superintendencias: [] });
+  const [selectedDivision, setSelectedDivision] = useState('');
+  const [selectedGerencia, setSelectedGerencia] = useState('');
+  const [selectedSuperintendencia, setSelectedSuperintendencia] = useState('');
+
   // ─── Efectos ───
+  useEffect(() => {
+    fetch('/api/org-structure')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setOrgOptions(data);
+        }
+      })
+      .catch(e => console.error(e));
+  }, []);
 
   useEffect(() => {
     if (user?.preferred_username) setTestRecipients(user.preferred_username);
@@ -170,6 +237,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     setProcessing(true);
     setProcessingError('');
     setProcessingSuccess(false);
+    setKpiDataOriginal(null);
     setKpiData(null);
     // Iniciar el polling del robot SAP interno de KPIs (NO toca ProyeccionesTab)
     setKpiRobotRunning(true);
@@ -189,6 +257,10 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     const formData = new FormData();
     formData.append('semana', semana);
     formData.append('use_pto_trabajo', usePtoTrabajo);
+    formData.append('division', selectedDivision);
+    formData.append('gerencia', selectedGerencia);
+    formData.append('superintendencia', selectedSuperintendencia);
+    formData.append('user_email', user?.preferred_username || '');
 
     let url = '/api/process-kpis';
 
@@ -218,7 +290,8 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
       const response = await fetch(url, { method: 'POST', body: formData });
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.error || 'Error al procesar en el servidor.');
-      setKpiData(resData.data);
+      setKpiDataOriginal(resData.data);
+      setKpiData(agruparKpiData(resData.data, usePtoTrabajo));
       setProcessingSuccess(true);
     } catch (err) {
       setProcessingError(err.message || 'Error de conexión con el backend.');
@@ -231,10 +304,10 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
 
   // React to toggle changes
   useEffect(() => {
-    if (kpiData && !processing) {
-       handleProcessKpis({ preventDefault: () => {} });
+    if (kpiDataOriginal && !processing) {
+       setKpiData(agruparKpiData(kpiDataOriginal, usePtoTrabajo));
     }
-  }, [usePtoTrabajo]);
+  }, [usePtoTrabajo, kpiDataOriginal, processing]);
 
   const handleCapturePowerBI = async () => {
     setPbiCapturing(true);
@@ -457,6 +530,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
         </button>
       </div>
 
+
       {kpiSubTab === 'visualizacion' && (
         <div className="dashboard-grid">
           {/* Panel izquierdo: carga de archivos */}
@@ -477,29 +551,33 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                 <input type="number" min="1" max="53" required className="form-control" value={semana} onChange={(e) => setSemana(e.target.value)} />
               </div>
 
-              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginTop: '0.5rem', background: 'rgba(59, 130, 246, 0.05)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.8rem' }}>
+                <div>
+                  <label>División</label>
+                  <input list="divList" type="text" className="form-control" placeholder="Ej. Chuquicamata" value={selectedDivision} onChange={e => setSelectedDivision(e.target.value)} />
+                  <datalist id="divList">{orgOptions.divisiones?.map(d => <option key={d.id} value={d.nombre} />)}</datalist>
+                </div>
+                <div>
+                  <label>Gerencia</label>
+                  <input list="gerList" type="text" className="form-control" placeholder="Ej. Extracción" value={selectedGerencia} onChange={e => setSelectedGerencia(e.target.value)} />
+                  <datalist id="gerList">{orgOptions.gerencias?.map(g => <option key={g.id} value={g.nombre} />)}</datalist>
+                </div>
+                <div>
+                  <label>Superintendencia (Opcional)</label>
+                  <input list="supList" type="text" className="form-control" placeholder="En blanco si es a nivel Gerencia" value={selectedSuperintendencia} onChange={e => setSelectedSuperintendencia(e.target.value)} />
+                  <datalist id="supList">{orgOptions.superintendencias?.map(s => <option key={s.id} value={s.nombre} />)}</datalist>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', background: 'rgba(59, 130, 246, 0.05)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                 <label style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }} htmlFor="togglePtoTrabajo">
                   <span className="material-icons" style={{ color: usePtoTrabajo ? '#3b82f6' : 'var(--text-muted)' }}>account_tree</span>
                   Agrupar Informe por Puesto de Trabajo
                 </label>
                 <div style={{ position: 'relative', width: '44px', height: '24px' }}>
-                  <input
-                    id="togglePtoTrabajo"
-                    type="checkbox"
-                    checked={usePtoTrabajo}
-                    onChange={(e) => setUsePtoTrabajo(e.target.checked)}
-                    style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
-                  />
-                  <div style={{
-                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                    background: usePtoTrabajo ? '#3b82f6' : '#cbd5e1',
-                    borderRadius: '24px', cursor: 'pointer', transition: '0.3s'
-                  }} onClick={() => setUsePtoTrabajo(!usePtoTrabajo)}>
-                    <div style={{
-                      position: 'absolute', top: '2px', left: usePtoTrabajo ? '22px' : '2px',
-                      width: '20px', height: '20px', background: 'white', borderRadius: '50%',
-                      transition: '0.3s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }} />
+                  <input id="togglePtoTrabajo" type="checkbox" checked={usePtoTrabajo} onChange={(e) => setUsePtoTrabajo(e.target.checked)} style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} />
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: usePtoTrabajo ? '#3b82f6' : '#cbd5e1', borderRadius: '24px', cursor: 'pointer', transition: '0.3s' }} onClick={() => setUsePtoTrabajo(!usePtoTrabajo)}>
+                    <div style={{ position: 'absolute', top: '2px', left: usePtoTrabajo ? '22px' : '2px', width: '20px', height: '20px', background: 'white', borderRadius: '50%', transition: '0.3s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
                   </div>
                 </div>
               </div>
@@ -599,16 +677,12 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                   <div className="progress-bar-wrapper" style={{ height: '6px' }}>
                     <div className="progress-bar-fill" style={{ width: `${kpiRobotProgress * 100}%` }}></div>
                   </div>
-                  {kpiRobotVisor && (
-                    <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }}>
-                      <img src={`data:image/jpeg;base64,${kpiRobotVisor}`} alt="Vista SAP" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }} />
-                    </div>
-                  )}
+
                   {kpiSolicitarMfa && createPortal(
-                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 8, 22, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                      <div className="glass-card flex-col gap-1 text-center animate-scale-up" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#162130', alignItems: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                      <div className="glass-card flex-col gap-1 text-center animate-scale-up" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)', alignItems: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
                         <span className="material-icons text-warning" style={{ fontSize: '3.5rem', marginBottom: '0.5rem' }}>security</span>
-                        <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem' }}>Microsoft Authenticator (SAP)</h3>
+                        <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.25rem' }}>Microsoft Authenticator (SAP)</h3>
                         <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: '1.4' }}>El robot requiere código MFA para iniciar sesión en SAP. Ingresa el código OTP de tu app Authenticator.</p>
                         <input type="text" maxLength="8" placeholder="000000" className="form-control font-mono text-center font-bold"
                           style={{ width: '150px', letterSpacing: '4px', fontSize: '1.4rem', margin: '1rem auto' }}
@@ -724,11 +798,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                           <div className="progress-bar-wrapper" style={{ height: '6px' }}>
                             <div className="progress-bar-fill" style={{ width: `${pbiStatus.progreso * 100}%` }}></div>
                           </div>
-                          {pbiStatus.visor && (
-                            <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }}>
-                              <img src={`data:image/jpeg;base64,${pbiStatus.visor}`} alt="Vista del Navegador Power BI" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }} />
-                            </div>
-                          )}
+
 
                           <div className="flex gap-0.5" style={{ marginTop: '0.5rem' }}>
                             <button type="button" onClick={async () => { await fetch('/api/pausar-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'powerbi' }) }); }} className="btn btn-secondary flex-1" style={{ fontSize: '0.75rem', padding: '0.35rem' }}>Pausar</button>
@@ -785,13 +855,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                         <h3>Avisos Pendientes</h3>
                         <div className="responsive-table-wrapper">
                           <table className="premium-table">
-                            <thead><tr><th>Proceso Mantenimiento</th><th>Gr. Planif</th><th>Gr. planif.PM</th><th className="text-center">Cantidad</th></tr></thead>
+                            <thead><tr><th>Proceso Mantenimiento</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cantidad</th></tr></thead>
                             <tbody>
                               {(kpiData.resumenAvisos.distribucion || []).map((g, idx) => (
                                 <tr key={idx}>
                                   <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanif || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, 'grPlanif', e.target.value)} /> : g.grPlanif}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
+                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajo : g.grPlanif) || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
+                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM) || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
                                   <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={g.cantidad || 0} onChange={(e) => handleTableChange('resumenAvisos', idx, 'cantidad', e.target.value)} /> : Math.round(g.cantidad || 0)}</td>
                                 </tr>
                               ))}
@@ -808,13 +878,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                         <h3>Órdenes Pendientes</h3>
                         <div className="responsive-table-wrapper">
                           <table className="premium-table">
-                            <thead><tr><th>Proceso Mantenimiento</th><th>Gr. Planif</th><th>Gr. planif.PM</th><th className="text-center">Cantidad</th></tr></thead>
+                            <thead><tr><th>Proceso Mantenimiento</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cantidad</th></tr></thead>
                             <tbody>
                               {(kpiData.resumenOrdenes.distribucion || []).map((g, idx) => (
                                 <tr key={idx}>
                                   <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanif || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'grPlanif', e.target.value)} /> : g.grPlanif}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
+                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajo : g.grPlanif) || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
+                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM) || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
                                   <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={g.cantidad || 0} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'cantidad', e.target.value)} /> : Math.round(g.cantidad || 0)}</td>
                                 </tr>
                               ))}
@@ -830,13 +900,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                       <h3>% Trabajo Planificado (HH)</h3>
                       <div className="responsive-table-wrapper">
                         <table className="premium-table">
-                          <thead><tr><th>Proceso</th><th>Gr. planif</th><th>Gr. planif.PM</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumplimiento</th></tr></thead>
+                          <thead><tr><th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumplimiento</th></tr></thead>
                           <tbody>
                             {kpiData.trabajoPlanificado.grupos.map((g, idx) => (
                               <tr key={idx}>
                                 <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanif} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'grPlanif', e.target.value)} /> : g.grPlanif}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
+                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajo : g.grPlanif} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
+                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
                                 <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.planificado} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'planificado', e.target.value)} /> : Math.round(g.planificado)}</td>
                                 <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.sinHr} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHr', e.target.value)} /> : Math.round(g.sinHr)}</td>
                                 <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.imprevistos} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'imprevistos', e.target.value)} /> : Math.round(g.imprevistos)}</td>
@@ -864,13 +934,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                       <h3>Programa Semanal</h3>
                       <div className="responsive-table-wrapper">
                         <table className="premium-table">
-                          <thead><tr><th>Proceso</th><th>Gr. planif</th><th>Gr. planif.PM</th><th className="text-center">Cumple</th><th className="text-center">No Cumple</th><th className="text-center">Total Ops</th><th className="text-center">Cumplimiento</th></tr></thead>
+                          <thead><tr><th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cumple</th><th className="text-center">No Cumple</th><th className="text-center">Total Ops</th><th className="text-center">Cumplimiento</th></tr></thead>
                           <tbody>
                             {kpiData.programaSemanal.grupos.map((g, idx) => (
                               <tr key={idx}>
                                 <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso} onChange={(e) => handleTableChange('programaSemanal', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanif} onChange={(e) => handleTableChange('programaSemanal', idx, 'grPlanif', e.target.value)} /> : g.grPlanif}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM} onChange={(e) => handleTableChange('programaSemanal', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
+                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajo : g.grPlanif} onChange={(e) => handleTableChange('programaSemanal', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
+                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM} onChange={(e) => handleTableChange('programaSemanal', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.cumple} onChange={(e) => handleTableChange('programaSemanal', idx, 'cumple', e.target.value)} /> : Math.round(g.cumple)}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.noCumple} onChange={(e) => handleTableChange('programaSemanal', idx, 'noCumple', e.target.value)} /> : Math.round(g.noCumple)}</td>
                                 <td className="text-center font-number font-bold">{Math.round(g.total)}</td>
@@ -888,13 +958,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                       <h3>Plan Matriz</h3>
                       <div className="responsive-table-wrapper">
                         <table className="premium-table">
-                          <thead><tr><th>Proceso</th><th>Gr. planif</th><th>Gr. planif.PM</th><th className="text-center">Cumple</th><th className="text-center">No Cumple</th><th className="text-center">Total Ops</th><th className="text-center">Cumplimiento</th></tr></thead>
+                          <thead><tr><th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cumple</th><th className="text-center">No Cumple</th><th className="text-center">Total Ops</th><th className="text-center">Cumplimiento</th></tr></thead>
                           <tbody>
                             {kpiData.planMatriz.grupos.map((g, idx) => (
                               <tr key={idx}>
                                 <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso} onChange={(e) => handleTableChange('planMatriz', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanif} onChange={(e) => handleTableChange('planMatriz', idx, 'grPlanif', e.target.value)} /> : g.grPlanif}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={g.grPlanifPM} onChange={(e) => handleTableChange('planMatriz', idx, 'grPlanifPM', e.target.value)} /> : g.grPlanifPM}</td>
+                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajo : g.grPlanif} onChange={(e) => handleTableChange('planMatriz', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
+                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM} onChange={(e) => handleTableChange('planMatriz', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.cumple} onChange={(e) => handleTableChange('planMatriz', idx, 'cumple', e.target.value)} /> : Math.round(g.cumple)}</td>
                                 <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center" value={g.noCumple} onChange={(e) => handleTableChange('planMatriz', idx, 'noCumple', e.target.value)} /> : Math.round(g.noCumple)}</td>
                                 <td className="text-center font-number font-bold">{Math.round(g.total)}</td>

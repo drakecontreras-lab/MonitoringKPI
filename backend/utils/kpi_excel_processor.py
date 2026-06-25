@@ -330,7 +330,7 @@ def _make_unique_headers(headers):
 # EXTRACTORES POR TIPO DE ARCHIVO
 # ──────────────────────────────────────────────────────────────────────────────
 
-def extract_avisos(path):
+def extract_avisos(path, puestos_mapping=None):
     """
     Procesa el archivo de Avisos Pendientes (SAP MIME-HTML o XLSX).
     Estructura del archivo:
@@ -355,7 +355,7 @@ def extract_avisos(path):
         gr_planif_pm  = str(row_list[10] if len(row_list) > 10 else '').strip()
         gr_planif_raw = str(row_list[11] if len(row_list) > 11 else '').strip()
         pto_trabajo_raw = str(row_list[15] if len(row_list) > 15 else '').strip()
-        pto_trabajo = pto_trabajo_raw.replace('CH01/', '').strip() if pto_trabajo_raw else 'N/A'
+        pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
         gr_planif     = strip_ch01(gr_planif_raw)
 
         if not proceso_raw or proceso_raw == 'nan':
@@ -367,7 +367,6 @@ def extract_avisos(path):
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
 
-        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
         total += 1
@@ -390,6 +389,15 @@ def extract_avisos(path):
     for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
+    if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
+        df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
+
+    if 'Pto. Trabajo' in df_clean.columns and 'Pto. Trabajo Descripcion' in df_clean.columns:
+        cols = list(df_clean.columns)
+        cols.remove('Pto. Trabajo')
+        idx = cols.index('Pto. Trabajo Descripcion')
+        cols.insert(idx + 1, 'Pto. Trabajo')
+        df_clean = df_clean[cols]
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -398,12 +406,13 @@ def extract_avisos(path):
         parts = key.split('||')
         p, gp, gppm = parts[0], parts[1], parts[2]
         pto = parts[3] if len(parts) > 3 else 'N/A'
-        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajo': pto, 'cantidad': group[key]})
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
+        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc, 'cantidad': group[key]})
 
     return df_clean, {'total': total, 'distribucion': distribucion}
 
 
-def extract_ordenes(path):
+def extract_ordenes(path, puestos_mapping=None):
     """
     Procesa el archivo de Órdenes Pendientes (SAP MIME-HTML o XLSX).
     Estructura:
@@ -427,8 +436,8 @@ def extract_ordenes(path):
         gr_planif_raw = str(row_list[1] if len(row_list) > 1 else '').strip()
         gr_planif     = strip_ch01(gr_planif_raw)
         proceso_raw   = str(row_list[3] if len(row_list) > 3 else '').strip()
-        pto_trabajo_raw = str(row_list[12] if len(row_list) > 12 else '').strip()
-        pto_trabajo = pto_trabajo_raw.replace('CH01/', '').strip() if pto_trabajo_raw else 'N/A'
+        pto_trabajo_raw = str(row_list[13] if len(row_list) > 13 else '').strip()
+        pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
 
         if not proceso_raw or proceso_raw == 'nan':
             continue
@@ -439,7 +448,6 @@ def extract_ordenes(path):
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
 
-        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
         total += 1
@@ -459,6 +467,15 @@ def extract_ordenes(path):
     for col_name in ('Pto. Trabajo', 'Pto. Trabajo Descripcion'):
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
+    if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
+        df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
+
+    if 'Pto. Trabajo' in df_clean.columns and 'Pto. Trabajo Descripcion' in df_clean.columns:
+        cols = list(df_clean.columns)
+        cols.remove('Pto. Trabajo')
+        idx = cols.index('Pto. Trabajo Descripcion')
+        cols.insert(idx + 1, 'Pto. Trabajo')
+        df_clean = df_clean[cols]
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -467,12 +484,13 @@ def extract_ordenes(path):
         parts = key.split('||')
         p, gp, gppm = parts[0], parts[1], parts[2]
         pto = parts[3] if len(parts) > 3 else 'N/A'
-        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajo': pto, 'cantidad': group[key]})
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
+        distribucion.append({'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc, 'cantidad': group[key]})
 
     return df_clean, {'total': total, 'distribucion': distribucion}
 
 
-def extract_trabajo_planificado(path, ots_mapping=None):
+def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
     """
     Procesa el archivo de % Trabajo Planificado (SAP MIME-HTML o XLSX).
     Propósito: Estructurar y limpiar los datos de Trabajo Planificado.
@@ -508,6 +526,8 @@ def extract_trabajo_planificado(path, ots_mapping=None):
         clase_orden  = str(row_list[11] if len(row_list) > 11 else '').strip()
         fecha_libera = str(row_list[12] if len(row_list) > 12 else '').strip()
         fecha_inicio = str(row_list[13] if len(row_list) > 13 else '').strip()
+        pto_trabajo_raw = str(row_list[5] if len(row_list) > 5 else '').strip()
+        pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
         grupo_ruta   = str(row_list[14] if len(row_list) > 14 else '').strip()
         pct_planif   = parse_sap_count(row_list[15] if len(row_list) > 15 else 0)  # 10000 = 100%
         hh_totales   = parse_sap_hh(row_list[17] if len(row_list) > 17 else 0)
@@ -596,7 +616,6 @@ def extract_trabajo_planificado(path, ots_mapping=None):
 
         criterios_col.append(criterio)
 
-        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'planificado': 0.0, 'sinHr': 0.0, 'sinHorizonte': 0.0, 'imprevistos': 0.0}
@@ -622,11 +641,12 @@ def extract_trabajo_planificado(path, ots_mapping=None):
         parts = key.split('||')
         p, gp, gppm = parts[0], parts[1], parts[2]
         pto = parts[3] if len(parts) > 3 else 'N/A'
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group[key]
         rt   = vals['planificado'] + vals['sinHr'] + vals.get('sinHorizonte', 0.0) + vals['imprevistos']
         c    = vals['planificado'] / rt if rt > 0 else 0.0
         grupos.append({
-            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
+            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
             'planificado': vals['planificado'],
             'sinHr': vals['sinHr'],
             'sinHorizonte': vals.get('sinHorizonte', 0.0),
@@ -675,6 +695,15 @@ def extract_trabajo_planificado(path, ots_mapping=None):
             df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
     if '% Trabajo Planificado' in df_clean.columns:
         df_clean['% Trabajo Planificado'] = df_clean['% Trabajo Planificado'].apply(clean_cumplimiento_val)
+    if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
+        df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
+
+    if 'Pto. Trabajo' in df_clean.columns and 'Pto. Trabajo Descripcion' in df_clean.columns:
+        cols = list(df_clean.columns)
+        cols.remove('Pto. Trabajo')
+        idx = cols.index('Pto. Trabajo Descripcion')
+        cols.insert(idx + 1, 'Pto. Trabajo')
+        df_clean = df_clean[cols]
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -690,7 +719,7 @@ def extract_trabajo_planificado(path, ots_mapping=None):
     }
 
 
-def extract_programa_semanal(path):
+def extract_programa_semanal(path, puestos_mapping=None):
     """
     Procesa el archivo de Programa Semanal (SAP MIME-HTML o XLSX).
     Estructura (doble encabezado):
@@ -720,6 +749,8 @@ def extract_programa_semanal(path):
         gr_planif_raw = str(row_list[1] if len(row_list) > 1 else '').strip()
         gr_planif     = strip_ch01(gr_planif_raw)
         proceso_raw   = str(row_list[4] if len(row_list) > 4 else '').strip()
+        pto_trabajo_raw = str(row_list[7] if len(row_list) > 7 else '').strip()
+        pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
 
         if not proceso_raw or proceso_raw == 'nan':
             criterios_col.append('')
@@ -740,7 +771,6 @@ def extract_programa_semanal(path):
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
 
-        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'cumple': 0.0, 'noCumple': 0.0, 'sumIndCumple': 0.0, 'sumTotalOp': 0.0}
@@ -762,10 +792,11 @@ def extract_programa_semanal(path):
         parts = key.split('||')
         p, gp, gppm = parts[0], parts[1], parts[2]
         pto = parts[3] if len(parts) > 3 else 'N/A'
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group[key]
         cump = vals['sumIndCumple'] / vals['sumTotalOp'] if vals['sumTotalOp'] > 0 else 0.0
         grupos.append({
-            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
+            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
             'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
             'total': vals['sumTotalOp'], 'cumplimiento': cump
         })
@@ -808,6 +839,16 @@ def extract_programa_semanal(path):
 
     df_clean = df_clean.copy()
     df_clean['Criterio'] = criterios_col
+    if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
+        df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
+
+    if 'Pto. Trabajo' in df_clean.columns and 'Pto. Trabajo Descripcion' in df_clean.columns:
+        cols = list(df_clean.columns)
+        cols.remove('Pto. Trabajo')
+        idx = cols.index('Pto. Trabajo Descripcion')
+        cols.insert(idx + 1, 'Pto. Trabajo')
+        df_clean = df_clean[cols]
+
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
     return df_clean, {
@@ -821,7 +862,7 @@ def extract_programa_semanal(path):
     }
 
 
-def extract_plan_matriz(path, export_ops_mapping=None):
+def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None):
     """
     Procesa el archivo de Plan Matriz (SAP MIME-HTML o XLSX).
     Estructura (doble encabezado):
@@ -867,6 +908,8 @@ def extract_plan_matriz(path, export_ops_mapping=None):
         gr_planif_raw = str(row_list[5] if len(row_list) > 5 else '').strip()
         gr_planif     = strip_ch01(gr_planif_raw)
         proceso_raw   = str(row_list[2] if len(row_list) > 2 else '').strip()
+        pto_trabajo_raw = str(row_list[13] if len(row_list) > 13 else '').strip()
+        pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
 
         if not proceso_raw or proceso_raw == 'nan':
             criterios_col.append('')
@@ -906,7 +949,6 @@ def extract_plan_matriz(path, export_ops_mapping=None):
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
 
-        pto_trabajo = "N/A"
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
             group[key] = {'ejec': 0.0, 'total_plan': 0.0}
@@ -923,10 +965,11 @@ def extract_plan_matriz(path, export_ops_mapping=None):
         parts = key.split('||')
         p, gp, gppm = parts[0], parts[1], parts[2]
         pto = parts[3] if len(parts) > 3 else 'N/A'
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group[key]
         cump = vals['ejec'] / vals['total_plan'] if vals['total_plan'] > 0 else 0.0
         grupos.append({
-            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
+            'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
             'cumple': vals['ejec'],
             'noCumple': vals['total_plan'] - vals['ejec'],
             'total': vals['total_plan'],
@@ -977,6 +1020,15 @@ def extract_plan_matriz(path, export_ops_mapping=None):
         while len(nuevos_totales_col) < len(df_clean):
             nuevos_totales_col.append(None)
         df_clean.iloc[:, 18] = [str(v) if v is not None else None for v in nuevos_totales_col]
+    if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
+        df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
+
+    if 'Pto. Trabajo' in df_clean.columns and 'Pto. Trabajo Descripcion' in df_clean.columns:
+        cols = list(df_clean.columns)
+        cols.remove('Pto. Trabajo')
+        idx = cols.index('Pto. Trabajo Descripcion')
+        cols.insert(idx + 1, 'Pto. Trabajo')
+        df_clean = df_clean[cols]
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -996,7 +1048,8 @@ def extract_plan_matriz(path, export_ops_mapping=None):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def process_kpi_excels(file_paths, semana_num, output_path,
-                       ots_mapping=None, export_ops_mapping=None):
+                       ots_mapping=None, export_ops_mapping=None,
+                       puestos_mapping=None, metadata=None):
     """
     Procesa los 5 archivos SAP crudos (flujo Múltiples Excel), aplica la lógica de
     preprocesamiento y genera el Excel consolidado.
@@ -1012,11 +1065,11 @@ def process_kpi_excels(file_paths, semana_num, output_path,
     print(f"[ExcelProcessor] Procesando archivos múltiples semana {semana_num}...")
 
     # Extraer y preprocesar cada archivo
-    df_avisos,  stats_avisos  = extract_avisos(file_paths['avisos'])
-    df_ordenes, stats_ordenes = extract_ordenes(file_paths['ordenes'])
-    df_trabajo, stats_trabajo = extract_trabajo_planificado(file_paths['trabajoPlanificado'], ots_mapping)
-    df_prog,    stats_prog    = extract_programa_semanal(file_paths['programaSemanal'])
-    df_plan,    stats_plan    = extract_plan_matriz(file_paths['planMatriz'], export_ops_mapping)
+    df_avisos,  stats_avisos  = extract_avisos(file_paths['avisos'], puestos_mapping=puestos_mapping)
+    df_ordenes, stats_ordenes = extract_ordenes(file_paths['ordenes'], puestos_mapping=puestos_mapping)
+    df_trabajo, stats_trabajo = extract_trabajo_planificado(file_paths['trabajoPlanificado'], ots_mapping, puestos_mapping)
+    df_prog,    stats_prog    = extract_programa_semanal(file_paths['programaSemanal'], puestos_mapping=puestos_mapping)
+    df_plan,    stats_plan    = extract_plan_matriz(file_paths['planMatriz'], export_ops_mapping, puestos_mapping)
 
     # Generar XLSX consolidado con 5 hojas (sin hoja 'Tabla')
     wb = openpyxl.Workbook()
@@ -1141,6 +1194,9 @@ def _find_col_idx(columns, *keywords):
             # Evitar que 'gr. planif' haga match con 'gr. planif.pm'
             if 'planif' in kw.lower() and 'pm' not in kw.lower() and 'pm' in col_str:
                 continue
+            # Evitar que 'pto. trabajo' haga match con 'pto. trabajo descripcion'
+            if 'trabajo' in kw.lower() and 'desc' not in kw.lower() and 'desc' in col_str:
+                continue
             if kw.lower() in col_str:
                 return i
     return -1
@@ -1178,10 +1234,11 @@ def _read_sheet_smart(path, sheet_name):
         return None
 
 
-def process_ready_excel(file_path, semana_num):
+def process_ready_excel(file_path, semana_num, puestos_mapping=None):
     """
     Procesa un Excel consolidado KPI (generado por process_kpi_excels o macro VBA).
     Lee hoja por hoja usando detección de columnas por nombre.
+    - puestos_mapping: dict {puesto_trabajo: descripcion} para enriquecer distribución/grupos.
     """
     print(f"[ExcelProcessor] Procesando Excel consolidado semana {semana_num}...")
 
@@ -1203,6 +1260,7 @@ def process_ready_excel(file_path, semana_num):
             col_proc = _find_col_idx(df_avi.columns, 'proceso')
             col_gp   = _find_col_idx(df_avi.columns, 'gr. planif', 'gr.planif', 'grplanif')
             col_gppm = _find_col_idx(df_avi.columns, 'gr.planif.pm', 'gr. planif.pm')
+            col_pto  = _find_col_idx(df_avi.columns, 'pto. trabajo', 'pto trabajo', 'puesto de trabajo', 'pto trabajo')
 
             for _, row in df_avi.iterrows():
                 row_l = list(row)
@@ -1212,6 +1270,7 @@ def process_ready_excel(file_path, semana_num):
                 proceso_raw  = str(row_l[col_proc]  if col_proc >= 0  else row_l[2]).strip()
                 gr_planif    = str(row_l[col_gp]    if col_gp >= 0    else row_l[11]).strip()
                 gr_planif_pm = str(row_l[col_gppm]  if col_gppm >= 0  else row_l[10]).strip()
+                pto_trabajo  = clean_pto_trabajo(str(row_l[col_pto] if col_pto >= 0 else 'N/A').strip())
 
                 if not proceso_raw or proceso_raw in ('nan', ''):
                     continue
@@ -1223,7 +1282,6 @@ def process_ready_excel(file_path, semana_num):
                 if not gr_planif_pm or gr_planif_pm == 'nan':
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
-                pto_trabajo = "N/A"
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_avisos[key] = group_avisos.get(key, 0) + 1
                 total_avisos_count += 1
@@ -1240,6 +1298,7 @@ def process_ready_excel(file_path, semana_num):
             col_proc = _find_col_idx(df_ord.columns, 'proceso')
             col_gp   = _find_col_idx(df_ord.columns, 'gr. planif', 'gr.planif')
             col_gppm = _find_col_idx(df_ord.columns, 'gr.planif.pm', 'gr. planif.pm')
+            col_pto  = _find_col_idx(df_ord.columns, 'pto. trabajo', 'pto trabajo', 'puesto de trabajo')
 
             for _, row in df_ord.iterrows():
                 row_l = list(row)
@@ -1249,6 +1308,7 @@ def process_ready_excel(file_path, semana_num):
                 proceso_raw  = str(row_l[col_proc]  if col_proc >= 0  else row_l[3]).strip()
                 gr_planif    = str(row_l[col_gp]    if col_gp >= 0    else row_l[1]).strip()
                 gr_planif_pm = str(row_l[col_gppm]  if col_gppm >= 0  else row_l[0]).strip()
+                pto_trabajo  = clean_pto_trabajo(str(row_l[col_pto] if col_pto >= 0 else 'N/A').strip())
 
                 if not proceso_raw or proceso_raw in ('nan', ''):
                     continue
@@ -1260,7 +1320,6 @@ def process_ready_excel(file_path, semana_num):
                 if not gr_planif_pm or gr_planif_pm == 'nan':
                     gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif)
 
-                pto_trabajo = "N/A"
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 group_ordenes[key] = group_ordenes.get(key, 0) + 1
                 total_ordenes_count += 1
@@ -1287,6 +1346,7 @@ def process_ready_excel(file_path, semana_num):
             col_gppm    = _find_col_idx(df_tp.columns, 'gr.planif.pm', 'gr. planif.pm')
             col_criterio= _find_col_idx(df_tp.columns, 'criterio')
             col_hh_real = _find_col_idx(df_tp.columns, 'hh totales reales', 'hh total', 'trabajo real', 'trab.real', 'trabajo tot')
+            col_pto     = _find_col_idx(df_tp.columns, 'pto. trabajo', 'pto trabajo', 'puesto de trabajo')
 
             for _, row in df_tp.iterrows():
                 row_l = list(row)
@@ -1300,6 +1360,7 @@ def process_ready_excel(file_path, semana_num):
                 
                 # In process_ready_excel, the numbers are already standard floats, so we just get_num
                 hh_real      = get_num(row_l, col_hh_real if col_hh_real >= 0 else -2)
+                pto_trabajo  = clean_pto_trabajo(str(row_l[col_pto] if col_pto >= 0 else 'N/A').strip())
 
                 if not proceso_raw or proceso_raw in ('nan', ''):
                     continue
@@ -1312,7 +1373,6 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                pto_trabajo = "N/A"
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_tp:
                     group_tp[key] = {'planificado': 0.0, 'sinHr': 0.0, 'imprevistos': 0.0}
@@ -1331,12 +1391,13 @@ def process_ready_excel(file_path, semana_num):
     total_tp_cumplimiento = total_tp_planificado / total_tp_total if total_tp_total > 0 else 0.0
     cump_trabajo_planificado = []
     for key in sorted(group_tp.keys()):
-        proceso, gp, gppm = key.split('||')
+        proceso, gp, gppm, pto = key.split('||')
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group_tp[key]
         rt   = vals['planificado'] + vals['sinHr'] + vals['imprevistos']
         c    = vals['planificado'] / rt if rt > 0 else 0.0
         cump_trabajo_planificado.append({
-            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
+            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
             'planificado': vals['planificado'], 'sinHr': vals['sinHr'],
             'imprevistos': vals['imprevistos'], 'total': rt, 'cumplimiento': c
         })
@@ -1365,6 +1426,7 @@ def process_ready_excel(file_path, semana_num):
             col_criterio= _find_col_idx(df_prog.columns, 'criterio')
             col_ind     = _find_col_idx(df_prog.columns, 'indicador cumple', 'ind cumple')
             col_total   = _find_col_idx(df_prog.columns, 'total op', 'total op. programadas')
+            col_pto     = _find_col_idx(df_prog.columns, 'pto. trabajo', 'pto trabajo', 'puesto de trabajo')
 
             for _, row in df_prog.iterrows():
                 row_l = list(row)
@@ -1377,6 +1439,7 @@ def process_ready_excel(file_path, semana_num):
                 criterio_raw = str(row_l[col_criterio] if col_criterio >= 0 else 'Cumple').strip().lower()
                 ind_cumple   = get_num(row_l, col_ind   if col_ind >= 0   else 15)
                 total_op     = get_num(row_l, col_total if col_total >= 0 else 16)
+                pto_trabajo  = clean_pto_trabajo(str(row_l[col_pto] if col_pto >= 0 else 'N/A').strip())
 
                 if not proceso_raw or proceso_raw in ('nan', ''):
                     continue
@@ -1389,7 +1452,6 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                pto_trabajo = "N/A"
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_prog:
                     group_prog[key] = {'cumple': 0.0, 'noCumple': 0.0,
@@ -1411,11 +1473,12 @@ def process_ready_excel(file_path, semana_num):
                                if total_prog_total_ops > 0 else 0.0)
     cump_programa_semanal = []
     for key in sorted(group_prog.keys()):
-        proceso, gp, gppm = key.split('||')
+        proceso, gp, gppm, pto = key.split('||')
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group_prog[key]
         c = vals['sumIndicadorCumple'] / vals['sumTotalOp'] if vals['sumTotalOp'] > 0 else 0.0
         cump_programa_semanal.append({
-            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
+            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
             'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
             'total': vals['sumTotalOp'], 'cumplimiento': c
         })
@@ -1440,6 +1503,7 @@ def process_ready_excel(file_path, semana_num):
             col_criterio= _find_col_idx(df_mtz.columns, 'criterio')
             col_ejec    = _find_col_idx(df_mtz.columns, 'op. ejec', 'operaciones ejec', 'cantidad de operaciones ejec')
             col_total   = _find_col_idx(df_mtz.columns, 'op. tot', 'operaciones tot', 'cantidad de operaciones tot')
+            col_pto     = _find_col_idx(df_mtz.columns, 'pto. trabajo', 'pto trabajo', 'puesto de trabajo')
 
             for _, row in df_mtz.iterrows():
                 row_l = list(row)
@@ -1452,6 +1516,7 @@ def process_ready_excel(file_path, semana_num):
                 criterio_raw = str(row_l[col_criterio] if col_criterio >= 0 else 'Cumple').strip().lower()
                 op_ejec      = get_num(row_l, col_ejec  if col_ejec >= 0  else 17)
                 op_total     = get_num(row_l, col_total if col_total >= 0 else 18)
+                pto_trabajo  = clean_pto_trabajo(str(row_l[col_pto] if col_pto >= 0 else 'N/A').strip())
 
                 if not proceso_raw or proceso_raw in ('nan', ''):
                     continue
@@ -1464,7 +1529,6 @@ def process_ready_excel(file_path, semana_num):
                 if is_total_or_invalid_row(proceso, gr_planif, gr_planif_pm):
                     continue
 
-                pto_trabajo = "N/A"
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_matriz:
                     group_matriz[key] = {'cumple': 0.0, 'noCumple': 0.0}
@@ -1480,12 +1544,13 @@ def process_ready_excel(file_path, semana_num):
     total_mtz_cumplimiento = total_mtz_ejec / total_mtz_totales if total_mtz_totales > 0 else 0.0
     cump_plan_matriz = []
     for key in sorted(group_matriz.keys()):
-        proceso, gp, gppm = key.split('||')
+        proceso, gp, gppm, pto = key.split('||')
+        pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group_matriz[key]
         rt   = vals['cumple'] + vals['noCumple']
         c    = vals['cumple'] / rt if rt > 0 else 0.0
         cump_plan_matriz.append({
-            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto,
+            'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
             'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
             'total': rt, 'cumplimiento': c
         })
@@ -1507,7 +1572,10 @@ def process_ready_excel(file_path, semana_num):
             'total': total_avisos_count,
             'distribucion': [
                 {'proceso': k.split('||')[0], 'grPlanif': k.split('||')[1],
-                 'grPlanifPM': k.split('||')[2], 'ptoTrabajo': k.split('||')[3] if len(k.split('||')) > 3 else 'N/A', 'cantidad': group_avisos[k]}
+                 'grPlanifPM': k.split('||')[2],
+                 'ptoTrabajo': k.split('||')[3] if len(k.split('||')) > 3 else 'N/A',
+                 'ptoTrabajoDesc': str(puestos_mapping.get(k.split('||')[3] if len(k.split('||')) > 3 else 'N/A', 'N/A')).capitalize() if puestos_mapping else 'N/A',
+                 'cantidad': group_avisos[k]}
                 for k in sorted(group_avisos.keys())
             ]
         },
@@ -1515,7 +1583,10 @@ def process_ready_excel(file_path, semana_num):
             'total': total_ordenes_count,
             'distribucion': [
                 {'proceso': k.split('||')[0], 'grPlanif': k.split('||')[1],
-                 'grPlanifPM': k.split('||')[2], 'ptoTrabajo': k.split('||')[3] if len(k.split('||')) > 3 else 'N/A', 'cantidad': group_ordenes[k]}
+                 'grPlanifPM': k.split('||')[2],
+                 'ptoTrabajo': k.split('||')[3] if len(k.split('||')) > 3 else 'N/A',
+                 'ptoTrabajoDesc': str(puestos_mapping.get(k.split('||')[3] if len(k.split('||')) > 3 else 'N/A', 'N/A')).capitalize() if puestos_mapping else 'N/A',
+                 'cantidad': group_ordenes[k]}
                 for k in sorted(group_ordenes.keys())
             ]
         },

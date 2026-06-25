@@ -36,6 +36,10 @@ class EntraIDAuth:
         
         # Caché de tokens en memoria por sesión
         self.cache = msal.SerializableTokenCache()
+        self.cache_file = os.path.join(os.path.dirname(__file__), "token_cache.bin")
+        if os.path.exists(self.cache_file):
+            with open(self.cache_file, "r") as f:
+                self.cache.deserialize(f.read())
         
         try:
             self.app = msal.PublicClientApplication(
@@ -60,6 +64,9 @@ class EntraIDAuth:
         if accounts:
             result = self.app.acquire_token_silent(self.scopes, account=accounts[0])
             if result and "access_token" in result:
+                if self.cache.has_state_changed:
+                    with open(self.cache_file, "w") as f:
+                        f.write(self.cache.serialize())
                 claims = result.get("id_token_claims")
                 if claims:
                     return claims
@@ -111,6 +118,9 @@ class EntraIDAuth:
             )
             
             if "access_token" in result:
+                if self.cache.has_state_changed:
+                    with open(self.cache_file, "w") as f:
+                        f.write(self.cache.serialize())
                 claims = result.get("id_token_claims")
                 if claims:
                     return claims
@@ -137,3 +147,8 @@ class EntraIDAuth:
             return
         for account in self.app.get_accounts():
             self.app.remove_account(account)
+        if os.path.exists(self.cache_file):
+            try:
+                os.remove(self.cache_file)
+            except:
+                pass
