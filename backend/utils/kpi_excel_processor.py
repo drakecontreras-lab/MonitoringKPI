@@ -75,12 +75,17 @@ def get_val(row, idx, default=""):
 
 
 def get_num(row, idx, default=0.0):
-    """Obtiene un valor numérico de una fila por índice."""
+    """Obtiene un valor numérico de una fila por índice. Maneja formato europeo (1.304,600)."""
     val = get_val(row, idx, default)
+    if pd.isna(val): return default
+    if isinstance(val, (int, float)): return float(val)
+    s = str(val).strip()
+    if s in ('', 'nan', 'None', '#', 'Resultado', 'Resultado total'): return default
     try:
-        if str(val).strip() == '':
-            return default
-        return float(val)
+        if ',' in s:
+            # Formato europeo: '1.304,600' -> 1304.6
+            s = s.replace('.', '').replace(',', '.')
+        return float(s)
     except:
         return default
 
@@ -1369,10 +1374,11 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
 
     total_tp_cumplimiento_value = extract_total_percentage(tp_rows_raw, 2)
 
-    group_tp            = {}
-    total_tp_planificado = 0.0
-    total_tp_sin_hr     = 0.0
-    total_tp_imprevistos = 0.0
+    group_tp             = {}
+    total_tp_planificado  = 0.0
+    total_tp_sin_hr       = 0.0  # solo 'Sin HR'
+    total_tp_sin_horizonte= 0.0  # solo 'Sin horizonte'
+    total_tp_imprevistos  = 0.0
 
     if tp_sheet:
         df_tp = _read_sheet_smart(file_path, tp_sheet)
@@ -1412,30 +1418,34 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
 
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_tp:
-                    group_tp[key] = {'planificado': 0.0, 'sinHr': 0.0, 'imprevistos': 0.0}
+                    group_tp[key] = {'planificado': 0.0, 'sinHr': 0.0, 'sinHorizonte': 0.0, 'imprevistos': 0.0}
 
                 if 'planificad' in criterio_raw:
                     group_tp[key]['planificado'] += hh_real
                     total_tp_planificado += hh_real
-                elif 'sin hr' in criterio_raw or 'sin horizonte' in criterio_raw:
+                elif 'sin horizonte' in criterio_raw:
+                    group_tp[key]['sinHorizonte'] += hh_real
+                    total_tp_sin_horizonte += hh_real
+                elif 'sin hr' in criterio_raw:
                     group_tp[key]['sinHr'] += hh_real
                     total_tp_sin_hr += hh_real
                 elif 'imprevist' in criterio_raw:
                     group_tp[key]['imprevistos'] += hh_real
                     total_tp_imprevistos += hh_real
 
-    total_tp_total       = total_tp_planificado + total_tp_sin_hr + total_tp_imprevistos
+    total_tp_total       = total_tp_planificado + total_tp_sin_hr + total_tp_sin_horizonte + total_tp_imprevistos
     total_tp_cumplimiento = total_tp_planificado / total_tp_total if total_tp_total > 0 else 0.0
     cump_trabajo_planificado = []
     for key in sorted(group_tp.keys()):
         proceso, gp, gppm, pto = key.split('||')
         pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group_tp[key]
-        rt   = vals['planificado'] + vals['sinHr'] + vals['imprevistos']
+        rt   = vals['planificado'] + vals.get('sinHr', 0.0) + vals.get('sinHorizonte', 0.0) + vals['imprevistos']
         c    = vals['planificado'] / rt if rt > 0 else 0.0
         cump_trabajo_planificado.append({
             'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
-            'planificado': vals['planificado'], 'sinHr': vals['sinHr'],
+            'planificado': vals['planificado'], 'sinHr': vals.get('sinHr', 0.0),
+            'sinHorizonte': vals.get('sinHorizonte', 0.0),
             'imprevistos': vals['imprevistos'], 'total': rt, 'cumplimiento': c
         })
 
@@ -1631,10 +1641,11 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
         'trabajoPlanificado': {
             'grupos': cump_trabajo_planificado,
             'total': {
-                'planificado': total_tp_planificado,
-                'sinHr':       total_tp_sin_hr,
-                'imprevistos': total_tp_imprevistos,
-                'total':       total_tp_total,
+                'planificado':  total_tp_planificado,
+                'sinHr':        total_tp_sin_hr,
+                'sinHorizonte': total_tp_sin_horizonte,
+                'imprevistos':  total_tp_imprevistos,
+                'total':        total_tp_total,
                 'cumplimiento': float(total_tp_cumplimiento_value
                                       if total_tp_cumplimiento_value is not None
                                       else total_tp_cumplimiento)

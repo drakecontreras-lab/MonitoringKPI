@@ -337,6 +337,7 @@ def generate_template_6(data):
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">HH Plan.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin HR</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin Horiz.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Imprevistos</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Total HH</td>
         <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">% Cump.</td>
@@ -346,6 +347,7 @@ def generate_template_6(data):
         <td colspan="3" style="padding:11px 12px;font-size:12px;font-weight:bold;color:#ffffff;">TOTAL GENERAL</td>
         <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("planificado"))}</td>
         <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("sinHr"))}</td>
+        <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("sinHorizonte"))}</td>
         <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("imprevistos"))}</td>
         <td style="padding:11px 8px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("total"))}</td>
         <td style="padding:11px 12px;text-align:center;">{get_codelco_badge_tp(trabajo_planificado.get("total", {}).get("cumplimiento", 0))}</td>
@@ -362,15 +364,13 @@ def generate_template_6(data):
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
       </tr>
       {prog_rows_html}
       <tr style="background-color:{codelco_copper};">
         <td colspan="3" style="padding:9px 10px;font-size:11px;font-weight:bold;color:#ffffff;">TOTAL</td>
         <td style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:center;">{format_value(programa_semanal.get("total", {}).get("cumple"))}</td>
-        <td style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:center;">{format_value(programa_semanal.get("total", {}).get("noCumple"))}</td>
         <td style="padding:9px 10px;text-align:center;">{get_codelco_badge_prog_semanal(programa_semanal.get("total", {}).get("cumplimiento", 0))}</td>
       </tr>
     </table>
@@ -516,6 +516,7 @@ def generate_template_7(data):
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("planificado"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("sinHr"))}</td>
+          <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("sinHorizonte"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("imprevistos"))}</td>
           <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("total"))}</td>
           <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{_badge_pct(g.get("cumplimiento", 0), tp_target)}</td>
@@ -536,8 +537,6 @@ def generate_template_7(data):
           <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{g.get("ptoTrabajo", "") if data.get("use_pto_trabajo") else g.get("grPlanif", "")}</td>
           <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("cumple"))}</td>
-          <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("noCumple"))}</td>
-          <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("total"))}</td>
           <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{_badge_pct(g.get("cumplimiento", 0), ps_target)}</td>
         </tr>
         """)
