@@ -105,6 +105,7 @@ def generate_template_6(data):
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("planificado"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:{codelco_orange if g.get("sinHr", 0) > 0 else '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("sinHr"))}</td>
+          <td style="padding:9px 8px;font-size:11px;color:{codelco_orange if g.get("sinHorizonte", 0) > 0 else '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("sinHorizonte"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:{codelco_orange if g.get("imprevistos", 0) > 0 else '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("imprevistos"))}</td>
           <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("total"))}</td>
           <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">{get_codelco_badge_tp(g.get("cumplimiento", 0))}</td>
@@ -125,7 +126,6 @@ def generate_template_6(data):
           <td style="padding:8px 6px;font-size:11px;color:#334155;border-bottom:1px solid #f1f5f9;text-align:center;">{g.get("ptoTrabajo", "") if data.get("use_pto_trabajo") else g.get("grPlanif", "")}</td>
           <td style="padding:8px 6px;font-size:11px;color:#64748b;border-bottom:1px solid #f1f5f9;text-align:center;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:8px 6px;font-size:11px;color:#1e293b;font-weight:bold;text-align:center;border-bottom:1px solid #f1f5f9;">{format_value(g.get("cumple"))}</td>
-          <td style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:bold;text-align:center;border-bottom:1px solid #f1f5f9;">{format_value(g.get("noCumple"))}</td>
           <td style="padding:8px 10px;text-align:center;border-bottom:1px solid #f1f5f9;">{get_codelco_badge_prog_semanal(g.get("cumplimiento", 0))}</td>
         </tr>
         """)
@@ -156,7 +156,7 @@ def generate_template_6(data):
         for item in resumen_avisos.get("distribucion", []):
             dist_rows.append(f"""
             <tr>
-              <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;">{item.get('proceso', '')}</td>
+              <td style="padding:9px 12px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;">{item.get('proceso', '')}</td>
               <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;">{item.get('ptoTrabajo', '') if data.get('use_pto_trabajo') else item.get('grPlanif', '')}</td>
               <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;">{item.get('ptoTrabajoDesc', '') if data.get('use_pto_trabajo') else item.get('grPlanifPM', '')}</td>
               <td style="padding:9px 12px;font-size:11px;font-weight:bold;color:#ef4444;border-bottom:1px solid #e2e8f0;text-align:center;">{item.get('cantidad', 0)}</td>
@@ -193,7 +193,7 @@ def generate_template_6(data):
         for item in resumen_ordenes.get("distribucion", []):
             dist_rows.append(f"""
             <tr>
-              <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;">{item.get('proceso', '')}</td>
+              <td style="padding:9px 12px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;">{item.get('proceso', '')}</td>
               <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;">{item.get('ptoTrabajo', '') if data.get('use_pto_trabajo') else item.get('grPlanif', '')}</td>
               <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;">{item.get('ptoTrabajoDesc', '') if data.get('use_pto_trabajo') else item.get('grPlanifPM', '')}</td>
               <td style="padding:9px 12px;font-size:11px;font-weight:bold;color:#ef4444;border-bottom:1px solid #e2e8f0;text-align:center;">{item.get('cantidad', 0)}</td>
@@ -537,6 +537,7 @@ def generate_template_7(data):
           <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("cumple"))}</td>
           <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("noCumple"))}</td>
+          <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("total"))}</td>
           <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{_badge_pct(g.get("cumplimiento", 0), ps_target)}</td>
         </tr>
         """)
@@ -556,6 +557,7 @@ def generate_template_7(data):
           <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("cumple"))}</td>
           <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("noCumple"))}</td>
+          <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{format_value(g.get("total"))}</td>
           <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{_badge_pct(g.get("cumplimiento", 0), pm_target)}</td>
         </tr>
         """)
@@ -567,7 +569,7 @@ def generate_template_7(data):
         for item in resumen_avisos.get("distribucion", []):
             dist_rows.append(f"""
             <tr>
-              <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{item.get('proceso', '')}</td>
+              <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{item.get('proceso', '')}</td>
               <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{item.get('ptoTrabajo', '') if data.get('use_pto_trabajo') else item.get('grPlanif', '')}</td>
               <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{item.get('ptoTrabajoDesc', '') if data.get('use_pto_trabajo') else item.get('grPlanifPM', '')}</td>
               <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{item.get('cantidad', 0)}</td>
@@ -606,7 +608,7 @@ def generate_template_7(data):
         for item in resumen_ordenes.get("distribucion", []):
             dist_rows.append(f"""
             <tr>
-              <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{item.get('proceso', '')}</td>
+              <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">{item.get('proceso', '')}</td>
               <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{item.get('ptoTrabajo', '') if data.get('use_pto_trabajo') else item.get('grPlanif', '')}</td>
               <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{item.get('ptoTrabajoDesc', '') if data.get('use_pto_trabajo') else item.get('grPlanifPM', '')}</td>
               <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{item.get('cantidad', 0)}</td>
@@ -798,6 +800,11 @@ def generate_template_7(data):
                             </td>
                           </tr>
                           <tr>
+                            <td align="center" style="padding:0 6px 2px 6px;">
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: {avisos_target}</div>
+                            </td>
+                          </tr>
+                          <tr>
                             <td align="center" bgcolor="{color_avisos}" style="padding:5px;background-color:{color_avisos};">
                               <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">AVISOS</div>
                             </td>
@@ -816,6 +823,11 @@ def generate_template_7(data):
                           <tr>
                             <td align="center" style="padding:0 6px 4px 6px;">
                               <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:{color_ordenes};line-height:1;">{ordenes_val}</div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding:0 6px 2px 6px;">
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: {ordenes_target}</div>
                             </td>
                           </tr>
                           <tr>
@@ -840,8 +852,13 @@ def generate_template_7(data):
                             </td>
                           </tr>
                           <tr>
+                            <td align="center" style="padding:0 6px 2px 6px;">
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: {tp_target}%</div>
+                            </td>
+                          </tr>
+                          <tr>
                             <td align="center" bgcolor="{color_tp}" style="padding:5px;background-color:{color_tp};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PLANIF.<br/><span style="font-size:7px;">(>{tp_target}%)</span></div>
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">TRAB. PLANIFICADO</div>
                             </td>
                           </tr>
                         </table>
@@ -861,8 +878,13 @@ def generate_template_7(data):
                             </td>
                           </tr>
                           <tr>
+                            <td align="center" style="padding:0 6px 2px 6px;">
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: {ps_target}%</div>
+                            </td>
+                          </tr>
+                          <tr>
                             <td align="center" bgcolor="{color_ps}" style="padding:5px;background-color:{color_ps};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PROG.</div>
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PROG. SEMANAL</div>
                             </td>
                           </tr>
                         </table>
@@ -882,8 +904,13 @@ def generate_template_7(data):
                             </td>
                           </tr>
                           <tr>
+                            <td align="center" style="padding:0 6px 2px 6px;">
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: {pm_target}%</div>
+                            </td>
+                          </tr>
+                          <tr>
                             <td align="center" bgcolor="{color_pm}" style="padding:5px;background-color:{color_pm};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">MATRIZ</div>
+                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PLAN MATRIZ</div>
                             </td>
                           </tr>
                         </table>
@@ -899,7 +926,7 @@ def generate_template_7(data):
 
 
         <!-- ═══════════════════════════════════════════════
-             SECCIÓN: AVISOS Y ÓRDENES PENDIENTES
+             SECCIÓN 2: AVISOS Y ÓRDENES PENDIENTES
         ════════════════════════════════════════════════ -->
         <tr>
           <td bgcolor="#ffffff" style="padding:0 20px 20px 20px;background-color:#ffffff;">
@@ -912,7 +939,7 @@ def generate_template_7(data):
                     <tr>
                       <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
                       <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                        Avisos Pendientes
+                        2. Avisos Pendientes
                       </td>
                     </tr>
                   </table>
@@ -938,7 +965,7 @@ def generate_template_7(data):
                     <tr>
                       <td width="3" bgcolor="#e96c28" style="background-color:#e96c28;font-size:0;line-height:0;">&nbsp;</td>
                       <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                        Órdenes Pendientes
+                        2. Órdenes Pendientes
                       </td>
                     </tr>
                   </table>
@@ -961,7 +988,7 @@ def generate_template_7(data):
 
 
         <!-- ═══════════════════════════════════════════════
-             SECCIÓN 2: TRABAJO PLANIFICADO
+             SECCIÓN 3: TRABAJO PLANIFICADO
         ════════════════════════════════════════════════ -->
         <tr>
           <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
@@ -974,7 +1001,7 @@ def generate_template_7(data):
                     <tr>
                       <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
                       <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                        2. &nbsp;Cumplimiento de Trabajo Planificado
+                        3. &nbsp;Cumplimiento de Trabajo Planificado
                       </td>
                     </tr>
                   </table>
@@ -990,6 +1017,7 @@ def generate_template_7(data):
                 <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">HH Plan.</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin HR</td>
+                <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin Horiz.</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Imprevistos</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total HH</td>
                 <td align="center" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;">% Cump.</td>
@@ -1001,6 +1029,7 @@ def generate_template_7(data):
                 <td colspan="3" style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">TOTAL GENERAL</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("planificado"))}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("sinHr"))}</td>
+                <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("sinHorizonte"))}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("imprevistos"))}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("total"))}</td>
                 <td align="center" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{int(round(trabajo_planificado.get("total", {}).get("cumplimiento", 0) * 100))}%</td>
@@ -1016,87 +1045,87 @@ def generate_template_7(data):
 
 
         <!-- ═══════════════════════════════════════════════
-             SECCIÓN 3 y 4: PROGRAMA SEMANAL + PLAN MATRIZ
-             (side by side si hay espacio, sino stacked)
+             SECCIÓN 4: PROGRAMA SEMANAL (full-width 100%)
          ════════════════════════════════════════════════ -->
         <tr>
           <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr valign="top">
-
-                <!-- Programa Semanal (izq) -->
-                <td width="48%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 0 10px 0;">
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
                     <tr>
-                      <td style="padding:0 0 10px 0;">
-                        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
-                            <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                              3. Programa Semanal
-                            </td>
-                          </tr>
-                        </table>
+                      <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
+                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
+                        4. Programa Semanal
                       </td>
                     </tr>
                   </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
-                    <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
-                      <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.PM</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
-                      <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
-                    </tr>
-                    {prog_rows_html}
-                    <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                      <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">TOTAL</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(programa_semanal.get("total", {}).get("cumple"))}</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(programa_semanal.get("total", {}).get("noCumple"))}</td>
-                      <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{int(round(programa_semanal.get("total", {}).get("cumplimiento", 0) * 100))}%</td>
-                    </tr>
-                  </table>
                 </td>
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
+              <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
+                <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total Ops</td>
+                <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
+              </tr>
+              {prog_rows_html}
+              <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
+                <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
+                  <span style="font-size:12px;margin-right:4px;">{getStatusIconForVal(ps_val, ps_target, True) if 'getStatusIconForVal' in dir() else ''}</span> TOTAL
+                </td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(programa_semanal.get("total", {}).get("cumple"))}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{int(round(programa_semanal.get("total", {}).get("cumplimiento", 0) * 100))}%</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-                <!-- Espaciador -->
-                <td width="4%">&nbsp;</td>
+        <!-- Divisor -->
+        <tr>
+          <td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td>
+        </tr>
 
-                <!-- Plan Matriz (der) -->
-                <td width="48%" valign="top" style="padding-left:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <!-- ═══════════════════════════════════════════════
+             SECCIÓN 4: PLAN MATRIZ (full-width 100%)
+         ════════════════════════════════════════════════ -->
+        <tr>
+          <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 0 10px 0;">
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
                     <tr>
-                      <td style="padding:0 0 10px 0;">
-                        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
-                            <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                              4. Plan Matriz
-                            </td>
-                          </tr>
-                        </table>
+                      <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
+                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
+                        5. Plan Matriz
                       </td>
                     </tr>
                   </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
-                    <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
-                      <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.PM</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
-                      <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
-                    </tr>
-                    {matriz_rows_html}
-                    <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                      <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">TOTAL</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(plan_matriz.get("total", {}).get("cumple"))}</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(plan_matriz.get("total", {}).get("noCumple"))}</td>
-                      <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{int(round(plan_matriz.get("total", {}).get("cumplimiento", 0) * 100))}%</td>
-                    </tr>
-                  </table>
                 </td>
-
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
+              <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
+                <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Desc. Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif"}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total Ops</td>
+                <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
+              </tr>
+              {matriz_rows_html}
+              <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
+                <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
+                  <span style="font-size:12px;margin-right:4px;">{getStatusIconForVal(pm_val, pm_target, True) if 'getStatusIconForVal' in dir() else ''}</span> TOTAL
+                </td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(plan_matriz.get("total", {}).get("cumple"))}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">{format_value(plan_matriz.get("total", {}).get("noCumple"))}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(plan_matriz.get("total", {}).get("total"))}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{int(round(plan_matriz.get("total", {}).get("cumplimiento", 0) * 100))}%</td>
               </tr>
             </table>
           </td>

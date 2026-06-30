@@ -163,12 +163,16 @@ def read_raw_sap_file(path):
         header_bytes = f.read(10)
 
     if header_bytes.startswith(b'MIME'):
-        return read_sap_mime_xls(path)
+        df = read_sap_mime_xls(path)
+        df.attrs['is_sap_mime'] = True
+        return df
     else:
         try:
-            return pd.read_excel(path, header=None, engine='openpyxl')
+            df = pd.read_excel(path, header=None, engine='openpyxl')
         except Exception:
-            return pd.read_excel(path, header=None)
+            df = pd.read_excel(path, header=None)
+        df.attrs['is_sap_mime'] = False
+        return df
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -193,10 +197,17 @@ def clean_pto_trabajo(val):
     return s
 
 
-def clean_cumplimiento_val(val):
+def clean_cumplimiento_val(val, is_mime=True):
     """Parsea el cumplimiento eliminando decimales y convirtiendo enteros como 10000 a 100."""
     if pd.isna(val) or val is None:
         return None
+    
+    if not is_mime and isinstance(val, (int, float)):
+        num = float(val)
+        if 0 < num <= 1.0001:
+            num *= 100.0
+        return int(round(num))
+
     s = str(val).strip()
     if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
         return None
@@ -206,18 +217,25 @@ def clean_cumplimiento_val(val):
         num = float(s)
         if num > 100.01:
             num = num / 100.0
+        elif 0 < num <= 1.0001:
+            num *= 100.0
         return int(round(num))
     except Exception:
         return val
 
 
 
-def parse_sap_hh(val):
+def parse_sap_hh(val, is_mime=True):
     """
     Parsea valores de HH exportados por SAP.
     SAP exporta sin separador decimal: '22000' = 22.000 HH → se divide entre 1000.
     Formato europeo: '1.304,600' = 1304.6 HH.
     """
+    if pd.isna(val): return 0.0
+    
+    if not is_mime and isinstance(val, (int, float)):
+        return float(val)
+
     s = str(val).strip()
     if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
         return 0.0
@@ -228,14 +246,20 @@ def parse_sap_hh(val):
             return float(s)
         else:
             v = float(s)
-            # SAP exporta HH multiplicadas por 1000
+            if not is_mime:
+                return v
+            # SAP MIME exporta HH multiplicadas por 1000
             return v / 1000.0
     except Exception:
         return 0.0
 
 
-def parse_sap_count(val):
+def parse_sap_count(val, is_mime=True):
     """Parsea un conteo entero exportado por SAP (valor literal)."""
+    if pd.isna(val): return 0
+    if not is_mime and isinstance(val, (int, float)):
+        return int(round(float(val)))
+
     s = str(val).strip()
     if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
         return 0
@@ -247,12 +271,18 @@ def parse_sap_count(val):
         return 0
 
 
-def parse_sap_count_div1000(val):
+def parse_sap_count_div1000(val, is_mime=True):
     """
     Parsea un conteo exportado por SAP multiplicado x1000.
     Ej: '1000' → 1 operación, '391000' → 391 operaciones.
     """
-    return parse_sap_count(val) // 1000
+    if not is_mime and isinstance(val, (int, float)):
+        return int(round(float(val)))
+    
+    count = parse_sap_count(val, is_mime)
+    if not is_mime:
+        return count
+    return count // 1000
 
 
 def is_resultado_row(row):
@@ -501,6 +531,7 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
         ots_mapping = {}
 
     df = read_raw_sap_file(path)
+    is_mime = getattr(df, 'attrs', {}).get('is_sap_mime', True)
 
     group = {}
     total_planificado = 0.0
@@ -529,8 +560,8 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
         pto_trabajo_raw = str(row_list[5] if len(row_list) > 5 else '').strip()
         pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
         grupo_ruta   = str(row_list[14] if len(row_list) > 14 else '').strip()
-        pct_planif   = parse_sap_count(row_list[15] if len(row_list) > 15 else 0)  # 10000 = 100%
-        hh_totales   = parse_sap_hh(row_list[17] if len(row_list) > 17 else 0)
+        pct_planif   = parse_sap_count(row_list[15] if len(row_list) > 15 else 0, is_mime=is_mime)
+        hh_totales   = parse_sap_hh(row_list[17] if len(row_list) > 17 else 0, is_mime=is_mime)
 
         if not proceso_raw or proceso_raw == 'nan':
             criterios_col.append('')
@@ -694,7 +725,7 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
     if '% Trabajo Planificado' in df_clean.columns:
-        df_clean['% Trabajo Planificado'] = df_clean['% Trabajo Planificado'].apply(clean_cumplimiento_val)
+        df_clean['% Trabajo Planificado'] = df_clean['% Trabajo Planificado'].apply(lambda x: clean_cumplimiento_val(x, is_mime=is_mime))
     if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
         df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
 
@@ -731,6 +762,7 @@ def extract_programa_semanal(path, puestos_mapping=None):
     Retorna (df_limpio, stats_dict).
     """
     df = read_raw_sap_file(path)
+    is_mime = getattr(df, 'attrs', {}).get('is_sap_mime', True)
 
     group = {}
     total_ind_cumple = 0.0
@@ -738,6 +770,11 @@ def extract_programa_semanal(path, puestos_mapping=None):
 
     data_rows   = df.iloc[2:-1]
     criterios_col = []
+
+    # Detectar columnas dinámicas de operaciones
+    col_cumpl = 14
+    col_ind = 15
+    col_total = 16
 
     for _, row in data_rows.iterrows():
         row_list = list(row)
@@ -756,9 +793,9 @@ def extract_programa_semanal(path, puestos_mapping=None):
             criterios_col.append('')
             continue
 
-        cumpl_val  = parse_sap_count(row_list[14] if len(row_list) > 14 else 0)
-        ind_cumple = parse_sap_count(row_list[15] if len(row_list) > 15 else 0)
-        total_op   = parse_sap_count_div1000(row_list[16] if len(row_list) > 16 else 0)
+        cumpl_val  = parse_sap_count(row_list[col_cumpl] if len(row_list) > col_cumpl else 0, is_mime=is_mime)
+        ind_cumple = parse_sap_count(row_list[col_ind] if len(row_list) > col_ind else 0, is_mime=is_mime)
+        total_op   = parse_sap_count_div1000(row_list[col_total] if len(row_list) > col_total else 0, is_mime=is_mime)
 
         proceso = get_safe_proceso(proceso_raw)
         if not gr_planif or gr_planif in ('nan', '#'):
@@ -1458,11 +1495,12 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
                                        'sumTotalOp': 0.0, 'sumIndicadorCumple': 0.0}
 
                 if 'cumple' in criterio_raw and 'no cumple' not in criterio_raw:
-                    group_prog[key]['cumple'] += total_op
-                    total_prog_cumple += total_op
-                else:
-                    group_prog[key]['noCumple'] += total_op
-                    total_prog_no_cumple += total_op
+                    pass # Solo para saber, ya no separamos
+
+                # Se unifica: TODAS las operaciones suman a 'cumple' (Total Ops)
+                group_prog[key]['cumple'] += total_op
+                total_prog_cumple += total_op
+                # group_prog[key]['noCumple'] ya no se incrementa (queda en 0)
 
                 group_prog[key]['sumTotalOp']         += total_op
                 group_prog[key]['sumIndicadorCumple'] += ind_cumple
