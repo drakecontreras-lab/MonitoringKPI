@@ -152,7 +152,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
         reconstructed.resumenAvisos.total = calcTotal(reconstructed.resumenAvisos.distribucion, ['cantidad']).cantidad;
         reconstructed.resumenOrdenes.total = calcTotal(reconstructed.resumenOrdenes.distribucion, ['cantidad']).cantidad;
         
-        const tpTotals = calcTotal(reconstructed.trabajoPlanificado.grupos, ['planificado', 'sinHr', 'imprevistos', 'total']);
+        const tpTotals = calcTotal(reconstructed.trabajoPlanificado.grupos, ['planificado', 'sinHr', 'sinHorizonte', 'imprevistos', 'total']);
         tpTotals.cumplimiento = tpTotals.total > 0 ? tpTotals.planificado / tpTotals.total : 0;
         reconstructed.trabajoPlanificado.total = tpTotals;
 
@@ -228,7 +228,7 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
     reconstructed.resumenAvisos.total = calcTotal(reconstructed.resumenAvisos.distribucion, ['cantidad']).cantidad;
     reconstructed.resumenOrdenes.total = calcTotal(reconstructed.resumenOrdenes.distribucion, ['cantidad']).cantidad;
     
-    const tpTotals = calcTotal(reconstructed.trabajoPlanificado.grupos, ['planificado', 'sinHr', 'imprevistos', 'total']);
+    const tpTotals = calcTotal(reconstructed.trabajoPlanificado.grupos, ['planificado', 'sinHr', 'sinHorizonte', 'imprevistos', 'total']);
     tpTotals.cumplimiento = tpTotals.total > 0 ? tpTotals.planificado / tpTotals.total : 0;
     reconstructed.trabajoPlanificado.total = tpTotals;
 
@@ -448,13 +448,14 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                       <td>{g.proceso}</td><td>{g.grPlanif}</td><td>{g.grPlanifPM}</td>
                       <td className="text-right font-number">{Math.round(g.planificado)}</td>
                       <td className="text-right font-number">{Math.round(g.sinHr)}</td>
+                      <td className="text-right font-number">{Math.round(g.sinHorizonte || 0)}</td>
                       <td className="text-right font-number">{Math.round(g.imprevistos)}</td>
                       <td className="text-right font-number font-bold">{Math.round(g.total)}</td>
                       <td className="text-center"><span style={{ color: semColors(g.cumplimiento), fontWeight: 700 }}>{Math.round(g.cumplimiento * 100)}%</span></td>
                     </tr>
                   ))}
                 </tbody>
-                    <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.planificado || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.sinHr || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.imprevistos || 0)}</td><td className="text-right font-number font-bold">{Math.round(filteredData.trabajoPlanificado?.total?.total || 0)}</td><td className="text-center font-bold" style={{ color: semColors(filteredData.trabajoPlanificado?.total?.cumplimiento || 0) }}>{Math.round((filteredData.trabajoPlanificado?.total?.cumplimiento || 0) * 100)}%</td></tr></tfoot>
+                    <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.planificado || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.sinHr || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.sinHorizonte || 0)}</td><td className="text-right font-number">{Math.round(filteredData.trabajoPlanificado?.total?.imprevistos || 0)}</td><td className="text-right font-number font-bold">{Math.round(filteredData.trabajoPlanificado?.total?.total || 0)}</td><td className="text-center font-bold" style={{ color: semColors(filteredData.trabajoPlanificado?.total?.cumplimiento || 0) }}>{Math.round((filteredData.trabajoPlanificado?.total?.cumplimiento || 0) * 100)}%</td></tr></tfoot>
               </table>
             </SectionCard>
 
@@ -466,14 +467,12 @@ export default function KpiDashboardCharts({ data: initialData, semana: currentW
                     {(sec?.grupos || []).map((g, i) => (
                       <tr key={i}>
                         <td>{g.proceso}</td><td>{g.grPlanif}</td><td>{g.grPlanifPM}</td>
-                        <td className="text-center font-number">{Math.round(g.cumple)}</td>
-                        <td className="text-center font-number">{Math.round(g.noCumple)}</td>
-                        <td className="text-center font-number font-bold">{Math.round(g.total)}</td>
+                        <td className="text-center font-number font-bold">{Math.round(g.cumple)}</td>
                         <td className="text-center"><span style={{ color: semColors(g.cumplimiento), fontWeight: 700 }}>{Math.round(g.cumplimiento * 100)}%</span></td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-center font-number">{Math.round(sec?.total?.cumple || 0)}</td><td className="text-center font-number">{Math.round(sec?.total?.noCumple || 0)}</td><td className="text-center font-number font-bold">{Math.round(sec?.total?.total || 0)}</td><td className="text-center font-bold" style={{ color: semColors(sec?.total?.cumplimiento || 0) }}>{Math.round((sec?.total?.cumplimiento || 0) * 100)}%</td></tr></tfoot>
+                  <tfoot><tr className="footer-row"><td colSpan="3">TOTAL</td><td className="text-center font-number font-bold">{Math.round(sec?.total?.cumple || 0)}</td><td className="text-center font-bold" style={{ color: semColors(sec?.total?.cumplimiento || 0) }}>{Math.round((sec?.total?.cumplimiento || 0) * 100)}%</td></tr></tfoot>
                 </table>
               </SectionCard>
             ))}

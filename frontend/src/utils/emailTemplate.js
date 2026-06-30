@@ -48,6 +48,8 @@ function generateTemplate1(data) {
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;">${g.grPlanifPM}</td>
       <td style="padding:9px 8px;font-size:11px;color:#2d3748;border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.planificado)}</td>
       <td style="padding:9px 8px;font-size:11px;color:${g.sinHr > 0 ? '#c0392b' : '#9090a0'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.sinHr)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:${g.sinHorizonte > 0 ? '#c0392b' : '#9090a0'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.sinHorizonte)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:${g.sinHorizonte > 0 ? '#c0392b' : '#9090a0'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.sinHorizonte)}</td>
       <td style="padding:9px 8px;font-size:11px;color:${g.imprevistos > 0 ? '#c0392b' : '#9090a0'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.imprevistos)}</td>
       <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#2d3748;border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.total)}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">${getBadgeTP(g.cumplimiento)}</td>
@@ -67,7 +69,6 @@ function generateTemplate1(data) {
       <td style="padding:8px 6px;font-size:11px;color:#2d3748;border-bottom:1px solid #f0f3f8;text-align:center;">${g.grPlanif}</td>
       <td style="padding:8px 6px;font-size:11px;color:#64748b;border-bottom:1px solid #f0f3f8;text-align:center;">${g.grPlanifPM}</td>
       <td style="padding:8px 6px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #f0f3f8;">${formatValue(g.cumple)}</td>
-      <td style="padding:8px 6px;font-size:11px;color:#c0392b;font-weight:bold;text-align:center;border-bottom:1px solid #f0f3f8;">${formatValue(g.noCumple)}</td>
       <td style="padding:8px 10px;text-align:center;border-bottom:1px solid #f0f3f8;">${getBadgeProgMatriz(g.cumplimiento)}</td>
     </tr>
     `;
@@ -85,7 +86,6 @@ function generateTemplate1(data) {
       <td style="padding:8px 6px;font-size:11px;color:#2d3748;border-bottom:1px solid #f0f3f8;text-align:center;">${g.grPlanif}</td>
       <td style="padding:8px 6px;font-size:11px;color:#64748b;border-bottom:1px solid #f0f3f8;text-align:center;">${g.grPlanifPM}</td>
       <td style="padding:8px 6px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #f0f3f8;">${formatValue(g.cumple)}</td>
-      <td style="padding:8px 6px;font-size:11px;color:#c0392b;font-weight:bold;text-align:center;border-bottom:1px solid #f0f3f8;">${formatValue(g.noCumple)}</td>
       <td style="padding:8px 10px;text-align:center;border-bottom:1px solid #f0f3f8;">${getBadgeProgMatriz(g.cumplimiento)}</td>
     </tr>
     `;
@@ -282,6 +282,7 @@ function generateTemplate1(data) {
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#4a5568;text-align:center;">Gr. planif.PM</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#4a5568;text-align:right;">HH Plan.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#4a5568;text-align:right;">Sin HR</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#4a5568;text-align:right;">Sin Horiz.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#4a5568;text-align:right;">Imprevistos</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#4a5568;text-align:right;">Total HH</td>
         <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#4a5568;text-align:center;">% Cump.</td>
@@ -291,6 +292,7 @@ function generateTemplate1(data) {
         <td colspan="3" style="padding:11px 12px;font-size:12px;font-weight:bold;color:#ffffff;">TOTAL GENERAL</td>
         <td style="padding:11px 8px;font-size:11px;color:#cbd5e1;text-align:right;">${formatValue(trabajoPlanificado.total.planificado)}</td>
         <td style="padding:11px 8px;font-size:11px;color:#f87171;text-align:right;">${formatValue(trabajoPlanificado.total.sinHr)}</td>
+        <td style="padding:11px 8px;font-size:11px;color:#f87171;text-align:right;">${formatValue(trabajoPlanificado.total.sinHorizonte)}</td>
         <td style="padding:11px 8px;font-size:11px;color:#f87171;text-align:right;">${formatValue(trabajoPlanificado.total.imprevistos)}</td>
         <td style="padding:11px 8px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">${formatValue(trabajoPlanificado.total.total)}</td>
         <td style="padding:11px 12px;text-align:center;">${getBadgeTP(trabajoPlanificado.total.cumplimiento)}</td>
@@ -307,15 +309,13 @@ function generateTemplate1(data) {
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#607080;">Proceso</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">Gr. planif</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">Gr. planif.PM</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">✓</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">✗</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">%</td>
       </tr>
       ${progRowsHtml}
       <tr style="background-color:#0f1f3d;">
         <td colspan="3" style="padding:9px 10px;font-size:11px;font-weight:bold;color:#ffffff;">TOTAL</td>
         <td style="padding:9px 6px;font-size:12px;font-weight:bold;color:#4ade80;text-align:center;">${formatValue(programaSemanal.total.cumple)}</td>
-        <td style="padding:9px 6px;font-size:12px;font-weight:bold;color:#f87171;text-align:center;">${formatValue(programaSemanal.total.noCumple)}</td>
         <td style="padding:9px 10px;text-align:center;">${getBadgeProgMatriz(programaSemanal.total.cumplimiento)}</td>
       </tr>
     </table>
@@ -326,8 +326,7 @@ function generateTemplate1(data) {
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#607080;">Proceso</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">Gr. planif</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">Gr. planif.PM</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">✓</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">✗</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#607080;text-align:center;">%</td>
       </tr>
       ${matrizRowsHtml}
@@ -511,6 +510,7 @@ function generateTemplate2(data) {
           <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
           <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">HH Plan.</td>
           <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin HR</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin Horiz.</td>
           <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Imprev.</td>
           <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
         </tr>
@@ -526,6 +526,8 @@ function generateTemplate2(data) {
               <td style="padding:9px 8px;font-size:11px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:9px 8px;font-size:11px;text-align:right;color:#334155;">${formatValue(g.planificado)}</td>
               <td style="padding:9px 8px;font-size:11px;text-align:right;color:${g.sinHr > 0 ? '#b91c1c' : '#64748b'};">${formatValue(g.sinHr)}</td>
+      <td style="padding:9px 8px;font-size:11px;text-align:right;color:${g.sinHorizonte > 0 ? '#b91c1c' : '#64748b'};">${formatValue(g.sinHorizonte)}</td>
+      <td style="padding:9px 8px;font-size:11px;text-align:right;color:${g.sinHorizonte > 0 ? '#b91c1c' : '#64748b'};">${formatValue(g.sinHorizonte)}</td>
               <td style="padding:9px 8px;font-size:11px;text-align:right;color:${g.imprevistos > 0 ? '#b91c1c' : '#64748b'};">${formatValue(g.imprevistos)}</td>
               <td style="padding:9px 12px;text-align:center;">${getBadgeTP(g.cumplimiento)}</td>
             </tr>
@@ -536,6 +538,7 @@ function generateTemplate2(data) {
           <td colspan="3" style="padding:10px 12px;font-size:11px;font-weight:bold;color:#ffffff;">TOTAL GENERAL</td>
           <td style="padding:10px 8px;font-size:11px;color:#f8fafc;text-align:right;">${formatValue(trabajoPlanificado.total.planificado)}</td>
           <td style="padding:10px 8px;font-size:11px;color:#fca5a5;text-align:right;">${formatValue(trabajoPlanificado.total.sinHr)}</td>
+        <td style="padding:10px 8px;font-size:11px;color:#fca5a5;text-align:right;">${formatValue(trabajoPlanificado.total.sinHorizonte)}</td>
           <td style="padding:10px 8px;font-size:11px;color:#fca5a5;text-align:right;">${formatValue(trabajoPlanificado.total.imprevistos)}</td>
           <td style="padding:10px 12px;text-align:center;">${getBadgeTP(trabajoPlanificado.total.cumplimiento)}</td>
         </tr>
@@ -548,8 +551,7 @@ function generateTemplate2(data) {
           <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
           <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
           <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
-          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
-          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
+          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
           <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
         </tr>
         ${(() => {
@@ -563,7 +565,6 @@ function generateTemplate2(data) {
               <td style="padding:8px 6px;font-size:11px;color:#334155;text-align:center;">${g.grPlanif}</td>
               <td style="padding:8px 6px;font-size:11px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:8px 6px;font-size:11px;color:#047857;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-              <td style="padding:8px 6px;font-size:11px;color:#b91c1c;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
               <td style="padding:8px 10px;text-align:center;">${getBadgeProgMatriz(g.cumplimiento)}</td>
             </tr>
             `;
@@ -578,8 +579,7 @@ function generateTemplate2(data) {
           <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
           <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
           <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
-          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
-          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
+          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
           <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
         </tr>
         ${(() => {
@@ -593,7 +593,6 @@ function generateTemplate2(data) {
               <td style="padding:8px 6px;font-size:11px;color:#334155;text-align:center;">${g.grPlanif}</td>
               <td style="padding:8px 6px;font-size:11px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:8px 6px;font-size:11px;color:#047857;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-              <td style="padding:8px 6px;font-size:11px;color:#b91c1c;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
               <td style="padding:8px 10px;text-align:center;">${getBadgeProgMatriz(g.cumplimiento)}</td>
             </tr>
             `;
@@ -805,6 +804,7 @@ function generateTemplate3(data) {
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">Gr. planif.PM</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">HH Plan.</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">Sin HR</td>
+        <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">Sin Horiz.</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">Imprev.</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">Total HH</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;width:90px;">Cumplimiento</td>
@@ -821,6 +821,7 @@ function generateTemplate3(data) {
               <td style="padding:8px 0;font-size:11px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:8px 0;font-size:11px;text-align:right;color:#334155;">${formatValue(g.planificado)}</td>
               <td style="padding:8px 0;font-size:11px;text-align:right;color:#334155;">${formatValue(g.sinHr)}</td>
+      <td style="padding:8px 0;font-size:11px;text-align:right;color:#334155;">${formatValue(g.sinHorizonte)}</td>
               <td style="padding:8px 0;font-size:11px;text-align:right;color:#334155;">${formatValue(g.imprevistos)}</td>
               <td style="padding:8px 0;font-size:11px;font-weight:bold;text-align:right;color:#334155;">${formatValue(g.total)}</td>
               <td style="padding:8px 0;font-size:11px;text-align:center;font-weight:bold;color:${g.cumplimiento >= 0.8 ? '#16a34a' : '#ef4444'};">${Math.round(g.cumplimiento*100)}%</td>
@@ -832,6 +833,7 @@ function generateTemplate3(data) {
           <td colspan="3" style="padding:10px 0;font-size:11px;">TOTAL GENERAL</td>
           <td style="padding:10px 0;font-size:11px;text-align:right;">${formatValue(trabajoPlanificado.total.planificado)}</td>
           <td style="padding:10px 0;font-size:11px;text-align:right;">${formatValue(trabajoPlanificado.total.sinHr)}</td>
+        <td style="padding:10px 0;font-size:11px;text-align:right;">${formatValue(trabajoPlanificado.total.sinHorizonte)}</td>
           <td style="padding:10px 0;font-size:11px;text-align:right;">${formatValue(trabajoPlanificado.total.imprevistos)}</td>
           <td style="padding:10px 0;font-size:11px;text-align:right;">${formatValue(trabajoPlanificado.total.total)}</td>
           <td style="padding:10px 0;font-size:12px;text-align:center;color:${trabajoPlanificado.total.cumplimiento >= 0.8 ? '#16a34a' : '#ef4444'};">${Math.round(trabajoPlanificado.total.cumplimiento*100)}%</td>
@@ -845,8 +847,7 @@ function generateTemplate3(data) {
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;border-bottom:1.5px solid #0f172a;">Proceso</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">Gr. planif</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">Gr. planif.PM</td>
-          <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">✓</td>
-          <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">✗</td>
+          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">%</td>
         </tr>
         ${(() => {
@@ -860,7 +861,6 @@ function generateTemplate3(data) {
               <td style="padding:7px 0;font-size:11px;color:#334155;text-align:center;">${g.grPlanif}</td>
               <td style="padding:7px 0;font-size:11px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:7px 0;font-size:11px;color:#16a34a;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-              <td style="padding:7px 0;font-size:11px;color:#ef4444;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
               <td style="padding:7px 0;font-size:11px;text-align:right;font-weight:bold;color:${g.cumplimiento >= 0.85 ? '#16a34a' : '#ef4444'};">${Math.round(g.cumplimiento*100)}%</td>
             </tr>
             `;
@@ -881,8 +881,7 @@ function generateTemplate3(data) {
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;border-bottom:1.5px solid #0f172a;">Proceso</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">Gr. planif</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">Gr. planif.PM</td>
-          <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">✓</td>
-          <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:center;border-bottom:1.5px solid #0f172a;">✗</td>
+          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
           <td style="padding:8px 0;font-size:10px;font-weight:bold;color:#475569;text-align:right;border-bottom:1.5px solid #0f172a;">%</td>
         </tr>
         ${(() => {
@@ -896,7 +895,6 @@ function generateTemplate3(data) {
               <td style="padding:7px 0;font-size:11px;color:#334155;text-align:center;">${g.grPlanif}</td>
               <td style="padding:7px 0;font-size:11px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:7px 0;font-size:11px;color:#16a34a;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-              <td style="padding:7px 0;font-size:11px;color:#ef4444;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
               <td style="padding:7px 0;font-size:11px;text-align:right;font-weight:bold;color:${g.cumplimiento >= 0.85 ? '#16a34a' : '#ef4444'};">${Math.round(g.cumplimiento*100)}%</td>
             </tr>
             `;
@@ -1090,6 +1088,7 @@ function generateTemplate4(data) {
           <td style="padding:10px;text-align:center;">Gr. planif.PM</td>
           <td style="padding:10px;text-align:right;">HH Plan.</td>
           <td style="padding:10px;text-align:right;">Sin HR</td>
+        <td style="padding:10px;text-align:right;">Sin Horiz.</td>
           <td style="padding:10px;text-align:right;">Imprev.</td>
           <td style="padding:10px;text-align:right;">Total HH</td>
           <td style="padding:10px;text-align:center;width:80px;">%</td>
@@ -1106,6 +1105,8 @@ function generateTemplate4(data) {
               <td style="padding:9px 10px;text-align:center;color:#64748b;">${g.grPlanifPM}</td>
               <td style="padding:9px 10px;text-align:right;color:#cbd5e1;">${formatValue(g.planificado)}</td>
               <td style="padding:9px 10px;text-align:right;color:${g.sinHr > 0 ? '#f87171' : '#64748b'};">${formatValue(g.sinHr)}</td>
+      <td style="padding:9px 10px;text-align:right;color:${g.sinHorizonte > 0 ? '#f87171' : '#64748b'};">${formatValue(g.sinHorizonte)}</td>
+      <td style="padding:9px 10px;text-align:right;color:${g.sinHorizonte > 0 ? '#f87171' : '#64748b'};">${formatValue(g.sinHorizonte)}</td>
               <td style="padding:9px 10px;text-align:right;color:${g.imprevistos > 0 ? '#f87171' : '#64748b'};">${formatValue(g.imprevistos)}</td>
               <td style="padding:9px 10px;font-weight:bold;text-align:right;color:#f8fafc;">${formatValue(g.total)}</td>
               <td style="padding:9px 10px;text-align:center;font-weight:bold;color:${g.cumplimiento >= 0.8 ? '#10b981' : '#f87171'};">${Math.round(g.cumplimiento*100)}%</td>
@@ -1122,8 +1123,7 @@ function generateTemplate4(data) {
           <td style="padding:8px;">Proceso</td>
           <td style="padding:8px;text-align:center;">Gr. planif</td>
           <td style="padding:8px;text-align:center;">Gr. planif.PM</td>
-          <td style="padding:8px;text-align:center;">✓</td>
-          <td style="padding:8px;text-align:center;">✗</td>
+          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
           <td style="padding:8px;text-align:right;">%</td>
         </tr>
         ${(() => {
@@ -1137,7 +1137,6 @@ function generateTemplate4(data) {
               <td style="padding:8px;color:#cbd5e1;text-align:center;">${g.grPlanif}</td>
               <td style="padding:8px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:8px;color:#10b981;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-              <td style="padding:8px;color:#f87171;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
               <td style="padding:8px;text-align:right;font-weight:bold;color:${g.cumplimiento >= 0.85 ? '#10b981' : '#f87171'};">${Math.round(g.cumplimiento*100)}%</td>
             </tr>
             `;
@@ -1152,8 +1151,7 @@ function generateTemplate4(data) {
           <td style="padding:8px;">Proceso</td>
           <td style="padding:8px;text-align:center;">Gr. planif</td>
           <td style="padding:8px;text-align:center;">Gr. planif.PM</td>
-          <td style="padding:8px;text-align:center;">✓</td>
-          <td style="padding:8px;text-align:center;">✗</td>
+          <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
           <td style="padding:8px;text-align:right;">%</td>
         </tr>
         ${(() => {
@@ -1167,7 +1165,6 @@ function generateTemplate4(data) {
               <td style="padding:8px;color:#cbd5e1;text-align:center;">${g.grPlanif}</td>
               <td style="padding:8px;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
               <td style="padding:8px;color:#10b981;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-              <td style="padding:8px;color:#f87171;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
               <td style="padding:8px;text-align:right;font-weight:bold;color:${g.cumplimiento >= 0.85 ? '#10b981' : '#f87171'};">${Math.round(g.cumplimiento*100)}%</td>
             </tr>
             `;
@@ -1384,6 +1381,8 @@ function generateTemplate5(data) {
                 <td style="padding:8px 0;text-align:center;color:#64748b;">${g.grPlanifPM}</td>
                 <td style="padding:8px 0;text-align:right;color:#334155;">${formatValue(g.planificado)}</td>
                 <td style="padding:8px 0;text-align:right;color:${g.sinHr > 0 ? '#ef4444' : '#64748b'};">${formatValue(g.sinHr)}</td>
+      <td style="padding:8px 0;text-align:right;color:${g.sinHorizonte > 0 ? '#ef4444' : '#64748b'};">${formatValue(g.sinHorizonte)}</td>
+      <td style="padding:8px 0;text-align:right;color:${g.sinHorizonte > 0 ? '#ef4444' : '#64748b'};">${formatValue(g.sinHorizonte)}</td>
                 <td style="padding:8px 0;text-align:right;color:${g.imprevistos > 0 ? '#ef4444' : '#64748b'};">${formatValue(g.imprevistos)}</td>
                 <td style="padding:8px 0;font-weight:bold;text-align:right;color:#334155;">${formatValue(g.total)}</td>
                 <td style="padding:8px 0;text-align:center;">${getBadgeTP(g.cumplimiento)}</td>
@@ -1395,6 +1394,7 @@ function generateTemplate5(data) {
             <td colspan="3" style="padding:10px 0 0 0;">TOTAL GENERAL</td>
             <td style="padding:10px 0 0 0;text-align:right;">${formatValue(trabajoPlanificado.total.planificado)}</td>
             <td style="padding:10px 0 0 0;text-align:right;color:#ef4444;">${formatValue(trabajoPlanificado.total.sinHr)}</td>
+        <td style="padding:10px 0 0 0;text-align:right;color:#ef4444;">${formatValue(trabajoPlanificado.total.sinHorizonte)}</td>
             <td style="padding:10px 0 0 0;text-align:right;color:#ef4444;">${formatValue(trabajoPlanificado.total.imprevistos)}</td>
             <td style="padding:10px 0 0 0;text-align:right;">${formatValue(trabajoPlanificado.total.total)}</td>
             <td style="padding:10px 0 0 0;text-align:center;">${getBadgeTP(trabajoPlanificado.total.cumplimiento)}</td>
@@ -1410,8 +1410,7 @@ function generateTemplate5(data) {
             <td style="padding:6px 0;">PROCESO</td>
             <td style="padding:6px 0;text-align:center;">GR. PLANIF</td>
             <td style="padding:6px 0;text-align:center;">GR.PM</td>
-            <td style="padding:6px 0;text-align:center;">✓</td>
-            <td style="padding:6px 0;text-align:center;">✗</td>
+            <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
             <td style="padding:6px 0;text-align:right;">%</td>
           </tr>
           ${(() => {
@@ -1425,7 +1424,6 @@ function generateTemplate5(data) {
                 <td style="padding:7px 0;color:#334155;text-align:center;">${g.grPlanif}</td>
                 <td style="padding:7px 0;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
                 <td style="padding:7px 0;color:#16a34a;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-                <td style="padding:7px 0;color:#ef4444;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
                 <td style="padding:7px 0;text-align:right;">${getBadgeProgMatriz(g.cumplimiento)}</td>
               </tr>
               `;
@@ -1442,8 +1440,7 @@ function generateTemplate5(data) {
             <td style="padding:6px 0;">PROCESO</td>
             <td style="padding:6px 0;text-align:center;">GR. PLANIF</td>
             <td style="padding:6px 0;text-align:center;">GR.PM</td>
-            <td style="padding:6px 0;text-align:center;">✓</td>
-            <td style="padding:6px 0;text-align:center;">✗</td>
+            <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
             <td style="padding:6px 0;text-align:right;">%</td>
           </tr>
           ${(() => {
@@ -1457,7 +1454,6 @@ function generateTemplate5(data) {
                 <td style="padding:7px 0;color:#334155;text-align:center;">${g.grPlanif}</td>
                 <td style="padding:7px 0;color:#64748b;text-align:center;">${g.grPlanifPM}</td>
                 <td style="padding:7px 0;color:#16a34a;font-weight:bold;text-align:center;">${formatValue(g.cumple)}</td>
-                <td style="padding:7px 0;color:#ef4444;font-weight:bold;text-align:center;">${formatValue(g.noCumple)}</td>
                 <td style="padding:7px 0;text-align:right;">${getBadgeProgMatriz(g.cumplimiento)}</td>
               </tr>
               `;
@@ -1631,6 +1627,8 @@ function generateTemplate6(data) {
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;">${g.grPlanifPM}</td>
       <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.planificado)}</td>
       <td style="padding:9px 8px;font-size:11px;color:${g.sinHr > 0 ? codelcoOrange : '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.sinHr)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:${g.sinHorizonte > 0 ? codelcoOrange : '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.sinHorizonte)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:${g.sinHorizonte > 0 ? codelcoOrange : '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.sinHorizonte)}</td>
       <td style="padding:9px 8px;font-size:11px;color:${g.imprevistos > 0 ? codelcoOrange : '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.imprevistos)}</td>
       <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;">${formatValue(g.total)}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">${getCodelcoBadgeTP(g.cumplimiento)}</td>
@@ -1650,7 +1648,6 @@ function generateTemplate6(data) {
       <td style="padding:8px 6px;font-size:11px;color:#334155;border-bottom:1px solid #f1f5f9;text-align:center;">${g.grPlanif}</td>
       <td style="padding:8px 6px;font-size:11px;color:#64748b;border-bottom:1px solid #f1f5f9;text-align:center;">${g.grPlanifPM}</td>
       <td style="padding:8px 6px;font-size:11px;color:#1e293b;font-weight:bold;text-align:center;border-bottom:1px solid #f1f5f9;">${formatValue(g.cumple)}</td>
-      <td style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:bold;text-align:center;border-bottom:1px solid #f1f5f9;">${formatValue(g.noCumple)}</td>
       <td style="padding:8px 10px;text-align:center;border-bottom:1px solid #f1f5f9;">${getCodelcoBadgeProgSemanal(g.cumplimiento)}</td>
     </tr>
     `;
@@ -1668,7 +1665,6 @@ function generateTemplate6(data) {
       <td style="padding:8px 6px;font-size:11px;color:#334155;border-bottom:1px solid #f1f5f9;text-align:center;">${g.grPlanif}</td>
       <td style="padding:8px 6px;font-size:11px;color:#64748b;border-bottom:1px solid #f1f5f9;text-align:center;">${g.grPlanifPM}</td>
       <td style="padding:8px 6px;font-size:11px;color:#1e293b;font-weight:bold;text-align:center;border-bottom:1px solid #f1f5f9;">${formatValue(g.cumple)}</td>
-      <td style="padding:8px 6px;font-size:11px;color:#64748b;font-weight:bold;text-align:center;border-bottom:1px solid #f1f5f9;">${formatValue(g.noCumple)}</td>
       <td style="padding:8px 10px;text-align:center;border-bottom:1px solid #f1f5f9;">${getCodelcoBadgeProgMatriz(g.cumplimiento)}</td>
     </tr>
     `;
@@ -1868,6 +1864,7 @@ function generateTemplate6(data) {
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">HH Plan.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin HR</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin Horiz.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Imprevistos</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Total HH</td>
         <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">% Cump.</td>
@@ -1877,6 +1874,7 @@ function generateTemplate6(data) {
         <td colspan="3" style="padding:11px 12px;font-size:12px;font-weight:bold;color:#ffffff;">TOTAL GENERAL</td>
         <td style="padding:11px 8px;font-size:11px;color:#cbd5e1;text-align:right;">${formatValue(trabajoPlanificado.total.planificado)}</td>
         <td style="padding:11px 8px;font-size:11px;color:#fca5a5;text-align:right;">${formatValue(trabajoPlanificado.total.sinHr)}</td>
+        <td style="padding:11px 8px;font-size:11px;color:#fca5a5;text-align:right;">${formatValue(trabajoPlanificado.total.sinHorizonte)}</td>
         <td style="padding:11px 8px;font-size:11px;color:#fca5a5;text-align:right;">${formatValue(trabajoPlanificado.total.imprevistos)}</td>
         <td style="padding:11px 8px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">${formatValue(trabajoPlanificado.total.total)}</td>
         <td style="padding:11px 12px;text-align:center;">${getCodelcoBadgeTP(trabajoPlanificado.total.cumplimiento)}</td>
@@ -1893,15 +1891,13 @@ function generateTemplate6(data) {
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
       </tr>
       ${progRowsHtml}
       <tr style="background-color:${codelcoCopper};">
         <td colspan="3" style="padding:9px 10px;font-size:11px;font-weight:bold;color:#ffffff;">TOTAL</td>
         <td style="padding:9px 6px;font-size:12px;font-weight:bold;color:#a7f3d0;text-align:center;">${formatValue(programaSemanal.total.cumple)}</td>
-        <td style="padding:9px 6px;font-size:12px;font-weight:bold;color:#fca5a5;text-align:center;">${formatValue(programaSemanal.total.noCumple)}</td>
         <td style="padding:9px 10px;text-align:center;">${getCodelcoBadgeProgSemanal(programaSemanal.total.cumplimiento)}</td>
       </tr>
     </table>
@@ -1912,8 +1908,7 @@ function generateTemplate6(data) {
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;">Proceso</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif</td>
         <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Gr. planif.PM</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✓</td>
-        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">✗</td>
+        <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
         <td style="padding:8px 10px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">%</td>
 </tr>
       ${matrizRowsHtml}
@@ -1957,6 +1952,9 @@ ${notaDestacadaHtml}
 function generateTemplate7(data) {
   // Comentario oculto con crédito solicitado
   const creditComment = "<!-- Creado por José Contreras Luna (jose.contreras@minitoring.cl) -->";
+
+  const headerGrPlanif = data.use_pto_trabajo ? 'Puesto Trabajo' : 'Gr.Planif';
+  const headerGrPlanifPM = data.use_pto_trabajo ? 'Desc. Puesto Trabajo' : 'Gr.planif.PM';
 
   const semana = data.semana || 0;
   const indicadores = data.indicadores || {};
@@ -2091,10 +2089,11 @@ function generateTemplate7(data) {
     return `
     <tr>
       <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
-      <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanif || '')}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajoDesc || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.planificado)}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.sinHr)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.sinHorizonte)}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.imprevistos)}</td>
       <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.total)}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${getBadgeTP(g.cumplimiento || 0)}</td>
@@ -2112,10 +2111,10 @@ function generateTemplate7(data) {
     return `
     <tr>
       <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanif || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajoDesc || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.cumple)}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.noCumple)}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.total)}</td>
       <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${getBadgeProgMatriz(g.cumplimiento || 0)}</td>
     </tr>
     `;
@@ -2131,10 +2130,10 @@ function generateTemplate7(data) {
     return `
     <tr>
       <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanif || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajoDesc || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.cumple)}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.noCumple)}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.total)}</td>
       <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${getBadgeProgMatriz(g.cumplimiento || 0)}</td>
     </tr>
     `;
@@ -2146,7 +2145,7 @@ function generateTemplate7(data) {
     const distRows = (resumenAvisos.distribucion || []).map(item => `
       <tr>
         <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanif || ''}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajo || '') : (item.grPlanif || '')}</td>
         <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajoDesc || '') : (item.grPlanifPM || '')}</td>
         <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad || 0}</td>
       </tr>
@@ -2156,8 +2155,8 @@ function generateTemplate7(data) {
       <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:20px;">
         <tr style="background-color:#f1f5f9;border-bottom:1px solid #cbd5e1;">
           <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;font-family:Arial,sans-serif;">Proceso Mantenimiento</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.Planif</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.planif.PM</td>
+          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanif}</td>
+          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanifPM}</td>
           <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Cantidad</td>
         </tr>
         ${distRows}
@@ -2185,7 +2184,7 @@ function generateTemplate7(data) {
     const distRows = (resumenOrdenes.distribucion || []).map(item => `
       <tr>
         <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanif || ''}</td>
+        <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajo || '') : (item.grPlanif || '')}</td>
         <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajoDesc || '') : (item.grPlanifPM || '')}</td>
         <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad || 0}</td>
       </tr>
@@ -2195,8 +2194,8 @@ function generateTemplate7(data) {
       <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:10px;">
         <tr style="background-color:#f8fafc;border-bottom:1px solid #e2e8f0;">
           <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;font-family:Arial,sans-serif;">Proceso Mantenimiento</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.Planif</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.planif.PM</td>
+          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanif}</td>
+          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanifPM}</td>
           <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Cantidad</td>
         </tr>
         ${distRows}
@@ -2530,10 +2529,11 @@ function generateTemplate7(data) {
             <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
               <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
                 <td style="padding:9px 10px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr. planif</td>
-                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr. planif.PM</td>
+                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanif}</td>
+                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanifPM}</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">HH Plan.</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin HR</td>
+        <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin Horiz.</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Imprevistos</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total HH</td>
                 <td align="center" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;">% Cump.</td>
@@ -2545,6 +2545,7 @@ function generateTemplate7(data) {
                 </td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.planificado)}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.sinHr)}</td>
+        <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.sinHorizonte)}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.imprevistos)}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.total)}</td>
                 <td align="center" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${tp_pct}%</td>
@@ -2560,82 +2561,79 @@ function generateTemplate7(data) {
         <tr>
           <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr valign="top">
-
-                <td width="48%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 0 10px 0;">
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
                     <tr>
-                      <td style="padding:0 0 10px 0;">
-                        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
-                            <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                              3. Programa Semanal
-                            </td>
-                          </tr>
-                        </table>
+                      <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
+                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
+                        3. Programa Semanal
                       </td>
-                    </tr>
-                  </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
-                    <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
-                      <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.PM</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
-                      <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
-                    </tr>
-                    ${prog_rows_html}
-                    <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                      <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
-                        <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(ps_pct, ps_target, true)}</span> TOTAL
-                      </td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.cumple)}</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.noCumple)}</td>
-                      <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${ps_pct}%</td>
                     </tr>
                   </table>
                 </td>
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
+              <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
+                <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanif}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanifPM}</td>
+                <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total Ops</td>
+                <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
+              </tr>
+              ${prog_rows_html}
+              <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
+                <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
+                  <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(ps_pct, ps_target, true)}</span> TOTAL
+                </td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.cumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.total)}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${ps_pct}%</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-                <td width="4%">&nbsp;</td>
+        <tr>
+          <td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td>
+        </tr>
 
-                <td width="48%" valign="top" style="padding-left:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 0 10px 0;">
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
                     <tr>
-                      <td style="padding:0 0 10px 0;">
-                        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
-                            <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                              4. Plan Matriz
-                            </td>
-                          </tr>
-                        </table>
+                      <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
+                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
+                        4. Plan Matriz
                       </td>
-                    </tr>
-                  </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
-                    <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
-                      <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.PM</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
-                      <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
-                    </tr>
-                    ${matriz_rows_html}
-                    <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                      <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
-                        <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(pm_pct, pm_target, true)}</span> TOTAL
-                      </td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.cumple)}</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.noCumple)}</td>
-                      <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${pm_pct}%</td>
                     </tr>
                   </table>
                 </td>
-
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
+              <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
+                <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanif}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanifPM}</td>
+                <td style="padding:8px 6px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">Total Ops</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total Ops</td>
+                <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
+              </tr>
+              ${matriz_rows_html}
+              <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
+                <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
+                  <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(pm_pct, pm_target, true)}</span> TOTAL
+                </td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.cumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.noCumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.total)}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${pm_pct}%</td>
               </tr>
             </table>
           </td>
