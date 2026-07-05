@@ -7,12 +7,19 @@ from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager
 
 class KpiAutoModule(BaseModule):
-    """
-    Módulo Automatizado para la Descarga Secuencial de KPIs Corporativos.
-    """
+    """Módulo KPIs Corporativos. HUD propio separado de Proyecciones."""
     def __init__(self, app_api):
         super().__init__("kpi_auto", app_api)
         self.browser_mgr = None
+
+    def log(self, mensaje, nivel="info"):
+        self.app_api.emit_log_kpi(mensaje, nivel)
+
+    def actualizar_progreso(self, valor):
+        self.app_api.emit_progress_kpi(valor)
+
+    def actualizar_visor(self, image_base64):
+        self.app_api.emit_visor_kpi(image_base64)
 
     async def ejecutar(self, params: Dict[str, Any]):
         """
@@ -64,12 +71,12 @@ class KpiAutoModule(BaseModule):
                 self.actualizar_progreso(0.15)
                 
                 async def _get_mfa() -> str:
-                    self.app_api.mfa_event.clear()
-                    self.app_api.mfa_code = None
-                    self.app_api.emit_solicitar_mfa()
+                    self.app_api.mfa_event_kpi.clear()
+                    self.app_api.mfa_code_kpi = None
+                    self.app_api.emit_solicitar_mfa_kpi()
                     self.log("📱 Esperando código MFA del usuario en el panel de KPIs...", "warn")
-                    await self.app_api.mfa_event.wait()
-                    return self.app_api.mfa_code
+                    await self.app_api.mfa_event_kpi.wait()
+                    return self.app_api.mfa_code_kpi
                 
                 exito_login = await login_mgr.login_microsoft(async_get_otp_code=_get_mfa)
                 if not exito_login:

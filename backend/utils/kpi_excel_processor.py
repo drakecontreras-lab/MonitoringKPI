@@ -1064,12 +1064,30 @@ def process_kpi_excels(file_paths, semana_num, output_path,
 
     print(f"[ExcelProcessor] Procesando archivos múltiples semana {semana_num}...")
 
-    # Extraer y preprocesar cada archivo
-    df_avisos,  stats_avisos  = extract_avisos(file_paths['avisos'], puestos_mapping=puestos_mapping)
-    df_ordenes, stats_ordenes = extract_ordenes(file_paths['ordenes'], puestos_mapping=puestos_mapping)
-    df_trabajo, stats_trabajo = extract_trabajo_planificado(file_paths['trabajoPlanificado'], ots_mapping, puestos_mapping)
-    df_prog,    stats_prog    = extract_programa_semanal(file_paths['programaSemanal'], puestos_mapping=puestos_mapping)
-    df_plan,    stats_plan    = extract_plan_matriz(file_paths['planMatriz'], export_ops_mapping, puestos_mapping)
+    # Extraer y preprocesar cada archivo (archivos opcionales — usar .get() con fallback)
+    empty_df = pd.DataFrame()
+    empty_av  = {'total': 0, 'distribucion': []}
+    empty_tp  = {'grupos': [], 'total': {'planificado': 0, 'sinHr': 0, 'sinHorizonte': 0, 'imprevistos': 0, 'total': 0, 'cumplimiento': 0}}
+    empty_ps  = {'grupos': [], 'total': {'cumple': 0, 'noCumple': 0, 'total': 0, 'cumplimiento': 0}}
+
+    def _safe(key, fn, *args, **kwargs):
+        path = file_paths.get(key)
+        if path and os.path.exists(path):
+            try:
+                return fn(path, *args, **kwargs)
+            except Exception as e:
+                print(f"[ExcelProcessor] Error extrayendo {key}: {e}")
+        if key in ('avisos', 'ordenes'):
+            return empty_df, dict(empty_av)
+        if key == 'trabajoPlanificado':
+            return empty_df, dict(empty_tp)
+        return empty_df, dict(empty_ps)
+
+    df_avisos,  stats_avisos  = _safe('avisos',            extract_avisos, puestos_mapping=puestos_mapping)
+    df_ordenes, stats_ordenes = _safe('ordenes',           extract_ordenes, puestos_mapping=puestos_mapping)
+    df_trabajo, stats_trabajo = _safe('trabajoPlanificado', extract_trabajo_planificado, ots_mapping, puestos_mapping)
+    df_prog,    stats_prog    = _safe('programaSemanal',   extract_programa_semanal, puestos_mapping=puestos_mapping)
+    df_plan,    stats_plan    = _safe('planMatriz',        extract_plan_matriz, export_ops_mapping, puestos_mapping)
 
     # Generar XLSX consolidado con 5 hojas (sin hoja 'Tabla')
     wb = openpyxl.Workbook()

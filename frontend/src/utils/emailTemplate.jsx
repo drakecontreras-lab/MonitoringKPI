@@ -23,6 +23,42 @@ const DEFAULT_TP_TARGET = 80;
 const DEFAULT_PS_TARGET = 85;
 const DEFAULT_PM_TARGET = 85;
 
+// Funciones de color y badge para templates 1-5
+function getBarColorTP(percentage) {
+  const target = DEFAULT_TP_TARGET;
+  if (percentage >= target) return '#1a6b3a';
+  if (percentage >= target - 10) return '#e8a020';
+  return '#c0392b';
+}
+
+function getBarColorProgMatriz(percentage) {
+  const target = DEFAULT_PM_TARGET;
+  if (percentage >= target) return '#1a6b3a';
+  if (percentage >= target - 10) return '#e8a020';
+  return '#c0392b';
+}
+
+function getBadgeTP(value) {
+  const pct = value * 100;
+  const c = getBarColorTP(pct);
+  const bg = c === '#c0392b' ? '#fde8e8' : c === '#e8a020' ? '#fef5e0' : '#e6f7ed';
+  const formatted = (pct % 1 === 0) ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
+  return '<span style="background-color:' + bg + ';color:' + c + ';font-size:11px;font-weight:bold;padding:3px 10px;border-radius:12px;">' + formatted + '</span>';
+}
+
+function getBadgeProgMatriz(value) {
+  const pct = value * 100;
+  const c = getBarColorProgMatriz(pct);
+  const bg = c === '#c0392b' ? '#fde8e8' : c === '#e8a020' ? '#fef5e0' : '#e6f7ed';
+  const formatted = (pct % 1 === 0) ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
+  return '<span style="background-color:' + bg + ';color:' + c + ';font-size:11px;font-weight:bold;padding:3px 10px;border-radius:12px;">' + formatted + '</span>';
+}
+
+// Helper: indica si hay datos reales (no vacío)
+function hasData(section) {
+  return section && section.grupos && section.grupos.length > 0;
+}
+
 
 // --- 1. PLANTILLA CORPORATIVO OSCURO (ORIGINAL PREMIUM) ---
 function generateTemplate1(data) {
@@ -722,7 +758,7 @@ function generateTemplate3(data) {
         </tr>
         <!-- Avisos -->
         <tr>
-          <td width="30%" style="padding:6px 0;font-weight:bold;color:#334155;">Avisos Pendientes</td>
+          <td width="30%" style="padding:6px 0;font-weight:bold;color:#334155;">2. Avisos Pendientes</td>
           <td width="10%" style="padding:6px 0;text-align:right;font-weight:bold;padding-right:15px;color:#ef4444;">${indicadores.avisosPendientes}</td>
           <td width="60%" style="padding:6px 0;">
             <div style="background-color:#f1f5f9;height:6px;border-radius:3px;width:100%;">
@@ -1558,16 +1594,16 @@ function generateTemplate6(data) {
 
   const getCodelcoColorAvisos = (count) => {
     const avTarget = data.email_settings?.avisos_target || 10;
-    if (count === 0) return '#1a6b3a'; // Verde si es 0
-    if (count < avTarget) return '#e8a020'; // Amarillo si < target
-    return '#c0392b'; // Rojo si >= target
+    if (count === 0) return '#1a6b3a'; // Verde si 0
+    if (count <= avTarget) return '#e8a020'; // Amarillo 1..target
+    return '#c62828'; // Rojo >target
   };
 
   const getCodelcoColorOrdenes = (count) => {
     const ordTarget = data.email_settings?.ordenes_target || 10;
-    if (count === 0) return '#1a6b3a'; // Verde si es 0
-    if (count < ordTarget) return '#e8a020'; // Amarillo si < target
-    return '#c0392b'; // Rojo si >= target
+    if (count === 0) return '#1a6b3a'; // Verde si 0
+    if (count <= ordTarget) return '#e8a020'; // Amarillo 1..target
+    return '#c62828'; // Rojo >target
   };
 
   const getCodelcoBgColor = (color) => {
@@ -1983,19 +2019,22 @@ function generateTemplate7(data) {
   const ps_target = parseInt(email_settings.ps_target) || 85;
   const pm_target = parseInt(email_settings.pm_target) || 85;
 
+  const headerGrPlanif = data.use_pto_trabajo ? "Puesto Trabajo" : "Gr. planif";
+  const headerGrPlanifPM = data.use_pto_trabajo ? "Desc. Puesto Trabajo" : "Gr. planif.PM";
+
   const currentYear = new Date().getFullYear();
 
   // Colores: ROJO (#c0392b), AMARILLO (#e8a020), VERDE (#1a6b3a)
   function getColorAvisos(val) {
-    if (val <= avisos_target) return '#1a6b3a';
-    if (val <= avisos_target + 10) return '#e8a020';
-    return '#c0392b';
+    if (val === 0) return '#1a6b3a'; // Verde si 0
+    if (val <= avisos_target) return '#e8a020'; // Amarillo 1..target
+    return '#c62828'; // Rojo >target
   }
 
   function getColorOrdenes(val) {
-    if (val <= ordenes_target) return '#1a6b3a';
-    if (val <= ordenes_target + 10) return '#e8a020';
-    return '#c0392b';
+    if (val === 0) return '#1a6b3a'; // Verde si 0
+    if (val <= ordenes_target) return '#e8a020'; // Amarillo 1..target
+    return '#c62828'; // Rojo >target
   }
 
   function getColorTP(val) {
@@ -2091,7 +2130,7 @@ function generateTemplate7(data) {
     return `
     <tr>
       <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
-      <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanif || '')}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajoDesc || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.planificado)}</td>
       <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${formatValue(g.sinHr)}</td>
@@ -2112,10 +2151,11 @@ function generateTemplate7(data) {
     return `
     <tr>
       <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanif || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajoDesc || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.cumple)}</td>
       <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.noCumple)}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.total)}</td>
       <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${getBadgeProgMatriz(g.cumplimiento || 0)}</td>
     </tr>
     `;
@@ -2131,407 +2171,91 @@ function generateTemplate7(data) {
     return `
     <tr>
       <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${showProceso}</td>
-      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${g.grPlanif || ''}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajo || '') : (g.grPlanif || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (g.ptoTrabajoDesc || '') : (g.grPlanifPM || '')}</td>
       <td style="padding:8px 4px;font-size:11px;color:#1a6b3a;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.cumple)}</td>
       <td style="padding:8px 4px;font-size:11px;color:#cbd5e1;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.noCumple)}</td>
+      <td style="padding:8px 4px;font-size:11px;color:#334155;font-weight:bold;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${formatValue(g.total)}</td>
       <td style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${getBadgeProgMatriz(g.cumplimiento || 0)}</td>
     </tr>
     `;
   }).join('') || '';
 
-  // Avisos Table
-  let avisosTableHtml = '';
-  if (resumenAvisos.total > 0) {
-    const distRows = (resumenAvisos.distribucion || []).map(item => `
-      <tr>
-        <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanif || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajoDesc || '') : (item.grPlanifPM || '')}</td>
-        <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad || 0}</td>
-      </tr>
-    `).join('');
-    
-    avisosTableHtml = `
-      <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:20px;">
-        <tr style="background-color:#f1f5f9;border-bottom:1px solid #cbd5e1;">
-          <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;font-family:Arial,sans-serif;">Proceso Mantenimiento</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.Planif</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.planif.PM</td>
-          <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Cantidad</td>
-        </tr>
-        ${distRows}
-        <tr style="background-color:#E55302;">
-          <td colspan="3" style="padding:10px 12px;font-size:11px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">TOTAL GENERAL</td>
-          <td style="padding:10px 12px;text-align:center;color:#ffffff;font-weight:bold;font-size:11px;font-family:Arial,sans-serif;">${resumenAvisos.total || 0}</td>
-        </tr>
-      </table>
-    `;
-  } else {
-    avisosTableHtml = `
-      <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;margin-bottom:20px;">
-        <tr>
-          <td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">
-            ⚠️ No hay avisos pendientes en este período.
-          </td>
-        </tr>
-      </table>
-    `;
-  }
+  const GRIS = '#64748b';
+  const has_tp = !!(trabajoPlanificado.grupos && trabajoPlanificado.grupos.length);
+  const has_ps = !!(programaSemanal.grupos && programaSemanal.grupos.length);
+  const has_pm = !!(planMatriz.grupos && planMatriz.grupos.length);
+  const has_avisos = !!(resumenAvisos.distribucion && resumenAvisos.distribucion.length);
+  const has_ordenes = !!(resumenOrdenes.distribucion && resumenOrdenes.distribucion.length);
 
-  // Órdenes
-  let ordenesTableHtml = '';
-  if (resumenOrdenes.total > 0) {
-    const distRows = (resumenOrdenes.distribucion || []).map(item => `
-      <tr>
-        <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.grPlanif || ''}</td>
-        <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajoDesc || '') : (item.grPlanifPM || '')}</td>
-        <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad || 0}</td>
-      </tr>
-    `).join('');
-    
-    ordenesTableHtml = `
-      <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:10px;">
-        <tr style="background-color:#f8fafc;border-bottom:1px solid #e2e8f0;">
-          <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;font-family:Arial,sans-serif;">Proceso Mantenimiento</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.Planif</td>
-          <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Gr.planif.PM</td>
-          <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;font-family:Arial,sans-serif;">Cantidad</td>
-        </tr>
-        ${distRows}
-        <tr style="background-color:#E55302;">
-          <td colspan="3" style="padding:10px 12px;font-size:11px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">TOTAL GENERAL</td>
-          <td style="padding:10px 12px;text-align:center;color:#ffffff;font-weight:bold;font-size:11px;font-family:Arial,sans-serif;">${resumenOrdenes.total || 0}</td>
-        </tr>
-      </table>
-    `;
-  } else {
-    ordenesTableHtml = `
-      <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;margin-bottom:10px;">
-        <tr>
-          <td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">
-            ⚠️ No hay órdenes pendientes en este período.
-          </td>
-        </tr>
-      </table>
-    `;
-  }
+  const cAvisos = has_avisos ? colorAvisos : GRIS;
+  const cOrdenes = has_ordenes ? colorOrdenes : GRIS;
+  const cTP = has_tp ? colorTP : GRIS;
+  const cPS = has_ps ? colorPS : GRIS;
+  const cPM = has_pm ? colorPM : GRIS;
 
-  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
-<head>
-  ${creditComment}
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GSYS | Reporte Semanal KPI Corporativo</title>
-  <!--[if mso]>
-  <style type="text/css">
-    table { border-collapse: collapse; }
-    .outlook-fix { display: block !important; }
-  </style>
-  <xml>
-    <o:OfficeDocumentSettings>
-      <o:AllowPNG/>
-      <o:PixelsPerInch>96</o:PixelsPerInch>
-    </o:OfficeDocumentSettings>
-  </xml>
-  <![endif]-->
-</head>
-<body style="margin:0;padding:0;background-color:#e8edf2;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
- 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#e8edf2" style="background-color:#e8edf2;">
-  <tr>
-    <td align="center" style="padding:24px 12px;">
+  const avisosDisplay = has_avisos ? indicadores.avisosPendientes : '—';
+  const ordenesDisplay = has_ordenes ? indicadores.ordenesPendientes : '—';
+  const tpDisplay = has_tp ? tp_pct + '%' : '—';
+  const psDisplay = has_ps ? ps_pct + '%' : '—';
+  const pmDisplay = has_pm ? pm_pct + '%' : '—';
 
-      <table width="680" cellpadding="0" cellspacing="0" border="0" style="max-width:680px;width:100%;background-color:#ffffff;" bgcolor="#ffffff">
+  const avisosTableHtml = has_avisos ? `
+        <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:20px;">
+          <tr style="background-color:#E55302;border-bottom:1px solid #E55302;">
+            <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">Proceso Mantenimiento</td>
+            <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanif}</td>
+            <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanifPM}</td>
+            <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">Cantidad</td>
+          </tr>
+          ${resumenAvisos.distribucion.map(item => `
+            <tr>
+              <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso}</td>
+              <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajo || '') : (item.grPlanif || '')}</td>
+              <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajoDesc || '') : (item.grPlanifPM || '')}</td>
+              <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad}</td>
+            </tr>
+          `).join('')}
+          <tr style="background-color:#f1f5f9;">
+            <td colspan="3" style="padding:10px 12px;font-size:11px;font-weight:bold;color:#475569;font-family:Arial,sans-serif;">TOTAL GENERAL</td>
+            <td style="padding:10px 12px;text-align:center;color:#475569;font-weight:bold;font-size:11px;font-family:Arial,sans-serif;">${resumenAvisos.total}</td>
+          </tr>
+        </table>` : `
+        <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;margin-bottom:20px;">
+          <tr><td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">⚠️ No hay avisos pendientes en este período.</td></tr>
+        </table>`;
 
-        <tr>
-          <td height="4" bgcolor="#1a8fa0" style="font-size:0;line-height:0;background-color:#1a8fa0;">&nbsp;</td>
-        </tr>
+  const ordenesTableHtml = has_ordenes ? `
+        <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:10px;">
+          <tr style="background-color:#E55302;border-bottom:1px solid #E55302;">
+            <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">Proceso Mantenimiento</td>
+            <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanif}</td>
+            <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">${headerGrPlanifPM}</td>
+            <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">Cantidad</td>
+          </tr>
+          ${resumenOrdenes.distribucion.map(item => `
+            <tr>
+              <td style="padding:8px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-family:Arial,sans-serif;">${item.proceso}</td>
+              <td style="padding:8px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajo || '') : (item.grPlanif || '')}</td>
+              <td style="padding:8px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${data.use_pto_trabajo ? (item.ptoTrabajoDesc || '') : (item.grPlanifPM || '')}</td>
+              <td style="padding:8px 12px;font-size:11px;font-weight:bold;color:#c62828;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${item.cantidad}</td>
+            </tr>
+          `).join('')}
+          <tr style="background-color:#f8fafc;">
+            <td colspan="3" style="padding:10px 12px;font-size:11px;font-weight:bold;color:#475569;font-family:Arial,sans-serif;">TOTAL GENERAL</td>
+            <td style="padding:10px 12px;text-align:center;color:#475569;font-weight:bold;font-size:11px;font-family:Arial,sans-serif;">${resumenOrdenes.total}</td>
+          </tr>
+        </table>` : `
+        <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;margin-bottom:10px;">
+          <tr><td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">⚠️ No hay órdenes pendientes en este período.</td></tr>
+        </table>`;
 
-        <tr>
-          <td bgcolor="#0d7a8c" style="padding:0;background-color:#0d7a8c;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td width="72" align="center" valign="middle" bgcolor="#0b6b7c" style="padding:22px 0;background-color:#0b6b7c;">
-                  <div style="width:44px;height:44px;background-color:#bb5726;margin:0 auto;"></div>
-                </td>
-
-                <td valign="middle" style="padding:18px 16px 18px 12px;">
-                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                      <td style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#7fd8e8;letter-spacing:2px;font-weight:bold;text-transform:uppercase;padding-bottom:4px;">
-                        ${header_tag}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:bold;color:#ffffff;line-height:1.2;padding-bottom:3px;">
-                        ${title}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#a8dde8;">
-                        ${subtitle}
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-
-                <td align="right" valign="middle" style="padding:18px 20px 18px 0;white-space:nowrap;">
-                  <table cellpadding="0" cellspacing="0" border="0" align="right">
-                    <tr>
-                      <td align="center" bgcolor="#bb5726" style="padding:4px 0 2px 0;background-color:#bb5726;width:64px;">
-                        <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffd4b8;letter-spacing:2px;text-transform:uppercase;text-align:center;">SEMANA</div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="center" bgcolor="#ffffff" style="padding:4px 0 6px 0;background-color:#ffffff;width:64px;">
-                        <div style="font-family:Arial,Helvetica,sans-serif;font-size:30px;font-weight:bold;color:#0d7a8c;line-height:1;text-align:center;">${semana}</div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td height="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td height="3" bgcolor="#bb5726" style="font-size:0;line-height:0;background-color:#bb5726;">&nbsp;</td>
-        </tr>
-
-        <tr>
-          <td bgcolor="#f8fafc" style="padding:0;background-color:#f8fafc;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding:16px 20px 4px 20px;">
-                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                      <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
-                      <td style="padding:6px 0 6px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;letter-spacing:0.5px;text-transform:uppercase;">
-                        1. &nbsp;Indicadores Globales del Período
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding:8px 16px 20px 16px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td width="20%" style="padding:4px;">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${colorAvisos};">
-                          <tr>
-                            <td align="center" style="padding:12px 6px 6px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">⚠️</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 4px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${colorAvisos};line-height:1;">${avisos_val}</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 2px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${avisos_target}</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" bgcolor="${colorAvisos}" style="padding:5px;background-color:${colorAvisos};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">AVISOS</div>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-
-                      <td width="20%" style="padding:4px;">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${colorOrdenes};">
-                          <tr>
-                            <td align="center" style="padding:12px 6px 6px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">📋</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 4px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${colorOrdenes};line-height:1;">${ordenes_val}</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 2px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${ordenes_target}</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" bgcolor="${colorOrdenes}" style="padding:5px;background-color:${colorOrdenes};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">ÓRDENES</div>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-
-                      <td width="20%" style="padding:4px;">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${colorTP};">
-                          <tr>
-                            <td align="center" style="padding:12px 6px 6px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">📈</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 4px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${colorTP};line-height:1;">${tp_pct}%</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 2px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${tp_target}%</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" bgcolor="${colorTP}" style="padding:5px;background-color:${colorTP};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">TRAB. PLANIFICADO</div>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-
-                      <td width="20%" style="padding:4px;">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${colorPS};">
-                          <tr>
-                            <td align="center" style="padding:12px 6px 6px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">✅</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 4px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${colorPS};line-height:1;">${ps_pct}%</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 2px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${ps_target}%</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" bgcolor="${colorPS}" style="padding:5px;background-color:${colorPS};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PROG. SEMANAL</div>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-
-                      <td width="20%" style="padding:4px;">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${colorPM};">
-                          <tr>
-                            <td align="center" style="padding:12px 6px 6px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">📄</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 4px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${colorPM};line-height:1;">${pm_pct}%</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" style="padding:0 6px 2px 6px;">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${pm_target}%</div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td align="center" bgcolor="${colorPM}" style="padding:5px;background-color:${colorPM};">
-                              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PLAN MATRIZ</div>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td bgcolor="#ffffff" style="padding:0 20px 20px 20px;background-color:#ffffff;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding:0 0 10px 0;">
-                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                      <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
-                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                        Avisos Pendientes
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  ${avisosTableHtml}
-                </td>
-              </tr>
-            </table>
-
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr><td height="16" style="font-size:0;line-height:0;">&nbsp;</td></tr>
-            </table>
-
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding:0 0 10px 0;">
-                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                      <td width="3" bgcolor="#e96c28" style="background-color:#e96c28;font-size:0;line-height:0;">&nbsp;</td>
-                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                        Órdenes Pendientes
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  ${ordenesTableHtml}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td>
-        </tr>
-
-        <tr>
-          <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding:0 0 14px 0;">
-                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                      <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
-                      <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                        2. &nbsp;Cumplimiento de Trabajo Planificado
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-
+  const tpTableHtml = has_tp ? `
             <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
               <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
                 <td style="padding:9px 10px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr. planif</td>
-                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr. planif.PM</td>
+                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanif}</td>
+                <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanifPM}</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">HH Plan.</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin HR</td>
                 <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Imprevistos</td>
@@ -2540,104 +2264,154 @@ function generateTemplate7(data) {
               </tr>
               ${tp_rows_html}
               <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                <td colspan="3" style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">
-                  <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(tp_pct, tp_target, true)}</span> TOTAL GENERAL
-                </td>
+                <td colspan="3" style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">TOTAL GENERAL</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.planificado)}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.sinHr)}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.imprevistos)}</td>
                 <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${formatValue(trabajoPlanificado.total?.total)}</td>
-                <td align="center" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${tp_pct}%</td>
+                <td align="center" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${tpDisplay}</td>
+              </tr>
+            </table>` : `
+        <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;">
+          <tr><td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">⚠️ No hay información de trabajo planificado en este período.</td></tr>
+        </table>`;
+
+  const psTableHtml = has_ps ? `
+            <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
+              <tr bgcolor="#E55302" style="background-color:#E55302;">
+                <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanif}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanifPM}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total Ops</td>
+                <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
+              </tr>
+              ${prog_rows_html}
+              <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
+                <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">TOTAL</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.cumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.noCumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.total)}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${psDisplay}</td>
+              </tr>
+            </table>` : `
+        <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;">
+          <tr><td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">⚠️ No hay información de programa semanal en este período.</td></tr>
+        </table>`;
+
+  const pmTableHtml = has_pm ? `
+            <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
+              <tr bgcolor="#E55302" style="background-color:#E55302;">
+                <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanif}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">${headerGrPlanifPM}</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
+                <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total Ops</td>
+                <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
+              </tr>
+              ${matriz_rows_html}
+              <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
+                <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">TOTAL</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.cumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.noCumple)}</td>
+                <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.total)}</td>
+                <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${pmDisplay}</td>
+              </tr>
+            </table>` : `
+        <table width="100%" cellpadding="15" cellspacing="0" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;border:1px dashed #cbd5e1;background-color:#fdf5f2;text-align:center;">
+          <tr><td style="font-family:Arial,sans-serif;color:#9a3210;font-size:11px;font-weight:bold;">⚠️ No hay información de plan matriz en este período.</td></tr>
+        </table>`;
+
+  return `
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GSYS | Reporte Semanal KPI Corporativo</title>
+</head>
+<body style="margin:0;padding:0;background-color:#e8edf2;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#e8edf2" style="background-color:#e8edf2;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table width="816" cellpadding="0" cellspacing="0" border="0" style="max-width:816px;width:100%;background-color:#ffffff;" bgcolor="#ffffff">
+        <tr>
+          <td height="4" bgcolor="#1a8fa0" style="font-size:0;line-height:0;background-color:#1a8fa0;">&nbsp;</td>
+        </tr>
+        <tr>
+          <td bgcolor="#0d7a8c" style="padding:0;background-color:#0d7a8c;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td width="72" align="center" valign="middle" bgcolor="#0b6b7c" style="padding:22px 0;background-color:#0b6b7c;">
+                  <div style="width:44px;height:44px;background-color:#bb5726;margin:0 auto;"></div>
+                </td>
+                <td valign="middle" style="padding:18px 16px 18px 12px;">
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#7fd8e8;letter-spacing:2px;font-weight:bold;text-transform:uppercase;padding-bottom:4px;">${header_tag}</td></tr>
+                    <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:bold;color:#ffffff;line-height:1.2;padding-bottom:3px;">${title}</td></tr>
+                    <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#a8dde8;">${subtitle}</td></tr>
+                  </table>
+                </td>
+                <td align="right" valign="middle" style="padding:18px 20px 18px 0;white-space:nowrap;">
+                  <table cellpadding="0" cellspacing="0" border="0" align="right">
+                    <tr><td align="center" bgcolor="#bb5726" style="padding:4px 0 2px 0;background-color:#bb5726;width:64px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffd4b8;letter-spacing:2px;text-transform:uppercase;text-align:center;">SEMANA</div></td></tr>
+                    <tr><td align="center" bgcolor="#ffffff" style="padding:4px 0 6px 0;background-color:#ffffff;width:64px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:30px;font-weight:bold;color:#0d7a8c;line-height:1;text-align:center;">${semana}</div></td></tr>
+                    <tr><td height="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td></tr>
+                  </table>
+                </td>
               </tr>
             </table>
           </td>
         </tr>
+        <tr><td height="3" bgcolor="#bb5726" style="font-size:0;line-height:0;background-color:#bb5726;">&nbsp;</td></tr>
 
         <tr>
-          <td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td>
+          <td bgcolor="#f8fafc" style="padding:0;background-color:#f8fafc;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:16px 20px 4px 20px;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td><td style="padding:6px 0 6px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;letter-spacing:0.5px;text-transform:uppercase;">1. &nbsp;Indicadores Globales del Período</td></tr></table></td></tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:8px 16px 20px 16px;"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+              <td width="20%" style="padding:4px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${cAvisos};"><tr><td align="center" style="padding:12px 6px 6px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">⚠️</div></td></tr><tr><td align="center" style="padding:0 6px 4px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${cAvisos};line-height:1;">${avisosDisplay}</div></td></tr><tr><td align="center" style="padding:0 6px 2px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${avisos_target}</div></td></tr><tr><td align="center" bgcolor="${cAvisos}" style="padding:5px;background-color:${cAvisos};"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">AVISOS PENDIENTES</div></td></tr></table></td>
+              <td width="20%" style="padding:4px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${cOrdenes};"><tr><td align="center" style="padding:12px 6px 6px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">📋</div></td></tr><tr><td align="center" style="padding:0 6px 4px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${cOrdenes};line-height:1;">${ordenesDisplay}</div></td></tr><tr><td align="center" style="padding:0 6px 2px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${ordenes_target}</div></td></tr><tr><td align="center" bgcolor="${cOrdenes}" style="padding:5px;background-color:${cOrdenes};"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">ÓRDENES PENDIENTES</div></td></tr></table></td>
+              <td width="20%" style="padding:4px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${cTP};"><tr><td align="center" style="padding:12px 6px 6px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">📈</div></td></tr><tr><td align="center" style="padding:0 6px 4px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${cTP};line-height:1;">${tpDisplay}</div></td></tr><tr><td align="center" style="padding:0 6px 2px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${tp_target}%</div></td></tr><tr><td align="center" bgcolor="${cTP}" style="padding:5px;background-color:${cTP};"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">TRABAJO PLANIFICADO</div></td></tr></table></td>
+              <td width="20%" style="padding:4px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${cPS};"><tr><td align="center" style="padding:12px 6px 6px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">✅</div></td></tr><tr><td align="center" style="padding:0 6px 4px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${cPS};line-height:1;">${psDisplay}</div></td></tr><tr><td align="center" style="padding:0 6px 2px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${ps_target}%</div></td></tr><tr><td align="center" bgcolor="${cPS}" style="padding:5px;background-color:${cPS};"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PROGRAMA SEMANAL</div></td></tr></table></td>
+              <td width="20%" style="padding:4px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border-top:3px solid ${cPM};"><tr><td align="center" style="padding:12px 6px 6px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1;">📄</div></td></tr><tr><td align="center" style="padding:0 6px 4px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${cPM};line-height:1;">${pmDisplay}</div></td></tr><tr><td align="center" style="padding:0 6px 2px 6px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#666;line-height:1;">Target: ${pm_target}%</div></td></tr><tr><td align="center" bgcolor="${cPM}" style="padding:5px;background-color:${cPM};"><div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">PLAN MATRIZ</div></td></tr></table></td>
+            </tr></table></td></tr></table>
+          </td>
         </tr>
 
         <tr>
+          <td bgcolor="#ffffff" style="padding:0 20px 20px 20px;background-color:#ffffff;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 0 10px 0;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td><td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">2. Avisos Pendientes</td></tr></table></td></tr><tr><td>${avisosTableHtml}</td></tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="16" style="font-size:0;line-height:0;">&nbsp;</td></tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 0 10px 0;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="3" bgcolor="#e96c28" style="background-color:#e96c28;font-size:0;line-height:0;">&nbsp;</td><td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">3. Órdenes Pendientes</td></tr></table></td></tr><tr><td>${ordenesTableHtml}</td></tr></table>
+          </td>
+        </tr>
+
+        <tr><td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td></tr>
+
+        <tr>
           <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr valign="top">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 0 14px 0;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td><td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">4. &nbsp;Cumplimiento de Trabajo Planificado</td></tr></table></td></tr></table>
+            ${tpTableHtml}
+          </td>
+        </tr>
 
-                <td width="48%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td style="padding:0 0 10px 0;">
-                        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td>
-                            <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                              3. Programa Semanal
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
-                    <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
-                      <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.PM</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
-                      <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
-                    </tr>
-                    ${prog_rows_html}
-                    <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                      <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
-                        <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(ps_pct, ps_target, true)}</span> TOTAL
-                      </td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.cumple)}</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(programaSemanal.total?.noCumple)}</td>
-                      <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${ps_pct}%</td>
-                    </tr>
-                  </table>
-                </td>
+        <tr><td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td></tr>
 
-                <td width="4%">&nbsp;</td>
+        <tr>
+          <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 0 10px 0;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="3" bgcolor="#0d7a8c" style="background-color:#0d7a8c;font-size:0;line-height:0;">&nbsp;</td><td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">5. Programa Semanal</td></tr></table></td></tr></table>
+            ${psTableHtml}
+          </td>
+        </tr>
 
-                <td width="48%" valign="top" style="padding-left:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td style="padding:0 0 10px 0;">
-                        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
-                            <td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">
-                              4. Plan Matriz
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;">
-                    <tr bgcolor="#E55302" style="background-color:#E55302;border-bottom:1px solid #E55302;">
-                      <td style="padding:8px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Proceso</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Gr.PM</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#52c774;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✓</td>
-                      <td align="center" style="padding:8px 4px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#f87171;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">✗</td>
-                      <td align="center" style="padding:8px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;border-bottom:2px solid #E55302;">%</td>
-                    </tr>
-                    ${matriz_rows_html}
-                    <tr bgcolor="#f1f5f9" style="background-color:#f1f5f9;">
-                      <td colspan="3" style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#334155;">
-                        <span style="font-size:12px;margin-right:4px;">${getStatusIconForVal(pm_pct, pm_target, true)}</span> TOTAL
-                      </td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.cumple)}</td>
-                      <td align="center" style="padding:9px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;">${formatValue(planMatriz.total?.noCumple)}</td>
-                      <td align="center" bgcolor="#f1f5f9" style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">${pm_pct}%</td>
-                    </tr>
-                  </table>
-                </td>
+        <tr><td height="1" bgcolor="#e2e8f0" style="font-size:0;line-height:0;background-color:#e2e8f0;">&nbsp;</td></tr>
 
-              </tr>
-            </table>
+        <tr>
+          <td bgcolor="#ffffff" style="padding:20px;background-color:#ffffff;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 0 10px 0;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="3" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td><td style="padding:5px 0 5px 10px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">6. Plan Matriz</td></tr></table></td></tr></table>
+            ${pmTableHtml}
           </td>
         </tr>
 
@@ -2648,33 +2422,10 @@ function generateTemplate7(data) {
                 <td width="4" bgcolor="#bb5726" style="background-color:#bb5726;font-size:0;line-height:0;">&nbsp;</td>
                 <td style="padding:14px 16px;background-color:#ffffff;border:1px solid #f0d0c4;border-left:0;">
                   <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#334155;line-height:1.7;padding-bottom:12px;">
-                        ${body_p1}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td bgcolor="#fff8f5" style="padding:10px 12px;background-color:#fff8f5;border-left:3px solid #e96c28;">
-                        <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9a3210;font-weight:bold;">
-                          ${body_p2}
-                        </span>
-                      </td>
-                    </tr>
+                    <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#334155;line-height:1.7;padding-bottom:12px;">${body_p1}</td></tr>
+                    <tr><td bgcolor="#fff8f5" style="padding:10px 12px;background-color:#fff8f5;border-left:3px solid #e96c28;"><span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9a3210;font-weight:bold;">${body_p2}</span></td></tr>
                     <tr><td height="14" style="font-size:0;line-height:0;">&nbsp;</td></tr>
-                    <tr>
-                      <td align="center">
-                        <table cellpadding="0" cellspacing="0" border="0" align="center">
-                          <tr>
-                            <td bgcolor="#0d7a8c" style="background-color:#0d7a8c;padding:0;">
-                              <a href="https://app.powerbi.com/groups/me/reports/25c6193c-221c-4a37-8482-7eaa6bdcf0b8/ReportSection2f3df3645adc487323d5?ctid=e9bc23bb-772e-4090-abc4-b9fd485041fc"
-                                  style="display:inline-block;padding:11px 28px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;text-decoration:none;background-color:#0d7a8c;border:0;">
-                                ▶ &nbsp;Ver Dashboard de KPIs
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
+                    <tr><td align="center"><table cellpadding="0" cellspacing="0" border="0" align="center"><tr><td bgcolor="#0d7a8c" style="background-color:#0d7a8c;padding:0;"><a href="https://app.powerbi.com/groups/me/reports/25c6193c-221c-4a37-8482-7eaa6bdcf0b8/ReportSection2f3df3645adc487323d5?ctid=e9bc23bb-772e-4090-abc4-b9fd485041fc" style="display:inline-block;padding:11px 28px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;text-decoration:none;background-color:#0d7a8c;border:0;">▶ &nbsp;Ver Dashboard de KPIs</a></td></tr></table></td></tr>
                   </table>
                 </td>
               </tr>
@@ -2682,40 +2433,26 @@ function generateTemplate7(data) {
           </td>
         </tr>
 
-        <tr>
-          <td height="3" bgcolor="#0d7a8c" style="font-size:0;line-height:0;background-color:#0d7a8c;">&nbsp;</td>
-        </tr>
+        <tr><td height="3" bgcolor="#0d7a8c" style="font-size:0;line-height:0;background-color:#0d7a8c;">&nbsp;</td></tr>
         <tr bgcolor="#bb5726" style="background-color:#bb5726;">
           <td style="padding:16px 20px;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr valign="middle">
                 <td valign="middle">
-                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#ffd4b8;text-transform:uppercase;letter-spacing:1px;padding-bottom:4px;">
-                    Fuente de datos
-                  </div>
-                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;font-weight:bold;">
-                    DATAMART · GSYS Mantenimiento DCH
-                  </div>
+                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#ffd4b8;text-transform:uppercase;letter-spacing:1px;padding-bottom:4px;font-weight:bold;">Fuente de datos</div>
+                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;font-weight:bold;">DATAMART</div>
                 </td>
                 <td align="right" valign="middle">
-                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#ffd4b8;padding-bottom:4px;">
-                    Semana ${semana} &nbsp;·&nbsp; ${currentYear} &nbsp;·&nbsp; Monitoring
-                  </div>
-                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;">
-                    Generado por&nbsp;
-                    <a href="mailto:${generado_email}" style="color:#ffd4b8;text-decoration:none;font-weight:bold;">${generado_nombre}</a>
-                  </div>
+                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#ffd4b8;padding-bottom:4px;font-weight:bold;">Semana ${semana} &nbsp;·&nbsp; ${currentYear} &nbsp;·&nbsp; Monitoring</div>
+                  <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;">Generado por&nbsp;<a href="mailto:${generado_email}" style="color:#ffd4b8;text-decoration:none;font-weight:bold;">${generado_nombre}</a></div>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
-        <tr>
-          <td height="4" bgcolor="#bb5726" style="font-size:0;line-height:0;background-color:#bb5726;">&nbsp;</td>
-        </tr>
+        <tr><td height="4" bgcolor="#bb5726" style="font-size:0;line-height:0;background-color:#bb5726;">&nbsp;</td></tr>
 
       </table>
-
     </td>
   </tr>
 </table>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { generateKpiEmailTemplate } from '../utils/emailTemplate';
+import { generateKpiEmailTemplate } from '../utils/emailTemplate.jsx';
 
 /**
  * Componente que renderiza la previsualización del correo con selector de plantilla.
@@ -113,7 +113,7 @@ export default function EmailPreview({ kpiData, sending, onSendTestEmail, onSend
             </span>
             <div className="preview-frame-wrapper" style={{ flexGrow: 1, borderRadius: 'var(--radius-sm)' }}>
               <iframe
-                key={kpiData ? `loaded-${kpiData.semana}-t7` : 'empty'}
+                key={kpiData ? `loaded-${kpiData.semana}-t7-pto-${kpiData.use_pto_trabajo}` : 'empty'}
                 title="Previsualización de Correo Corporativo"
                 className="preview-iframe"
                 srcDoc={emailHtml}

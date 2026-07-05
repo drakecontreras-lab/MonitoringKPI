@@ -58,20 +58,20 @@
         "email": "jose.contreras@monitoring.cl",
         "password": "D2453d0k"
     },
-    "recipients": "erwin.leon@monitoring.cl",
+    "recipients": "valentina.borquez@monitoring.cl",
     "cc": "jose.contreras@monitoring.cl",
     "email_settings": {
-        "header_tag": "■ &nbsp; DIVISIÓN CHUQUICAMATA &nbsp;·&nbsp; GSYS",
-        "title": "Reporte Semanal de KPIs Corporativos",
+        "header_tag": "■ &nbsp; DIVISIÓN CHUQUICAMATA &nbsp;·&nbsp; SUBTE",
+        "title": "Reporte Semanal de KPIs Corporativos SUBTE",
         "subtitle": "Sistema Operativo de Mantenimiento (SOMA)",
         "body_p1": "Favor revisar la información y proceder de acuerdo con el flujograma establecido por directriz. Se solicita enviar HOY el plan de acción a Francisco Toro para su correspondiente revisión y validación.",
         "body_p2": "⚠️  Se enfatiza la importancia de generar oportunamente el plan, con el objetivo de corregir de manera inmediata las desviaciones detectadas.",
-        "generado_nombre": "José Contreras Luna",
+        "generado_nombre": "Valentina Borquez",
         "generado_email": "jose.contreras@monitoring.cl",
-        "avisos_target": "10",
+        "avisos_target": "0",
         "ordenes_target": "13",
         "tp_target": 80,
         "ps_target": 85,
-        "pm_target": "50"
+        "pm_target": "85"
     }
 }

@@ -7,13 +7,20 @@ from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager, SAPNavigator
 
 class ProyAutoModule(BaseModule):
-    """
-    Módulo para automatizar las descargas de SAP Fiori usando Playwright.
-    """
+    """Módulo Proyecciones. HUD propio separado de KPIs Corporativos."""
 
     def __init__(self, app_api):
         super().__init__("proy_auto", app_api)
         self.browser_mgr = None
+
+    def log(self, mensaje, nivel="info"):
+        self.app_api.emit_log_proy(mensaje, nivel)
+
+    def actualizar_progreso(self, valor):
+        self.app_api.emit_progress_proy(valor)
+
+    def actualizar_visor(self, image_base64):
+        self.app_api.emit_visor_proy(image_base64)
 
     async def ejecutar(self, params: dict):
         self.running = True
@@ -67,11 +74,11 @@ class ProyAutoModule(BaseModule):
             navigator = SAPNavigator(page, url_base, self.log)
 
             async def get_otp_code() -> str:
-                self.app_api.mfa_event.clear()
-                self.app_api.mfa_code = None
-                self.app_api.emit_solicitar_mfa()
-                await self.app_api.mfa_event.wait()
-                return self.app_api.mfa_code
+                self.app_api.mfa_event_proy.clear()
+                self.app_api.mfa_code_proy = None
+                self.app_api.emit_solicitar_mfa_proy()
+                await self.app_api.mfa_event_proy.wait()
+                return self.app_api.mfa_code_proy
 
             await page.goto(url_base, wait_until="load", timeout=60000)
             await asyncio.sleep(3)
@@ -125,7 +132,107 @@ class ProyAutoModule(BaseModule):
             h_ots_st = ProyeccionOtsStHandler(page, self.log, url_base)
 
             # Orquestar según el modo
-            if modo == "full":
+            if modo == "full_proyecciones":
+                selected = params.get("selected_projections", ["avisos","ordenes","trabajo_planificado","programa_semanal","plan_matriz"])
+                activar_uts = params.get("activar_uts", True)
+                activar_grupos = params.get("activar_grupos", True)
+                dias_venc_avisos = int(params.get("dias_venc_avisos", 7))
+                dias_venc_ordenes = int(params.get("dias_venc_ordenes", 21))
+                semana_proy = params.get("semana", "")
+                fecha_base_proy = params.get("fecha_base", "")
+
+                self.log(f"🎯 Flujo de proyecciones. Seleccionadas: {', '.join(selected)}")
+                self.actualizar_progreso(0.10)
+
+                if activar_uts and lista_uts:
+                    self.log("📡 FASE 1: Consultas por Unidades Técnicas...")
+                    step = 0
+                    total_steps = len([s for s in selected if s in ("avisos","ordenes","trabajo_planificado")])
+                    if "avisos" in selected:
+                        step += 1
+                        self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
+                        await h_avisos.ejecutar(lista_uts=lista_uts, layout="/JC_KPI", suffix="")
+                        await self.manejar_pausa()
+                    if "trabajo_planificado" in selected:
+                        step += 1
+                        self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
+                        await h_ots.ejecutar(lista_uts=lista_uts, layout="/BDYTD_25_OT", suffix="")
+                        await self.manejar_pausa()
+                    if "ordenes" in selected:
+                        step += 1
+                        self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
+                        await h_ordenes.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="", excel_plan_matriz=excel_plan_matriz)
+                        await self.manejar_pausa()
+                else:
+                    self.log("⏭️ FASE 1 omitida (UTs no activadas).")
+
+                self.actualizar_progreso(0.50)
+
+                if activar_grupos and grupo_planif:
+                    self.log("📡 FASE 2: Consultas por Grupo (DIEA)...")
+                    step = 0
+                    total_steps = len([s for s in selected if s in ("avisos","ordenes","trabajo_planificado")])
+                    if "avisos" in selected:
+                        step += 1
+                        self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
+                        await h_avisos_diea.ejecutar(grupo_planif=grupo_planif, layout="/JC_KPI", suffix="_DIEA")
+                        await self.manejar_pausa()
+                    if "trabajo_planificado" in selected:
+                        step += 1
+                        self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
+                        await h_ots_diea.ejecutar(grupo_planif=grupo_planif, layout="/BDYTD_25_OT", suffix="_DIEA")
+                        await self.manejar_pausa()
+                    if "ordenes" in selected:
+                        step += 1
+                        self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
+                        await h_ordenes_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
+                        await self.manejar_pausa()
+                else:
+                    self.log("⏭️ FASE 2 omitida (Grupos no activados).")
+
+                self.actualizar_progreso(0.75)
+
+                if any(s in selected for s in ("programa_semanal","plan_matriz","trabajo_planificado","avisos","ordenes")):
+                    self.log("📊 FASE 3: Generando Excel consolidado...")
+                    from backend.utils.post_procesador import PostProcesador
+                    import glob as _glob
+                    output_dir = os.path.join(os.getcwd(), self.app_api.config_data.get("app",{}).get("output_dir","output"))
+                    fecha_str = datetime.now().strftime("%d%m%Y")
+                    def _buscar(patron, excluir=None):
+                        files = [f for f in os.listdir(output_dir) if patron in f and f.endswith(".xlsx") and not f.startswith("~$")]
+                        if excluir: files = [f for f in files if excluir not in f]
+                        if not files: return None
+                        full = [os.path.join(output_dir,f) for f in files]
+                        return sorted(full, key=os.path.getmtime, reverse=True)[0]
+                    rutas = {
+                        "avisos": [_buscar("Proy_avi",excluir="_DIEA"), _buscar("Proy_avi_DIEA")],
+                        "ordenes": [_buscar("Proy_ots",excluir="_DIEA"), _buscar("Proy_ots_DIEA")],
+                        "trabajo": [_buscar("Proy_37N",excluir="_DIEA"), _buscar("Proy_37N_DIEA")]
+                    }
+                    for k,v in rutas.items():
+                        f1 = os.path.basename(v[0]) if v[0] else "No encontrado"
+                        f2 = os.path.basename(v[1]) if v[1] else "No encontrado (DIEA)"
+                        self.log(f"📁 {k.capitalize()}: {f1} + {f2}")
+                    self.actualizar_progreso(0.85)
+                    def _hilo_macro():
+                        try:
+                            post = PostProcesador(log_fn=self.log)
+                            ok = post.ejecutar(semana_proy, fecha_base_proy, rutas, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes)
+                            if ok:
+                                self.log("✨ Reporte consolidado con éxito.", "ok")
+                                self.actualizar_progreso(1.0)
+                            else:
+                                self.log("❌ Error en post-procesamiento.", "error")
+                                self.actualizar_progreso(0.0)
+                        except Exception as e:
+                            self.log(f"❌ Excepción macro: {e}", "error")
+                            self.actualizar_progreso(0.0)
+                    import threading as _th
+                    _th.Thread(target=_hilo_macro, daemon=True).start()
+
+                self.log("✅ Flujo de proyecciones finalizado.", "ok")
+
+            elif modo == "full":
                 self.log("📡 FASE 1: Consultas por Unidades Técnicas...")
                 self.actualizar_progreso(0.35)
                 await h_avisos.ejecutar(lista_uts=lista_uts, layout="/JC_KPI", suffix="")

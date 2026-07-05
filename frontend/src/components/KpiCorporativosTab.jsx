@@ -57,7 +57,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
       if (isCump) {
         res.forEach(item => {
           if (item.planificado !== undefined) {
-             item.total = (item.planificado||0) + (item.sinHr||0) + (item.imprevistos||0);
+             item.total = (item.planificado||0) + (item.sinHr||0) + (item.sinHorizonte||0) + (item.imprevistos||0);
              item.cumplimiento = item.total > 0 ? (item.planificado||0) / item.total : 0;
           } else if (item.cumple !== undefined) {
              item.total = (item.cumple||0) + (item.noCumple||0);
@@ -159,7 +159,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     cargar();
   }, []);
 
-  // Polling del robot SAP interno de KPIs (AISLADO - no toca ProyeccionesTab)
+  // Polling del robot SAP interno de KPIs (AISLADO - usa HUD kpi propio)
   useEffect(() => {
     let interval;
     if (kpiRobotRunning) {
@@ -167,12 +167,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
         try {
           const res = await fetch('/api/status-modulos');
           const d = await res.json();
-          setKpiRobotProgress(d.progreso);
-          setKpiRobotProgressText(d.progreso_texto);
-          setKpiRobotLogs(d.logs || []);
-          if (d.visor) setKpiRobotVisor(d.visor);
-          setKpiSolicitarMfa(d.solicitar_mfa);
-          if (!d.solicitar_mfa && (d.progreso >= 1.0 || d.progreso <= 0.0)) {
+          const kpi = d.kpi || {};
+          setKpiRobotProgress(kpi.progreso || 0);
+          setKpiRobotProgressText(kpi.progreso_texto || 'Inactivo');
+          setKpiRobotLogs(kpi.logs || []);
+          if (kpi.visor) setKpiRobotVisor(kpi.visor);
+          setKpiSolicitarMfa(kpi.solicitar_mfa || false);
+          if (!kpi.solicitar_mfa && (kpi.progreso >= 1.0 || kpi.progreso <= 0.0)) {
             setKpiRobotRunning(false);
           }
         } catch (e) {}
@@ -274,14 +275,14 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
       formData.append('readyExcel', readyFile);
       url = '/api/process-ready-excel';
     } else {
-      const missing = REQUIRED_FILES.filter(f => !files[f.key]);
-      if (missing.length > 0) {
-        setProcessingError(`Faltan cargar archivos: ${missing.map(m => m.label).join(', ')}`);
+      const uploadedKeys = REQUIRED_FILES.filter(f => files[f.key]).map(f => f.key);
+      if (uploadedKeys.length === 0) {
+        setProcessingError('Debe cargar al menos un archivo de KPI.');
         setProcessing(false);
         setKpiRobotRunning(false);
         return;
       }
-      REQUIRED_FILES.forEach(f => formData.append(f.key, files[f.key]));
+      uploadedKeys.forEach(key => formData.append(key, files[key]));
       if (files.proyOts) formData.append('proy_ots', files.proyOts);
       if (files.proy37n) formData.append('proy_37n', files.proy37n);
     }
@@ -333,7 +334,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     try {
       await fetch('/api/enviar-mfa', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo: kpiMfaCode })
+        body: JSON.stringify({ codigo: kpiMfaCode, contexto: 'kpi' })
       });
       setKpiMfaCode('');
       setKpiSolicitarMfa(false);
@@ -375,7 +376,9 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
           recipients: testRecipients, cc: cc,
           subject: subject.startsWith('[PRUEBA]') ? subject : `[PRUEBA] ${subject}`,
           kpiData: kpiData, templateId: selectedTemplate,
-          emailSettings: emailSettings, includePowerBI: includePowerBI
+          emailSettings: emailSettings, includePowerBI: includePowerBI,
+          division: selectedDivision, gerencia: selectedGerencia,
+          superintendencia: selectedSuperintendencia, user_email: user?.preferred_username || ''
         })
       });
       const resData = await response.json();
@@ -405,7 +408,9 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
           email: smtpConfig.email, password: smtpConfig.password,
           recipients: recipients, cc: cc, subject: subject,
           kpiData: kpiData, templateId: selectedTemplate,
-          emailSettings: emailSettings, includePowerBI: includePowerBI
+          emailSettings: emailSettings, includePowerBI: includePowerBI,
+          division: selectedDivision, gerencia: selectedGerencia,
+          superintendencia: selectedSuperintendencia, user_email: user?.preferred_username || ''
         })
       });
       const resData = await response.json();
@@ -414,6 +419,45 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     } catch (err) {
       setEmailStatus({ success: false, error: err.message || 'Error de envío oficial.', message: '' });
     } finally { setSendingEmail(false); }
+  };
+
+  const [savingReport, setSavingReport] = useState(false);
+  const handleSaveReport = async () => {
+    if (!kpiData) return;
+    setSavingReport(true);
+    try {
+      const response = await fetch('/api/save-kpi-report', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kpiData: kpiData,
+          division: selectedDivision, gerencia: selectedGerencia,
+          superintendencia: selectedSuperintendencia,
+          user_email: user?.preferred_username || ''
+        })
+      });
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || 'Error al guardar.');
+      alert(resData.message || 'Reporte guardado en BD correctamente.');
+    } catch (err) {
+      alert('Error al guardar reporte: ' + (err.message || ''));
+    } finally { setSavingReport(false); }
+  };
+
+  const handleResetReport = () => {
+    if (!window.confirm('¿Reiniciar reporte? Se limpiarán todos los archivos cargados y datos procesados.')) return;
+    setFiles({ avisos: null, ordenes: null, trabajoPlanificado: null, programaSemanal: null, planMatriz: null, proyOts: null, proy37n: null });
+    setFilesStatus({});
+    setReadyFile(null);
+    setProcessingError('');
+    setProcessingSuccess(false);
+    setKpiDataOriginal(null);
+    setKpiData(null);
+    setKpiRobotRunning(false);
+    setKpiRobotProgress(0.0);
+    setKpiRobotLogs([]);
+    setKpiRobotVisor('');
+    setPbiImage(null);
+    setIncludePowerBI(false);
   };
 
   const handleSaveEmailSettings = async () => {
@@ -454,7 +498,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
       } else {
         group[field] = Math.max(0, Number(value) || 0);
         if (section === 'trabajoPlanificado') {
-          group.total = (group.planificado || 0) + (group.sinHr || 0) + (group.imprevistos || 0);
+          group.total = (group.planificado || 0) + (group.sinHr || 0) + (group.sinHorizonte || 0) + (group.imprevistos || 0);
           group.cumplimiento = group.total > 0 ? (group.planificado || 0) / group.total : 0;
         } else {
           group.total = (group.cumple || 0) + (group.noCumple || 0);
@@ -462,14 +506,15 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
         }
       }
       if (section === 'trabajoPlanificado') {
-        let sumPlan = 0, sumSin = 0, sumImp = 0, sumTotal = 0;
+        let sumPlan = 0, sumSin = 0, sumSinHor = 0, sumImp = 0, sumTotal = 0;
         newData.trabajoPlanificado.grupos.forEach(g => {
           sumPlan += Number(g.planificado) || 0;
           sumSin += Number(g.sinHr) || 0;
+          sumSinHor += Number(g.sinHorizonte) || 0;
           sumImp += Number(g.imprevistos) || 0;
           sumTotal += Number(g.total) || 0;
         });
-        newData.trabajoPlanificado.total = { planificado: sumPlan, sinHr: sumSin, imprevistos: sumImp, total: sumTotal, cumplimiento: sumTotal > 0 ? sumPlan / sumTotal : 0 };
+        newData.trabajoPlanificado.total = { planificado: sumPlan, sinHr: sumSin, sinHorizonte: sumSinHor, imprevistos: sumImp, total: sumTotal, cumplimiento: sumTotal > 0 ? sumPlan / sumTotal : 0 };
         newData.indicadores.trabajoPlanificado = Math.round((sumTotal > 0 ? sumPlan / sumTotal : 0) * 100);
       } else {
         let sumCumple = 0, sumNo = 0, sumTotal = 0;
@@ -551,7 +596,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                 <input type="number" min="1" max="53" required className="form-control" value={semana} onChange={(e) => setSemana(e.target.value)} />
               </div>
 
-              <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.8rem' }}>
+              <div className="form-group flex-col gap-1">
                 <div>
                   <label>División</label>
                   <input list="divList" type="text" className="form-control" placeholder="Ej. Chuquicamata" value={selectedDivision} onChange={e => setSelectedDivision(e.target.value)} />
@@ -688,7 +733,13 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                           style={{ width: '150px', letterSpacing: '4px', fontSize: '1.4rem', margin: '1rem auto' }}
                           value={kpiMfaCode} onChange={(e) => setKpiMfaCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') enviarMfaSap(); }} />
                         <div className="flex gap-1" style={{ width: '100%', marginTop: '0.5rem' }}>
-                          <button type="button" onClick={async () => { await fetch('/api/detener-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'proy_auto' }) }); setKpiSolicitarMfa(false); setKpiRobotRunning(false); }} className="btn btn-secondary flex-1">Cancelar</button>
+                          {/* Cancelar detiene el robot SAP (kpi_auto) pero NO aborta el fetch HTTP de /api/process-kpis.
+                              El backend continuará procesando los archivos subidos y retornará el resultado. */}
+                          <button type="button" onClick={async () => {
+                            await fetch('/api/detener-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'kpi_auto' }) });
+                            setKpiSolicitarMfa(false);
+                            setKpiRobotRunning(false);
+                          }} className="btn btn-secondary flex-1">Cancelar (continuar sin IW39)</button>
                           <button type="button" onClick={enviarMfaSap} disabled={kpiMfaLoading || !kpiMfaCode} className="btn btn-primary flex-2">{kpiMfaLoading ? 'Enviando...' : 'Reanudar'}</button>
                         </div>
                       </div>
@@ -762,14 +813,22 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                           <div className="download-subtitle">{kpiData.filename}</div>
                         </div>
                       </div>
-                      <button className="btn btn-success flex-center gap-0.5" onClick={async () => {
-                        if (window.pywebview?.api) {
-                          const success = await window.pywebview.api.save_excel(kpiData.filename);
-                          if (success) alert('Archivo descargado y guardado exitosamente.');
-                        } else { window.location.href = kpiData.downloadUrl; }
-                      }}>
-                        <span className="material-icons">download</span><span>Descargar Excel</span>
-                      </button>
+                      <div className="flex gap-0.5">
+                        <button className="btn btn-danger flex-center gap-0.5" onClick={handleResetReport} title="Reiniciar reporte y carga">
+                          <span className="material-icons">restart_alt</span><span>Reiniciar</span>
+                        </button>
+                        <button className="btn btn-outline flex-center gap-0.5" onClick={handleSaveReport} disabled={savingReport || !kpiData} title="Guardar reporte en base de datos">
+                          {savingReport ? <><span className="spinner-mini"></span><span>Guardando...</span></> : <><span className="material-icons">save</span><span>Guardar BD</span></>}
+                        </button>
+                        <button className="btn btn-success flex-center gap-0.5" onClick={async () => {
+                          if (window.pywebview?.api) {
+                            const success = await window.pywebview.api.save_excel(kpiData.filename);
+                            if (success) alert('Archivo descargado y guardado exitosamente.');
+                          } else { window.location.href = kpiData.downloadUrl; }
+                        }}>
+                          <span className="material-icons">download</span><span>Descargar Excel</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }} className="flex-col gap-1">
@@ -900,7 +959,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                       <h3>% Trabajo Planificado (HH)</h3>
                       <div className="responsive-table-wrapper">
                         <table className="premium-table">
-                          <thead><tr><th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumplimiento</th></tr></thead>
+                          <thead><tr><th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Sin Hor.</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumplimiento</th></tr></thead>
                           <tbody>
                             {kpiData.trabajoPlanificado.grupos.map((g, idx) => (
                               <tr key={idx}>
@@ -909,6 +968,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                                 <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
                                 <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.planificado} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'planificado', e.target.value)} /> : Math.round(g.planificado)}</td>
                                 <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.sinHr} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHr', e.target.value)} /> : Math.round(g.sinHr)}</td>
+                                <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.sinHorizonte || 0} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHorizonte', e.target.value)} /> : Math.round(g.sinHorizonte || 0)}</td>
                                 <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.imprevistos} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'imprevistos', e.target.value)} /> : Math.round(g.imprevistos)}</td>
                                 <td className="text-right font-number font-bold">{isEditing ? <input type="number" className="cell-input text-right" value={g.total} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'total', e.target.value)} /> : Math.round(g.total)}</td>
                                 <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(g.cumplimiento * 100)} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(g.cumplimiento)}</td>
@@ -920,6 +980,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                               <td colSpan="3">TOTAL GENERAL</td>
                               <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.planificado)}</td>
                               <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.sinHr)}</td>
+                              <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.sinHorizonte || 0)}</td>
                               <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.imprevistos)}</td>
                               <td className="text-right font-number font-bold">{Math.round(kpiData.trabajoPlanificado.total.total)}</td>
                               <td className="text-center">{renderCumpPill(kpiData.trabajoPlanificado.total.cumplimiento)}</td>

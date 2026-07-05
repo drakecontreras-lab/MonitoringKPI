@@ -111,7 +111,8 @@ def leer_excel(ruta: str) -> pd.DataFrame:
     cols_a_texto = [
         "Orden", "Aviso", "Ubicación técnica", "Ubicacin técnica", "Equipo",
         "Clase actividad PM", "Clase de actividad PM", "Prioridad", "Prioridad aviso",
-        "Status de sistema", "Status sistema", "Status sistema op."
+        "Status de sistema", "Status sistema", "Status sistema op.",
+        "Trabajo real", "Trabajo Real", "Trabajo"
     ]
     for col in cols_a_texto:
         c = encontrar_columna(df, col)
@@ -169,10 +170,10 @@ def calcular_dias_transcurridos(df: pd.DataFrame, posibles_cols: list, fecha_bas
     return df
 
 
-def calcular_estado_avisos(df: pd.DataFrame) -> pd.DataFrame:
-    """Replica CalcularEstadoAvisos_EstadoA_DiasB."""
+def calcular_estado_avisos(df: pd.DataFrame, dias_venc: int = 7) -> pd.DataFrame:
+    """Replica CalcularEstadoAvisos. dias_venc configurable."""
     col_pri = encontrar_columna(df, "Prioridad") or encontrar_columna(df, "Prioridad aviso")
-
+    mitad = max(1, dias_venc // 2)
     estados = []
     for _, row in df.iterrows():
         dias = row.get("Días Transcurridos", np.nan)
@@ -180,29 +181,29 @@ def calcular_estado_avisos(df: pd.DataFrame) -> pd.DataFrame:
             pri_num = float(row[col_pri]) if col_pri and pd.notna(row[col_pri]) else None
         except Exception:
             pri_num = None
-
         if pri_num == 1:
             estados.append("Vencido")
         elif pd.notna(dias):
             d = int(dias)
-            if d < 4:   estados.append("En Plazo")
-            elif d < 7: estados.append("Por Vencer")
-            else:       estados.append("Vencido")
+            if d < mitad:       estados.append("En Plazo")
+            elif d < dias_venc: estados.append("Por Vencer")
+            else:               estados.append("Vencido")
         else:
             estados.append("")
     df["Estado"] = estados
     return df
 
 
-def calcular_estado_ordenes(df: pd.DataFrame) -> pd.DataFrame:
-    """Replica CalcularEstadoOrdenes_EstadoA_DiasB."""
+def calcular_estado_ordenes(df: pd.DataFrame, dias_venc: int = 21) -> pd.DataFrame:
+    """Replica CalcularEstadoOrdenes. dias_venc configurable."""
+    tercio = max(1, dias_venc // 3)
     estados = []
     for dias in df["Días Transcurridos"]:
         if pd.notna(dias):
             d = int(dias)
-            if d < 7:    estados.append("En Plazo")
-            elif d < 21: estados.append("Por Vencer")
-            else:        estados.append("Vencido")
+            if d < tercio:          estados.append("En Plazo")
+            elif d < dias_venc:     estados.append("Por Vencer")
+            else:                  estados.append("Vencido")
         else:
             estados.append("")
     df["Estado"] = estados
@@ -875,7 +876,8 @@ def get_pivot_safe(ws_tablas, nombre: str):
 # PROCESO PRINCIPAL
 # ============================================================
 
-def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=None, log_fn=None):
+def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=None, log_fn=None,
+                           dias_venc_avisos=7, dias_venc_ordenes=21):
     pythoncom.CoInitialize()
 
     root = tk.Tk()
@@ -1027,13 +1029,12 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         # Macro usa columna 9 (I) -> "Creado el"
         cols_avi = ["Creado el", "Fecha de aviso", "Inicio de avería"]
         df_av = calcular_dias_transcurridos(df_av, cols_avi, fecha_base, indice_vba=9)
-        df_av = calcular_estado_avisos(df_av)
+        df_av = calcular_estado_avisos(df_av, dias_venc_avisos)
 
         df_ot = preparar_estado_dias(df_ot)
-        # Prioridad: Fecha inicio extrema, luego creación como fallback
         cols_ot = ["Fecha inicio extrema", "Fecha de inicio extrema", "Fecha de creación"]
         df_ot = calcular_dias_transcurridos(df_ot, cols_ot, fecha_base, indice_vba=14)
-        df_ot = calcular_estado_ordenes(df_ot)
+        df_ot = calcular_estado_ordenes(df_ot, dias_venc_ordenes)
 
         # ---- PASO 14: Areas ----
         print("Calculando Áreas...")
@@ -1056,10 +1057,26 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         print("Calculando Horizonte y Criterio...")
         df_tp = agregar_horizonte_criterio(df_tp)
 
-        # ARREGLO PARA PIVOTS Y FORMATOS: conversion a numeric
-        col_tr = encontrar_columna(df_tp, "Trabajo real") or encontrar_columna(df_tp, "Trabajo Real")
-        if col_tr:
-            df_tp[col_tr] = pd.to_numeric(df_tp[col_tr].astype(str).str.replace(',', '.'), errors='coerce').fillna(0).round(0)
+# ARREGLO: conversión numérica preservando decimales (formato europeo)
+        def _parse_hh(val):
+            """Replica parse_sap_hh de kpi_excel_processor. SAP exporta HHx1000."""
+            s = str(val).strip()
+            if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
+                return 0.0
+            try:
+                if ',' in s:
+                    s = s.replace('.', '').replace(',', '.')
+                    return float(s)
+                else:
+                    v = float(s)
+                    return v / 1000.0
+            except:
+                return 0.0
+
+        for col_name in ("Trabajo real", "Trabajo Real", "Trabajo"):
+            c = encontrar_columna(df_tp, col_name)
+            if c:
+                df_tp[c] = df_tp[c].apply(_parse_hh)
 
         # ---- PASOS 16-19: Subhojas ----
         print("Filtrando Programa Semanal y Plan Matriz...")
@@ -1127,13 +1144,6 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
             if df_clean is not None and not df_clean.empty:
                 aplicar_formato_encabezado(ws, len(df.columns))
                 ws.Cells.EntireColumn.AutoFit()
-                # Quitar decimales a Trabajo Real si existe
-                if nombre_hoja in ("Trabajo planificado", "Programa semanal", "Plan Matriz"):
-                    c_idx = encontrar_columna(df, "Trabajo real") or encontrar_columna(df, "Trabajo Real")
-                    if c_idx:
-                        # Encontrar letra de columna (1-indexed)
-                        col_num = df.columns.get_loc(c_idx) + 1
-                        ws.Columns(col_num).NumberFormat = "0"
 
         # Formato de Estado en Avisos y Órdenes
         for nombre_hoja in ("Avisos", "Ordenes"):
@@ -1155,6 +1165,18 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         convertir_a_tabla(wb.Sheets("Trabajo planificado"),"tblTrabajoPlan")
         convertir_a_tabla(wb.Sheets("Programa semanal"),   "tblProgramaSem")
         convertir_a_tabla(wb.Sheets("Plan Matriz"),        "tblPlanMatriz")
+
+        # Re-aplicar NumberFormat después de convertir_a_tabla (las tablas sobrescriben formato)
+        for h, df_ref in [("Trabajo planificado", df_tp), ("Programa semanal", df_ps), ("Plan Matriz", df_pm)]:
+            ws = wb.Sheets(h)
+            for col_name in ("Trabajo real", "Trabajo Real", "Trabajo", "Op. tot.", "Op. tot", "Operaciones totales", "Op. Totales", "Cantidad de operaciones tot"):
+                c_idx = encontrar_columna(df_ref, col_name)
+                if c_idx:
+                    col_num = df_ref.columns.get_loc(c_idx) + 1
+                    try:
+                        ws.Columns(col_num).NumberFormat = "#,##0.0"
+                    except:
+                        pass
 
         # ---- Tablas Dinámicas eliminadas: se usa la hoja Resumen directo ----
         ws_tablas = None  # Ya no existe la hoja Tablas
@@ -1340,13 +1362,11 @@ class PostProcesador:
     def __init__(self, log_fn=None):
         self.log_fn = log_fn
 
-    def ejecutar(self, semana, fecha_base, rutas):
+    def ejecutar(self, semana, fecha_base, rutas, dias_venc_avisos=7, dias_venc_ordenes=21):
         try:
             return procesar_planificacion(
-                num_semana_arg=semana,
-                fecha_base_arg=fecha_base,
-                rutas_dict=rutas,
-                log_fn=self.log_fn
+                num_semana_arg=semana, fecha_base_arg=fecha_base, rutas_dict=rutas,
+                log_fn=self.log_fn, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes
             ) is True
         except Exception as e:
             if self.log_fn:

@@ -1,46 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-/**
- * Pestaña Proyecciones.
- * Estado COMPLETAMENTE independiente de KpiCorporativosTab.
- * Props recibidas de App.jsx: defaultSemana, defaultFechaBase
- */
-export default function ProyeccionesTab({ defaultSemana, defaultFechaBase }) {
-  // ─── Estado de parámetros SAP ───
+const PROJECTION_OPTIONS = [
+  { key: 'avisos', label: 'Avisos' },
+  { key: 'ordenes', label: 'Órdenes' },
+  { key: 'trabajo_planificado', label: 'Trabajo Planificado' },
+  { key: 'programa_semanal', label: 'Programa Semanal' },
+  { key: 'plan_matriz', label: 'Plan Matriz' }
+];
+
+export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpConfig, onOpenSettings, user }) {
+  const [proySubTab, setProySubTab] = useState('dashboard');
   const [proyParams, setProyParams] = useState({
-    semana: defaultSemana || 'P10',
+    semana: defaultSemana || '23',
     fecha_base: defaultFechaBase || '19-01-2026',
     lista_uts: 'CDEE*\nCTAL*\nCHSS-SE*\nCHSS-SU*\nCHSS-PL*\nCHCO-IN-INF*',
-    grupo_planif: 'CI0',
-    grupo_planif_st: 'CI0, C89, C73, C70, C71, C72, C74, C84, CB1'
+    grupos_planif: 'CI0\nC89\nC73\nC70\nC71\nC72\nC74\nC84\nCB1',
+    selected_projections: ['avisos','ordenes','trabajo_planificado','programa_semanal','plan_matriz']
   });
-  const [proyConfigTab, setProyConfigTab] = useState('corporativos');
 
-  // ─── Estado del robot SAP (AISLADO de KpiCorporativosTab) ───
+  const [activarUTs, setActivarUTs] = useState(true);
+  const [activarGrupos, setActivarGrupos] = useState(true);
+  const [showVencModal, setShowVencModal] = useState(false);
+  const [diasVencAvisos, setDiasVencAvisos] = useState(7);
+  const [diasVencOrdenes, setDiasVencOrdenes] = useState(21);
+
   const [proyRunning, setProyRunning] = useState(false);
   const [proyProgress, setProyProgress] = useState(0.0);
   const [proyProgressText, setProyProgressText] = useState('Inactivo');
   const [proyLogs, setProyLogs] = useState([]);
   const [proyVisor, setProyVisor] = useState('');
-  const [activeProyModuleId, setActiveProyModuleId] = useState('proy_auto');
-
-  // ─── MFA (exclusivo de esta pestaña) ───
   const [solicitarMfa, setSolicitarMfa] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
 
-  // ─── Efectos ───
+  const [avisosP1, setAvisosP1] = useState([]);
+  const [proyData, setProyData] = useState(null);
+  const [generatingExcel, setGeneratingExcel] = useState(false);
+
+  const [recipients, setRecipients] = useState('');
+  const [cc, setCc] = useState('');
+  const [subject, setSubject] = useState('Reporte de Proyecciones - GSYS Mantenimiento DCH');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState({ success: false, error: '', message: '' });
+
+  useEffect(() => { if (defaultSemana) setProyParams(prev => ({ ...prev, semana: defaultSemana })); }, [defaultSemana]);
+  useEffect(() => { if (defaultFechaBase) setProyParams(prev => ({ ...prev, fecha_base: defaultFechaBase })); }, [defaultFechaBase]);
+  useEffect(() => { setSubject(`Reporte de Proyecciones - GSYS Mantenimiento DCH - Semana ${proyParams.semana}`); }, [proyParams.semana]);
 
   useEffect(() => {
-    if (defaultSemana) setProyParams(prev => ({ ...prev, semana: defaultSemana }));
-  }, [defaultSemana]);
+    const cargar = async () => {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        if (data.recipients) setRecipients(data.recipients);
+        if (data.cc) setCc(data.cc);
+      } catch (e) {}
+    };
+    cargar();
+  }, []);
+
+  const cargarAvisosP1 = async () => {
+    try {
+      const res = await fetch(`/api/proy/avisos-p1?fecha_base=${proyParams.fecha_base}`);
+      const data = await res.json();
+      if (data.success) setAvisosP1(data.avisos || []);
+    } catch (e) {}
+  };
 
   useEffect(() => {
-    if (defaultFechaBase) setProyParams(prev => ({ ...prev, fecha_base: defaultFechaBase }));
-  }, [defaultFechaBase]);
+    if (!proyRunning) return;
+    const interval = setInterval(() => cargarAvisosP1(), 5000);
+    return () => clearInterval(interval);
+  }, [proyRunning, proyParams.fecha_base]);
 
-  // Polling del robot SAP de Proyecciones (AISLADO - no toca KpiCorporativosTab)
   useEffect(() => {
     let interval;
     if (proyRunning) {
@@ -48,15 +81,16 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase }) {
         try {
           const res = await fetch('/api/status-modulos');
           const d = await res.json();
-          setProyProgress(d.progreso);
-          setProyProgressText(d.progreso_texto);
-          setProyLogs(d.logs || []);
-          if (d.visor) setProyVisor(d.visor);
-          setSolicitarMfa(d.solicitar_mfa);
-          // Solo detener el polling si NO hay MFA pendiente
-          if (!d.solicitar_mfa && (d.progreso < 0.0 || d.progreso >= 1.0)) {
+          const proy = d.proy || {};
+          setProyProgress(proy.progreso || 0);
+          setProyProgressText(proy.progreso_texto || 'Inactivo');
+          setProyLogs(proy.logs || []);
+          if (proy.visor) setProyVisor(proy.visor);
+          setSolicitarMfa(proy.solicitar_mfa || false);
+          if (!proy.solicitar_mfa && (proy.progreso < 0.0 || proy.progreso >= 1.0)) {
             setProyRunning(false);
             clearInterval(interval);
+            cargarAvisosP1();
           }
         } catch (e) {}
       }, 1000);
@@ -64,10 +98,16 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase }) {
     return () => clearInterval(interval);
   }, [proyRunning]);
 
-  // ─── Handlers ───
+  const toggleProjection = (key) => {
+    setProyParams(prev => ({
+      ...prev,
+      selected_projections: prev.selected_projections.includes(key)
+        ? prev.selected_projections.filter(k => k !== key)
+        : [...prev.selected_projections, key]
+    }));
+  };
 
-  const lanzarRobot = async (moduloId, mode) => {
-    setActiveProyModuleId(moduloId);
+  const lanzarRobot = async () => {
     setProyRunning(true);
     setProyProgress(0.05);
     setProyProgressText('Iniciando');
@@ -75,19 +115,25 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase }) {
     setProyVisor('');
     setSolicitarMfa(false);
     try {
-      const utsArray = proyParams.lista_uts.split('\n').map(u => u.trim()).filter(u => u);
+      const utsArray = activarUTs ? proyParams.lista_uts.split('\n').map(u => u.trim()).filter(u => u) : [];
+      const gruposArray = activarGrupos ? proyParams.grupos_planif.split('\n').map(g => g.trim()).filter(g => g) : [];
+      const grupoPlanif = gruposArray[0] || 'CI0';
       const res = await fetch('/api/ejecutar-modulo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          modulo_id: moduloId,
+          modulo_id: 'proy_auto',
           params: {
-            mode: mode,
+            mode: 'full_proyecciones',
             semana: proyParams.semana,
             fecha_base: proyParams.fecha_base,
             lista_uts: utsArray,
-            grupo_planif: proyParams.grupo_planif,
-            grupo_planif_st: proyParams.grupo_planif_st
+            grupo_planif: grupoPlanif,
+            grupo_planif_st: gruposArray.join(', '),
+            activar_uts: activarUTs,
+            activar_grupos: activarGrupos,
+            selected_projections: proyParams.selected_projections,
+            dias_venc_avisos: diasVencAvisos,
+            dias_venc_ordenes: diasVencOrdenes
           }
         })
       });
@@ -99,21 +145,9 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase }) {
     }
   };
 
-  const alternarPausa = async (moduloId) => {
+  const detenerRobot = async () => {
     try {
-      await fetch('/api/pausar-modulo', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modulo_id: moduloId })
-      });
-    } catch (e) {}
-  };
-
-  const detenerRobot = async (moduloId) => {
-    try {
-      await fetch('/api/detener-modulo', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modulo_id: moduloId })
-      });
+      await fetch('/api/detener-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'proy_auto' }) });
       setProyRunning(false);
     } catch (e) {}
   };
@@ -122,212 +156,259 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase }) {
     if (!mfaCode) return;
     setMfaLoading(true);
     try {
-      await fetch('/api/enviar-mfa', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo: mfaCode })
-      });
+      await fetch('/api/enviar-mfa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: mfaCode, contexto: 'proy' }) });
       setMfaCode('');
       setSolicitarMfa(false);
     } catch (e) { alert('Error al enviar código MFA.'); }
     finally { setMfaLoading(false); }
   };
 
-  // ─── RENDER ───
+  const generarExcel = async () => {
+    setGeneratingExcel(true);
+    try {
+      const res = await fetch('/api/proy/generate-excel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ semana: proyParams.semana, fecha_base: proyParams.fecha_base, dias_venc_avisos: diasVencAvisos, dias_venc_ordenes: diasVencOrdenes })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al generar Excel.');
+      setProyData(data);
+      alert(data.message || 'Excel generado correctamente.');
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setGeneratingExcel(false); }
+  };
+
+  const enviarCorreo = async (esPrueba = false) => {
+    if (!smtpConfig.email || !smtpConfig.password) { onOpenSettings(); setEmailStatus({ success: false, error: 'Configure credenciales SMTP.', message: '' }); return; }
+    const dest = esPrueba ? (user?.preferred_username || '') : recipients;
+    if (!dest) { setEmailStatus({ success: false, error: 'Faltan destinatarios.', message: '' }); return; }
+    setSendingEmail(true);
+    try {
+      const res = await fetch('/api/proy/send-report', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: smtpConfig.email, password: smtpConfig.password, recipients: dest, cc: cc, subject: esPrueba ? `[PRUEBA] ${subject}` : subject, proyData: { ...proyData, semana: proyParams.semana, avisos_p1: avisosP1 } })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al enviar.');
+      setEmailStatus({ success: true, error: '', message: data.message });
+    } catch (e) { setEmailStatus({ success: false, error: e.message, message: '' }); }
+    finally { setSendingEmail(false); }
+  };
+
+  const renderAvisosP1Table = () => (
+    avisosP1.length > 0 && (
+      <div className="glass-card flex-col gap-1">
+        <h2 className="card-title"><span className="material-icons" style={{ color: '#c62828' }}>priority_high</span><span>Avisos Prioridad 1 ({avisosP1.length})</span></h2>
+        <div className="responsive-table-wrapper" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+          <table className="premium-table">
+            <thead><tr><th>Aviso</th><th className="text-center">Pri.</th><th>UT</th><th>Descripción</th><th className="text-center">Fecha</th><th className="text-center">Días</th><th className="text-center">Estado</th></tr></thead>
+            <tbody>
+              {avisosP1.map((a, idx) => (
+                <tr key={idx}>
+                  <td className="font-number">{a.aviso}</td>
+                  <td className="text-center font-bold" style={{ color: '#c62828' }}>{a.prioridad}</td>
+                  <td>{a.ut}</td><td>{a.descripcion}</td>
+                  <td className="text-center">{a.fecha_aviso}</td>
+                  <td className="text-center font-number">{a.dias_transcurridos}</td>
+                  <td className="text-center"><span className="pct-badge error">{a.estado}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  );
+
   return (
-    <div className="dashboard-grid">
-      {/* Panel izquierdo: configuración y botones del robot */}
-      <div className="glass-card flex-col gap-1.5" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-        <h2 className="card-title">
-          <span className="material-icons text-indigo">smart_toy</span>
-          <span>Configurar Robot SAP Fiori</span>
-        </h2>
-
-        {/* Sub-pestañas de configuración */}
-        <div className="flex gap-0.5 mt-0.5 mb-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
-          <button type="button" className={`btn flex-1 ${proyConfigTab === 'corporativos' ? 'btn-primary' : 'btn-outline'}`}
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.2rem' }}
-            onClick={() => setProyConfigTab('corporativos')}>
-            KPIs Corporativos
-          </button>
-          <button type="button" className={`btn flex-1 ${proyConfigTab === 'st-rn' ? 'btn-primary' : 'btn-outline'}`}
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.2rem' }}
-            onClick={() => setProyConfigTab('st-rn')}>
-            Avisos y Órdenes ST / RN
-          </button>
-        </div>
-
-        {proyConfigTab === 'corporativos' ? (
-          <>
-            <div className="form-group">
-              <label>Semana de Proyección (ej: P10)</label>
-              <input type="text" className="form-control" value={proyParams.semana}
-                onChange={(e) => setProyParams({ ...proyParams, semana: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Fecha Base Asignada (dd-mm-yyyy)</label>
-              <input type="text" className="form-control" value={proyParams.fecha_base}
-                onChange={(e) => setProyParams({ ...proyParams, fecha_base: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Grupo de Planificación (Fase 2 - DIEA)</label>
-              <input type="text" className="form-control" value={proyParams.grupo_planif}
-                onChange={(e) => setProyParams({ ...proyParams, grupo_planif: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Unidades Técnicas a Consultar (Una por fila)</label>
-              <textarea className="form-control h-120 font-mono" value={proyParams.lista_uts}
-                onChange={(e) => setProyParams({ ...proyParams, lista_uts: e.target.value })} />
-            </div>
-          </>
-        ) : (
-          <div className="form-group">
-            <label>Grupos de Planificación ST (Separados por coma)</label>
-            <input type="text" className="form-control" value={proyParams.grupo_planif_st}
-              onChange={(e) => setProyParams({ ...proyParams, grupo_planif_st: e.target.value })} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted-dark)', marginTop: '0.4rem', display: 'block' }}>
-              Configura los subtenientes de Socios Técnicos y repuestos nacionales para descargas de la Fase 3.
-            </span>
-          </div>
-        )}
-
-        {/* Botones principales */}
-        <div className="flex-col gap-0.5" style={{ marginTop: '1rem' }}>
-          <button onClick={() => lanzarRobot('proy_auto', 'full')} disabled={proyRunning}
-            className="btn btn-primary w-full flex-center gap-0.5">
-            <span className="material-icons">play_circle</span>
-            <span>Ejecutar Descargas SAP Completas</span>
-          </button>
-          <button onClick={() => lanzarRobot('proy_macro', 'macro')} disabled={proyRunning}
-            className="btn btn-secondary w-full flex-center gap-0.5">
-            <span className="material-icons">settings_applications</span>
-            <span>Ejecutar Macro de Consolidación</span>
-          </button>
-        </div>
-
-        {/* Fases de descarga individuales */}
-        <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-muted-light)', marginBottom: '0.75rem' }}>Fases de Descarga</h3>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#3B82F6', marginBottom: '0.25rem' }}>Fase 1: Unidades Técnicas (UTs)</div>
-            <div className="flex gap-0.25">
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'avisos_ut')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>AVI</button>
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'ots_ut')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>OTS</button>
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'ordenes_ut')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>37N</button>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#8B5CF6', marginBottom: '0.25rem' }}>Fase 2: Por Grupo (DIEA)</div>
-            <div className="flex gap-0.25">
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'avisos_diea')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>AVI</button>
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'ots_diea')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>OTS</button>
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'ordenes_diea')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>37N</button>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '0.5rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#F59E0B', marginBottom: '0.25rem' }}>Fase 3: Servicios Terceros (ST)</div>
-            <div className="flex gap-0.25">
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'avisos_st')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>AVI ST</button>
-              <button disabled={proyRunning} onClick={() => lanzarRobot('proy_auto', 'ots_st')} className="btn btn-secondary flex-1" style={{ padding: '0.35rem', fontSize: '0.75rem' }}>OTS ST</button>
-            </div>
-          </div>
-        </div>
+    <div className="kpis-container">
+      <div className="sub-tab-navigation flex gap-2 mb-2">
+        <button className={`btn ${proySubTab === 'dashboard' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('dashboard')}><span className="material-icons">precision_manufacturing</span> Dashboard</button>
+        <button className={`btn ${proySubTab === 'visualizacion' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('visualizacion')} disabled={!proyData}><span className="material-icons">bar_chart</span> Visualización</button>
+        <button className={`btn ${proySubTab === 'envio' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('envio')} disabled={!proyData}><span className="material-icons">preview</span> Previsualizar y Enviar</button>
       </div>
 
-      {/* Panel derecho: visor y consola HUD */}
-      <div className="flex-col gap-2">
-        {/* Visor en vivo */}
-        <div className="glass-card flex-col gap-1" style={{ minHeight: '260px' }}>
-          <h2 className="card-title">
-            <span className="material-icons text-cyan">videocam</span>
-            <span>Visor Automatización</span>
-          </h2>
-
-          <div className="live-screencast-container">
-            {proyVisor ? (
-              <img src={`data:image/jpeg;base64,${proyVisor}`} alt="Transmisión del navegador" className="screencast-img" />
-            ) : (
-              <div className="screencast-placeholder">
-                <span className="material-icons flex-center">tv_off</span>
-                <p>Esperando transmisión del robot...</p>
+      {proySubTab === 'dashboard' && (
+        <div className="dashboard-grid">
+          <div className="glass-card flex-col gap-1.5" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 className="card-title"><span className="material-icons text-indigo">smart_toy</span><span>Configurar Proyecciones SAP</span></h2>
+            <div className="form-group flex-row gap-1" style={{ alignItems: 'center' }}>
+              <div style={{ flex: 1 }}><label>Semana</label><input type="text" className="form-control" value={proyParams.semana} onChange={(e) => setProyParams({ ...proyParams, semana: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Fecha Base (dd-mm-yyyy)</label><input type="text" className="form-control" value={proyParams.fecha_base} onChange={(e) => setProyParams({ ...proyParams, fecha_base: e.target.value })} /></div>
+            </div>
+            <div className="form-group" style={{ background: 'rgba(59,130,246,0.05)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>
+              <label style={{ fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: activarUTs ? '0.5rem' : 0 }}>
+                <input type="checkbox" checked={activarUTs} onChange={(e) => setActivarUTs(e.target.checked)} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                <span className="material-icons" style={{ color: activarUTs ? '#3b82f6' : 'var(--text-muted)' }}>location_on</span> Activar Ubicaciones Técnicas
+              </label>
+              {activarUTs && <textarea className="form-control h-120 font-mono" value={proyParams.lista_uts} onChange={(e) => setProyParams({ ...proyParams, lista_uts: e.target.value })} placeholder="Una UT por línea" style={{ marginTop: '0.5rem' }} />}
+            </div>
+            <div className="form-group" style={{ background: 'rgba(139,92,246,0.05)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.2)' }}>
+              <label style={{ fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: activarGrupos ? '0.5rem' : 0 }}>
+                <input type="checkbox" checked={activarGrupos} onChange={(e) => setActivarGrupos(e.target.checked)} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                <span className="material-icons" style={{ color: activarGrupos ? '#8b5cf6' : 'var(--text-muted)' }}>group_work</span> Activar Grupos de Planificación
+              </label>
+              {activarGrupos && <textarea className="form-control h-80 font-mono" value={proyParams.grupos_planif} onChange={(e) => setProyParams({ ...proyParams, grupos_planif: e.target.value })} placeholder="Un grupo por línea" style={{ marginTop: '0.5rem' }} />}
+            </div>
+            <div className="form-group">
+              <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Proyecciones a Obtener</label>
+              <div className="flex-col gap-0.5">
+                {PROJECTION_OPTIONS.map(opt => (
+                  <label key={opt.key} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', borderRadius: '6px', background: proyParams.selected_projections.includes(opt.key) ? 'rgba(16,185,129,0.08)' : 'transparent' }}>
+                    <input type="checkbox" checked={proyParams.selected_projections.includes(opt.key)} onChange={() => toggleProjection(opt.key)} style={{ width: 18, height: 18 }} />
+                    <span style={{ fontSize: '0.88rem', fontWeight: proyParams.selected_projections.includes(opt.key) ? 600 : 400 }}>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <button type="button" onClick={() => setShowVencModal(true)} className="btn btn-outline w-full flex-center gap-0.5" style={{ fontSize: '0.82rem' }}>
+              <span className="material-icons">schedule</span><span>Configurar Vencimientos ({diasVencAvisos}/{diasVencOrdenes} días)</span>
+            </button>
+            <button onClick={lanzarRobot} disabled={proyRunning || proyParams.selected_projections.length === 0} className="btn btn-primary w-full flex-center gap-0.5" style={{ marginTop: '0.5rem' }}>
+              <span className="material-icons">play_circle</span><span>{proyRunning ? 'Ejecutando...' : 'Ejecutar Seleccionadas'}</span>
+            </button>
+            {proyRunning && (
+              <div className="flex gap-0.5" style={{ marginTop: '0.5rem' }}>
+                <button onClick={detenerRobot} className="btn btn-danger flex-1 flex-center gap-0.25" style={{ padding: '0.4rem', fontSize: '0.8rem' }}><span className="material-icons" style={{ fontSize: '1.1rem' }}>stop_circle</span><span>Detener</span></button>
               </div>
             )}
           </div>
 
-          {/* Barra de progreso y controles */}
-          {proyRunning && (
-            <div style={{ marginTop: '0.5rem', width: '100%', padding: '0.5rem' }} className="flex-col gap-0.5">
-              <div className="flex-between">
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted-light)' }}>
-                  Progreso: <strong style={{ color: 'var(--secondary)' }}>{proyProgressText}</strong>
-                </span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--secondary)' }}>{Math.round(proyProgress * 100)}%</span>
+          <div className="flex-col gap-2">
+            {renderAvisosP1Table()}
+            <div className="glass-card flex-col gap-1" style={{ minHeight: '260px' }}>
+              <h2 className="card-title"><span className="material-icons text-cyan">videocam</span><span>Visor Automatización</span></h2>
+              <div className="live-screencast-container">
+                {proyVisor ? <img src={`data:image/jpeg;base64,${proyVisor}`} alt="Transmisión" className="screencast-img" /> : (
+                  <div className="screencast-placeholder"><span className="material-icons flex-center">tv_off</span><p>Esperando transmisión del robot...</p></div>
+                )}
               </div>
-              <div className="progress-bar-wrapper">
-                <div className="progress-bar-fill" style={{ width: `${proyProgress * 100}%` }}></div>
-              </div>
-              <div className="flex-between gap-1 w-full" style={{ marginTop: '0.5rem' }}>
-                <button onClick={() => alternarPausa(activeProyModuleId)} className="btn btn-secondary flex-1 flex-center gap-0.25" style={{ padding: '0.4rem', fontSize: '0.8rem' }}>
-                  <span className="material-icons" style={{ fontSize: '1.1rem' }}>pause_circle</span>
-                  <span>Pausar</span>
-                </button>
-                <button onClick={() => detenerRobot(activeProyModuleId)} className="btn btn-danger flex-1 flex-center gap-0.25" style={{ padding: '0.4rem', fontSize: '0.8rem' }}>
-                  <span className="material-icons" style={{ fontSize: '1.1rem' }}>stop_circle</span>
-                  <span>Detener</span>
-                </button>
+              {proyRunning && (
+                <div style={{ marginTop: '0.5rem', width: '100%', padding: '0.5rem' }} className="flex-col gap-0.5">
+                  <div className="flex-between">
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted-light)' }}>Progreso: <strong style={{ color: 'var(--secondary)' }}>{proyProgressText}</strong></span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--secondary)' }}>{Math.round(proyProgress * 100)}%</span>
+                  </div>
+                  <div className="progress-bar-wrapper"><div className="progress-bar-fill" style={{ width: `${proyProgress * 100}%` }}></div></div>
+                </div>
+              )}
+              {solicitarMfa && createPortal(
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5,8,22,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                  <div className="glass-card flex-col gap-1 text-center animate-scale-up" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem', borderRadius: '12px', backgroundColor: '#162130', alignItems: 'center' }}>
+                    <span className="material-icons text-warning" style={{ fontSize: '3.5rem', marginBottom: '0.5rem' }}>security</span>
+                    <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem' }}>Microsoft Authenticator</h3>
+                    <p className="text-muted" style={{ fontSize: '0.85rem' }}>El robot requiere código MFA para reanudar.</p>
+                    <input type="text" maxLength="8" placeholder="000000" className="form-control font-mono text-center font-bold" style={{ width: '150px', letterSpacing: '4px', fontSize: '1.4rem', margin: '1rem auto' }} value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') enviarMfa(); }} />
+                    <div className="flex gap-1" style={{ width: '100%' }}>
+                      <button onClick={() => { detenerRobot(); setSolicitarMfa(false); }} className="btn btn-secondary flex-1">Cancelar</button>
+                      <button onClick={enviarMfa} disabled={mfaLoading || !mfaCode} className="btn btn-primary flex-2">{mfaLoading ? 'Enviando...' : 'Reanudar'}</button>
+                    </div>
+                  </div>
+                </div>, document.body
+              )}
+            </div>
+            <div className="glass-card flex-col gap-1" style={{ flex: 1, minHeight: '200px' }}>
+              <h2 className="card-title"><span className="material-icons text-indigo">terminal</span><span>Consola HUD</span></h2>
+              <div className="hud-console font-mono">
+                {proyLogs.length > 0 ? proyLogs.map((log, idx) => (<div key={idx} className={`console-line ${log.level}`}><span className="line-time">[{log.time}]</span><span className="line-text">{log.text}</span></div>)) : (<div className="console-placeholder text-center text-muted">Consola HUD inactiva.</div>)}
               </div>
             </div>
-          )}
-
-          {/* Modal MFA — renderizado en document.body via Portal para que sea visible
-               incluso cuando el tab está oculto con display:none */}
-          {solicitarMfa && createPortal(
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 8, 22, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-              <div className="glass-card flex-col gap-1 text-center animate-scale-up" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#162130', alignItems: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
-                <span className="material-icons text-warning" style={{ fontSize: '3.5rem', marginBottom: '0.5rem' }}>security</span>
-                <h3 style={{ margin: 0, color: '#fff', fontSize: '1.25rem' }}>Microsoft Authenticator</h3>
-                <p className="text-muted" style={{ fontSize: '0.85rem', lineHeight: '1.4' }}>
-                  El robot ha detectado una pantalla de seguridad MFA. Ingresa el código numérico para reanudar la automatización SAP.
-                </p>
-                <input type="text" maxLength="8" placeholder="000000"
-                  className="form-control font-mono text-center font-bold"
-                  style={{ width: '150px', letterSpacing: '4px', fontSize: '1.4rem', margin: '1rem auto' }}
-                  value={mfaCode} onChange={(e) => setMfaCode(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') enviarMfa(); }} />
-                <div className="flex gap-1" style={{ width: '100%', marginTop: '0.5rem' }}>
-                  <button onClick={() => { detenerRobot(activeProyModuleId); setSolicitarMfa(false); }} className="btn btn-secondary flex-1">Cancelar</button>
-                  <button onClick={enviarMfa} disabled={mfaLoading || !mfaCode} className="btn btn-primary flex-2">{mfaLoading ? 'Enviando...' : 'Reanudar'}</button>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
+          </div>
         </div>
+      )}
 
-        {/* Consola HUD de Logs */}
-        <div className="glass-card flex-col gap-1" style={{ flex: 1, minHeight: '200px' }}>
-          <h2 className="card-title">
-            <span className="material-icons text-indigo">terminal</span>
-            <span>Consola HUD de logs en tiempo real</span>
-          </h2>
-          <div className="hud-console font-mono">
-            {proyLogs.length > 0 ? (
-              proyLogs.map((log, idx) => (
-                <div key={idx} className={`console-line ${log.level}`}>
-                  <span className="line-time">[{log.time}]</span>
-                  <span className="line-text">{log.text}</span>
+      {proySubTab === 'visualizacion' && (
+        <div className="flex-col gap-2">
+          <div className="glass-card flex-col gap-1.5">
+            <h2 className="card-title"><span className="material-icons text-indigo">table_chart</span><span>Reporte Consolidado de Proyecciones</span></h2>
+            {proyData ? (
+              <>
+                <div className="flex-between w-full">
+                  <div className="flex-center gap-1"><span className="material-icons text-green" style={{ fontSize: '2.5rem' }}>feed</span><div><div className="download-title">Reporte Consolidado</div><div className="download-subtitle">{proyData.filename}</div></div></div>
+                  <div className="flex gap-0.5">
+                    <button className="btn btn-outline flex-center gap-0.5" onClick={generarExcel} disabled={generatingExcel}>{generatingExcel ? <><span className="spinner-mini"></span><span>Generando...</span></> : <><span className="material-icons">refresh</span><span>Regenerar</span></>}</button>
+                    <button className="btn btn-success flex-center gap-0.5" onClick={async () => { if (window.pywebview?.api) { const s = await window.pywebview.api.save_excel(proyData.filename); if (s) alert('Descargado.'); } else { window.location.href = proyData.downloadUrl; } }}><span className="material-icons">download</span><span>Descargar</span></button>
+                  </div>
                 </div>
-              ))
+                {renderAvisosP1Table()}
+              </>
             ) : (
-              <div className="console-placeholder text-center text-muted">
-                Consola HUD inactiva. Lanza el robot para auditar los registros en background.
+              <div className="flex-center flex-col" style={{ minHeight: '300px' }}>
+                <span className="material-icons text-muted" style={{ fontSize: '4rem', marginBottom: '1rem' }}>analytics</span>
+                <h3 className="text-muted-light">No hay reporte generado</h3>
+                <button className="btn btn-primary mt-1" onClick={generarExcel} disabled={generatingExcel}>{generatingExcel ? 'Generando...' : 'Generar Excel Consolidado'}</button>
               </div>
             )}
           </div>
         </div>
-      </div>
+      )}
+
+      {proySubTab === 'envio' && (
+        <div className="flex-col gap-2">
+          <div className="glass-card flex-col gap-1.5">
+            <h2 className="card-title"><span className="material-icons text-indigo">mail</span><span>Envío de Reporte de Proyecciones</span></h2>
+            <div className="form-group"><label>Destinatarios (separados por coma)</label><textarea required placeholder="destinatario1@codelco.cl" className="form-control h-80" style={{ resize: 'none' }} value={recipients} onChange={(e) => setRecipients(e.target.value)} /></div>
+            <div className="form-group"><label>CC</label><textarea placeholder="copia1@codelco.cl" className="form-control h-60" style={{ resize: 'none' }} value={cc} onChange={(e) => setCc(e.target.value)} /></div>
+            <div className="form-group"><label>Asunto</label><input type="text" required className="form-control" value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
+            {proyData && (
+              <div className="flex-between mt-1" style={{ background: 'rgba(16,185,129,0.05)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <div className="flex-center gap-0.5"><span className="material-icons text-green">attach_file</span><span style={{ fontSize: '0.85rem' }}>{proyData.filename}</span></div>
+                <button className="btn btn-success flex-center gap-0.5" onClick={async () => { if (window.pywebview?.api) await window.pywebview.api.save_excel(proyData.filename); else window.location.href = proyData.downloadUrl; }}><span className="material-icons">download</span><span>Descargar</span></button>
+              </div>
+            )}
+            <div className="flex gap-1 mt-1">
+              <button onClick={() => enviarCorreo(true)} disabled={sendingEmail} className="btn btn-warning flex-1 flex-center gap-0.5"><span className="material-icons">science</span><span>{sendingEmail ? 'Enviando...' : 'Prueba'}</span></button>
+              <button onClick={() => enviarCorreo(false)} disabled={sendingEmail} className="btn btn-success flex-1 flex-center gap-0.5"><span className="material-icons">send</span><span>{sendingEmail ? 'Enviando...' : 'Enviar'}</span></button>
+            </div>
+            {emailStatus.error && <div className="alert error mt-1"><span className="material-icons">error</span><span>{emailStatus.error}</span></div>}
+            {emailStatus.success && <div className="alert success mt-1"><span className="material-icons">check_circle</span><span>{emailStatus.message}</span></div>}
+          </div>
+          {proyData && (
+            <div className="glass-card" style={{ flexGrow: 1, minHeight: '500px' }}>
+              <div className="preview-header-bar"><h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Previsualización del Correo</h3></div>
+              <div className="preview-frame-wrapper" style={{ flexGrow: 1, height: '600px' }}>
+                <iframe title="Preview Proyecciones" srcDoc={generateProyPreviewHtml(proyData, avisosP1, proyParams.semana)} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 0 }} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showVencModal && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5,8,22,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-card flex-col gap-1" style={{ width: '100%', maxWidth: '420px', padding: '2rem', borderRadius: '12px', backgroundColor: '#162130' }}>
+            <div className="flex-between mb-1"><h3 style={{ margin: 0, color: '#fff', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span className="material-icons text-warning">schedule</span> Configurar Vencimientos</h3><button onClick={() => setShowVencModal(false)} style={{ background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button></div>
+            <p className="text-muted" style={{ fontSize: '0.82rem' }}>Días para considerar un aviso/orden como vencido.</p>
+            <div className="form-group mt-1">
+              <label style={{ color: '#cbd5e0', fontSize: '0.82rem', fontWeight: 600 }}>Avisos: vencido después de (días)</label>
+              <input type="number" min="1" max="60" className="form-control" value={diasVencAvisos} onChange={(e) => setDiasVencAvisos(Math.max(1, Number(e.target.value) || 7))} />
+              <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>Los avisos de prioridad 1 siempre se consideran vencidos.</span>
+            </div>
+            <div className="form-group">
+              <label style={{ color: '#cbd5e0', fontSize: '0.82rem', fontWeight: 600 }}>Órdenes: vencido después de (días)</label>
+              <input type="number" min="1" max="60" className="form-control" value={diasVencOrdenes} onChange={(e) => setDiasVencOrdenes(Math.max(1, Number(e.target.value) || 21))} />
+              <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>Ej: 21 = vencido después de 21 días.</span>
+            </div>
+            <div className="flex gap-1 mt-1" style={{ justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowVencModal(false)} className="btn btn-outline" style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}>Cancelar</button>
+              <button onClick={() => setShowVencModal(false)} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.85rem' }}>Guardar</button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
     </div>
   );
+}
+
+function generateProyPreviewHtml(proyData, avisosP1, semana) {
+  const p1Rows = avisosP1.map(a => `<tr><td style="padding:8px;text-align:center;">${a.aviso}</td><td style="padding:8px;text-align:center;color:#c62828;font-weight:bold;">${a.prioridad}</td><td style="padding:8px;">${a.ut}</td><td style="padding:8px;">${a.descripcion}</td><td style="padding:8px;text-align:center;">${a.fecha_aviso}</td><td style="padding:8px;text-align:center;color:#c62828;font-weight:bold;">${a.dias_transcurridos}</td><td style="padding:8px;text-align:center;background:#c62828;color:#fff;font-weight:bold;">${a.estado}</td></tr>`).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:0;font-family:Arial;}</style></head><body>
+    <div style="background:#e8edf2;padding:24px;"><table width="816" style="max-width:816px;width:100%;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
+      <tr><td style="background:#0d7a8c;padding:18px 20px;"><div style="color:#7fd8e8;font-size:9px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">DIVISIÓN CHUQUICAMATA · GSYS</div><div style="color:#fff;font-size:19px;font-weight:bold;">Reporte de Proyecciones de Planificación</div><div style="color:#a8dde8;font-size:11px;margin-top:3px;">Semana ${semana}</div></td></tr>
+      <tr><td style="padding:20px;"><div style="font-size:11px;color:#c62828;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-left:3px solid #c62828;padding-left:8px;">Avisos Prioridad 1 (${avisosP1.length})</div>
+        ${avisosP1.length > 0 ? `<table width="100%" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;"><tr style="background:#c62828;color:#fff;"><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Aviso</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Pri.</td><td style="padding:8px;font-size:10px;font-weight:bold;">UT</td><td style="padding:8px;font-size:10px;font-weight:bold;">Descripción</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Fecha</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Días</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Estado</td></tr>${p1Rows}</table>` : '<p style="color:#166534;font-weight:bold;">✓ No hay avisos de prioridad 1.</p>'}
+      </td></tr>
+      <tr><td style="background:#bb5726;padding:16px 20px;"><div style="color:#ffd4b8;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Fuente de datos</div><div style="color:#fff;font-size:10px;font-weight:bold;margin-top:4px;">Semana ${semana} · Monitoring</div></td></tr>
+    </table></div>
+  </body></html>`;
 }

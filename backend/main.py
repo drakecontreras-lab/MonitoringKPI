@@ -20,7 +20,7 @@ from backend.modules.powerbi_module import PowerBIModule
 from backend.modules.kpi_auto_module import KpiAutoModule
 from backend.utils.kpi_excel_processor import process_kpi_excels, process_ready_excel, preview_file
 from backend.utils.kpi_email_sender import send_kpi_report_email
-from backend.utils.supabase_client import supabase
+from backend.utils.supabase_client import supabase, set_log_fn
 
 # Inicializar Flask
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"))
@@ -59,7 +59,11 @@ class AppState:
             "kpi_auto": KpiAutoModule(self)
         }
         
-        # Estado HUD consolidado en memoria
+        # Estado HUD separado por módulo (KPIs vs Proyecciones)
+        self.hud_kpi = {"logs": [], "progreso": 0.0, "texto": "Inactivo", "visor": "", "solicitar_mfa": False}
+        self.hud_proy = {"logs": [], "progreso": 0.0, "texto": "Inactivo", "visor": "", "solicitar_mfa": False}
+        
+        # Backwards-compat: HUD consolidado (para powerbi/iw29)
         self.logs_hud = []
         self.progreso_modulo = 0.0
         self.progreso_texto = "Inactivo"
@@ -68,6 +72,11 @@ class AppState:
         
         self.mfa_code = None
         self.mfa_event = asyncio.Event()
+        # MFA separados por contexto
+        self.mfa_code_kpi = None
+        self.mfa_event_kpi = asyncio.Event()
+        self.mfa_code_proy = None
+        self.mfa_event_proy = asyncio.Event()
 
     def _run_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
@@ -113,8 +122,55 @@ class AppState:
         self.solicitar_mfa_flag = True
         self.emit_log("auth", "🔑 MFA Requerido. Por favor ingrese el código OTP en la interfaz.", "warn")
 
+    # ─── HUD específico KPIs ───
+    def emit_log_kpi(self, mensaje, nivel="info"):
+        log_entry = {"time": datetime.now().strftime("%H:%M:%S"), "text": mensaje, "level": nivel}
+        self.hud_kpi["logs"].append(log_entry)
+        if len(self.hud_kpi["logs"]) > 100: self.hud_kpi["logs"].pop(0)
+        try: print(f"[KPI] [{nivel.upper()}] {mensaje}")
+        except UnicodeEncodeError:
+            print(f"[KPI] [{nivel.upper()}] {mensaje.encode('ascii', errors='replace').decode('ascii')}")
+
+    def emit_progress_kpi(self, valor):
+        self.hud_kpi["progreso"] = valor
+        if valor >= 1.0: self.hud_kpi["texto"] = "Completado"
+        elif valor <= 0.0: self.hud_kpi["texto"] = "Error"
+        else: self.hud_kpi["texto"] = "Procesando"
+
+    def emit_visor_kpi(self, base64_img):
+        self.hud_kpi["visor"] = base64_img
+
+    def emit_solicitar_mfa_kpi(self):
+        self.hud_kpi["solicitar_mfa"] = True
+        self.emit_log_kpi("🔑 MFA Requerido para KPIs. Ingrese código OTP.", "warn")
+
+    # ─── HUD específico Proyecciones ───
+    def emit_log_proy(self, mensaje, nivel="info"):
+        log_entry = {"time": datetime.now().strftime("%H:%M:%S"), "text": mensaje, "level": nivel}
+        self.hud_proy["logs"].append(log_entry)
+        if len(self.hud_proy["logs"]) > 100: self.hud_proy["logs"].pop(0)
+        try: print(f"[PROY] [{nivel.upper()}] {mensaje}")
+        except UnicodeEncodeError:
+            print(f"[PROY] [{nivel.upper()}] {mensaje.encode('ascii', errors='replace').decode('ascii')}")
+
+    def emit_progress_proy(self, valor):
+        self.hud_proy["progreso"] = valor
+        if valor >= 1.0: self.hud_proy["texto"] = "Completado"
+        elif valor <= 0.0: self.hud_proy["texto"] = "Error"
+        else: self.hud_proy["texto"] = "Procesando"
+
+    def emit_visor_proy(self, base64_img):
+        self.hud_proy["visor"] = base64_img
+
+    def emit_solicitar_mfa_proy(self):
+        self.hud_proy["solicitar_mfa"] = True
+        self.emit_log_proy("🔑 MFA Requerido para Proyecciones. Ingrese código OTP.", "warn")
+
 # Instanciar estado
 state = AppState()
+
+# Inyectar sistema de logs en supabase_client
+set_log_fn(state.emit_log)
 
 # =============================================================================
 # API ENDPOINTS DE DASHBOARD Y MÉTRICAS
@@ -285,37 +341,40 @@ def api_process_kpis():
             return jsonify({"success": False, "error": "Debe ingresar una semana válida."}), 400
         semana_num = int(semana)
 
-        # Validar subidas (sin archivo 'data' — fue eliminado del flujo)
-        required = ['avisos', 'ordenes', 'trabajoPlanificado', 'programaSemanal', 'planMatriz']
+        # Validar subidas — archivos opcionales, aceptar los que vengan
+        optional = ['avisos', 'ordenes', 'trabajoPlanificado', 'programaSemanal', 'planMatriz']
         file_paths = {}
         
-        for key in required:
-            if key not in request.files:
-                return jsonify({"success": False, "error": f"Falta el archivo: {key}"}), 400
-            
-            f = request.files[key]
-            # Guardar temporalmente en output
-            ext = os.path.splitext(f.filename or 'file.xlsx')[1] or '.xlsx'
-            temp_path = os.path.join(OUTPUT_DIR, f"temp_{key}_{int(datetime.now().timestamp())}{ext}")
-            f.save(temp_path)
-            file_paths[key] = temp_path
+        for key in optional:
+            if key in request.files:
+                f = request.files[key]
+                ext = os.path.splitext(f.filename or 'file.xlsx')[1] or '.xlsx'
+                temp_path = os.path.join(OUTPUT_DIR, f"temp_{key}_{int(datetime.now().timestamp())}{ext}")
+                f.save(temp_path)
+                file_paths[key] = temp_path
+
+        if not file_paths:
+            return jsonify({"success": False, "error": "Debe subir al menos un archivo."}), 400
 
         import asyncio
         import glob
         from backend.main import state
         from backend.utils.kpi_excel_processor import read_raw_sap_file, PLANNING_GROUP_MAP
 
-        # Conservar trabajoPlanificado y planMatriz con nombre fijo para que la automatización SAP los use
-        SAVED_TRAB_PLAN  = os.path.join(OUTPUT_DIR, f"saved_trab_plan{os.path.splitext(file_paths.get('trabajoPlanificado','x.xlsx'))[1]}")
-        SAVED_PLAN_MATRIZ = os.path.join(OUTPUT_DIR, f"saved_plan_matriz{os.path.splitext(file_paths.get('planMatriz','x.xlsx'))[1]}")
+        import shutil
 
-        for key, path in file_paths.items():
-            if key == 'trabajoPlanificado':
-                import shutil
-                shutil.copy2(path, SAVED_TRAB_PLAN)
-            elif key == 'planMatriz':
-                import shutil
-                shutil.copy2(path, SAVED_PLAN_MATRIZ)
+        # Conservar trabajoPlanificado y planMatriz con nombre fijo para la automatización SAP.
+        # Se usa extensión fija .xlsx como fallback si el archivo no fue subido.
+        tp_ext  = os.path.splitext(file_paths['trabajoPlanificado'])[1] if 'trabajoPlanificado' in file_paths else '.xlsx'
+        pm_ext  = os.path.splitext(file_paths['planMatriz'])[1]         if 'planMatriz'         in file_paths else '.xlsx'
+        SAVED_TRAB_PLAN   = os.path.join(OUTPUT_DIR, f"saved_trab_plan{tp_ext}")
+        SAVED_PLAN_MATRIZ = os.path.join(OUTPUT_DIR, f"saved_plan_matriz{pm_ext}")
+
+        # Copiar archivos a rutas fijas ANTES de lanzar la automatización
+        if 'trabajoPlanificado' in file_paths:
+            shutil.copy2(file_paths['trabajoPlanificado'], SAVED_TRAB_PLAN)
+        if 'planMatriz' in file_paths:
+            shutil.copy2(file_paths['planMatriz'], SAVED_PLAN_MATRIZ)
 
         # 1. Guardar archivos manuales de IW39 e IW37N (subidos antes de la automatización)
         fecha_f = datetime.now().strftime("%d%m%Y")
@@ -336,25 +395,35 @@ def api_process_kpis():
             f_37n.save(ruta_37n)
             state.emit_log("api", f"📎 Proy_37N guardado manualmente: {nombre_37n}", "info")
 
-        # 2. Ejecutar Automatización SAP solo si faltan archivos manuales
-        ejecutar_sap = not (manual_ots_saved and manual_37n_saved)
-        if ejecutar_sap:
-            state.emit_log("api", "Iniciando descarga automatizada de KPIs SAP...", "info")
+        # 2. Ejecutar automatización SAP en modo best-effort:
+        #    - IW39 (trabajo planificado): solo si trabajoPlanificado fue subido
+        #    - IW37N (plan matriz): solo si planMatriz fue subido
+        #    - El timeout es de 360s. Si falla o se cancela el MFA, se continúa igual
+        #      con los archivos subidos manualmente (sin ots_mapping ni export_ops_mapping).
+        ejecutar_sap_iw39 = 'trabajoPlanificado' in file_paths and not manual_ots_saved
+        ejecutar_sap_iw37n = 'planMatriz' in file_paths and not manual_37n_saved
+
+        if ejecutar_sap_iw39 or ejecutar_sap_iw37n:
+            state.emit_log("api", "Iniciando descarga automatizada de KPIs SAP (best-effort)...", "info")
             state.emit_progress("kpi_auto", 0.05)
             try:
+                # Pasar SAVED_TRAB_PLAN solo si fue subido y necesita IW39
+                excel_tp_param   = SAVED_TRAB_PLAN   if (os.path.exists(SAVED_TRAB_PLAN) and ejecutar_sap_iw39) else None
+                excel_pm_param   = SAVED_PLAN_MATRIZ  if (os.path.exists(SAVED_PLAN_MATRIZ) and ejecutar_sap_iw37n) else None
                 future_batch = asyncio.run_coroutine_threadsafe(
                     state.modulos["kpi_auto"].ejecutar({
-                        "excel_trab_plan": SAVED_TRAB_PLAN,
-                        "excel_plan_matriz": SAVED_PLAN_MATRIZ
+                        "excel_trab_plan":  excel_tp_param,
+                        "excel_plan_matriz": excel_pm_param
                     }),
                     state.loop
                 )
-                future_batch.result(timeout=400)
-                state.emit_log("api", "Automatización SAP de KPIs completada con éxito.", "ok")
+                future_batch.result(timeout=360)
+                state.emit_log("api", "✅ Automatización SAP de KPIs completada.", "ok")
             except Exception as e:
-                state.emit_log("api", f"Error o timeout en automatización SAP KPIs: {e}", "warning")
+                # La automatización falló o fue cancelada: continuar con archivos subidos
+                state.emit_log("api", f"⚠️ Automatización SAP omitida o cancelada ({e}). Procesando con archivos disponibles.", "warning")
         else:
-            state.emit_log("api", "⏭️ Ambos archivos SAP fueron subidos manualmente. Se omite la automatización.", "info")
+            state.emit_log("api", "⏭️ Ambos archivos SAP subidos manualmente. Se omite la automatización.", "info")
 
         # ──────────────────────────────────────────────────────────────────────
         # 3. Construir mappings desde los archivos Proy_ots y Proy_37N
@@ -596,8 +665,61 @@ def api_send_report():
         # Mandar correo
         enviados = send_kpi_report_email(email, password, recipients, subject, kpi_data, adjuntos, template_id, cc=cc)
         
-        return jsonify({"success": True, "message": f"El informe KPI ha sido enviado con éxito a {enviados} destinatario(s)."})
+        # Guardar en Supabase tras envío exitoso
+        try:
+            from backend.utils.supabase_client import sync_hierarchy, save_kpi_to_supabase
+            div_name = str(req.get("division", "")).strip() or "Sin División"
+            ger_name = str(req.get("gerencia", "")).strip() or "Sin Gerencia"
+            sup_name = str(req.get("superintendencia", "")).strip()
+            user_email_db = str(req.get("user_email", "sistema@monitoring.cl")).strip() or "sistema@monitoring.cl"
+            area_name = sup_name if sup_name else "Nivel Gerencia"
+            anio = datetime.now().year
+            semana_num = int(kpi_data.get("semana", 0)) if kpi_data.get("semana") else 0
+            if semana_num > 0:
+                area_id = sync_hierarchy(div_name, ger_name, area_name)
+                if area_id:
+                    save_kpi_to_supabase(area_id, anio, semana_num, kpi_data, user_email_db)
+                    state.emit_log("api", f"💾 Reporte guardado en BD tras envío de correo.", "ok")
+        except Exception as e:
+            state.emit_log("api", f"⚠️ No se pudo guardar en BD tras envío: {e}", "warn")
+        
+        return jsonify({"success": True, "message": f"El informe KPI ha sido enviado con éxito a {enviados} destinatario(s) y guardado en BD."})
     except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/save-kpi-report", methods=["POST"])
+def api_save_kpi_report():
+    """Guarda el reporte KPI en Supabase sin enviar correo."""
+    try:
+        req = request.json
+        kpi_data = req.get("kpiData")
+        if not kpi_data:
+            return jsonify({"success": False, "error": "Faltan datos del KPI."}), 400
+        
+        from backend.utils.supabase_client import sync_hierarchy, save_kpi_to_supabase
+        div_name = str(req.get("division", "Sin División")).strip() or "Sin División"
+        ger_name = str(req.get("gerencia", "Sin Gerencia")).strip() or "Sin Gerencia"
+        sup_name = str(req.get("superintendencia", "")).strip()
+        user_email_db = str(req.get("user_email", "sistema@monitoring.cl")).strip() or "sistema@monitoring.cl"
+        area_name = sup_name if sup_name else "Nivel Gerencia"
+        anio = datetime.now().year
+        semana_num = int(kpi_data.get("semana", 0)) if kpi_data.get("semana") else 0
+        
+        if semana_num <= 0:
+            return jsonify({"success": False, "error": "Semana inválida en los datos."}), 400
+        
+        area_id = sync_hierarchy(div_name, ger_name, area_name)
+        if not area_id:
+            return jsonify({"success": False, "error": "No se pudo sincronizar la jerarquía en BD."}), 500
+        
+        ok = save_kpi_to_supabase(area_id, anio, semana_num, kpi_data, user_email_db)
+        if ok:
+            return jsonify({"success": True, "message": f"Reporte Semana {semana_num} guardado en BD correctamente."})
+        else:
+            return jsonify({"success": False, "error": "Error al guardar métricas en BD."}), 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/powerbi/capture", methods=["POST"])
@@ -670,6 +792,120 @@ def get_default_dates():
         "fecha_base": fecha_base
     })
 
+@app.route("/api/proy/avisos-p1", methods=["GET"])
+def api_proy_avisos_p1():
+    """Retorna avisos de prioridad 1 del Excel más reciente."""
+    import glob, pandas as pd
+    try:
+        avisos_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_avi*.xlsx"))
+        avisos_files = [f for f in avisos_files if "_DIEA" not in f and "_ST" not in f]
+        if not avisos_files:
+            return jsonify({"success": False, "error": "No hay archivos de avisos."}), 404
+        latest = max(avisos_files, key=os.path.getctime)
+        df = pd.read_excel(latest, header=0)
+        cols = [str(c).strip().lower() for c in df.columns]
+        idx_pri = idx_aviso = idx_ut = idx_desc = idx_fecha = -1
+        for i, h in enumerate(cols):
+            if h == 'prioridad' or h.startswith('prioridad'): idx_pri = i
+            elif h == 'aviso' or h.startswith('aviso'): idx_aviso = i
+            elif 'ubicaci' in h and 'téc' in h.lower(): idx_ut = i
+            elif 'ubicacion tecnica' in h: idx_ut = i
+            elif h == 'descripción' or h.startswith('descrip'): idx_desc = i
+            elif 'creado el' in h or 'fecha de aviso' in h or 'fecha aviso' in h: idx_fecha = i
+        if idx_pri < 0:
+            return jsonify({"success": False, "error": "Columna Prioridad no encontrada."}), 422
+        avisos_p1 = []
+        from datetime import date
+        fecha_base = request.args.get('fecha_base', '')
+        for _, row in df.iterrows():
+            try:
+                pri_val = row.iloc[idx_pri]
+                pri_num = float(pri_val) if pd.notna(pri_val) else None
+                if pri_num == 1:
+                    dias_trans = None
+                    if idx_fecha >= 0 and fecha_base:
+                        try:
+                            partes = fecha_base.replace("/","-").replace(".","-").split("-")
+                            fb = date(int(partes[2]), int(partes[1]), int(partes[0]))
+                            fecha_aviso = pd.to_datetime(row.iloc[idx_fecha], dayfirst=True, errors='coerce')
+                            if pd.notna(fecha_aviso):
+                                dias_trans = (fb - fecha_aviso.date()).days
+                        except: pass
+                    avisos_p1.append({
+                        "aviso": str(row.iloc[idx_aviso]).strip() if idx_aviso >= 0 else "",
+                        "prioridad": 1,
+                        "ut": str(row.iloc[idx_ut]).strip() if idx_ut >= 0 else "",
+                        "descripcion": str(row.iloc[idx_desc]).strip() if idx_desc >= 0 else "",
+                        "fecha_aviso": str(row.iloc[idx_fecha]).strip()[:10] if idx_fecha >= 0 else "",
+                        "dias_transcurridos": dias_trans if dias_trans is not None else 0,
+                        "estado": "Vencido"
+                    })
+            except: continue
+        return jsonify({"success": True, "avisos": avisos_p1, "total": len(avisos_p1)})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/proy/generate-excel", methods=["POST"])
+def api_proy_generate_excel():
+    """Genera Excel consolidado de proyecciones."""
+    try:
+        req = request.json
+        semana = req.get("semana", "")
+        fecha_base = req.get("fecha_base", "")
+        dias_venc_avisos = int(req.get("dias_venc_avisos", 7))
+        dias_venc_ordenes = int(req.get("dias_venc_ordenes", 21))
+        import glob
+        fecha_str = datetime.now().strftime("%d%m%Y")
+        def buscar(patron, excluir=None):
+            files = [f for f in os.listdir(OUTPUT_DIR) if patron in f and f.endswith(".xlsx") and not f.startswith("~$")]
+            if excluir: files = [f for f in files if excluir not in f]
+            if not files: return None
+            full = [os.path.join(OUTPUT_DIR, f) for f in files]
+            return sorted(full, key=os.path.getmtime, reverse=True)[0]
+        rutas = {
+            "avisos": [buscar("Proy_avi", excluir="_DIEA"), buscar("Proy_avi_DIEA")],
+            "ordenes": [buscar("Proy_ots", excluir="_DIEA"), buscar("Proy_ots_DIEA")],
+            "trabajo": [buscar("Proy_37N", excluir="_DIEA"), buscar("Proy_37N_DIEA")]
+        }
+        if not rutas["avisos"][0] or not rutas["ordenes"][0] or not rutas["trabajo"][0]:
+            return jsonify({"success": False, "error": "Faltan archivos base. Ejecute descargas primero."}), 400
+        from backend.utils.post_procesador import PostProcesador
+        post = PostProcesador(log_fn=state.emit_log_proy)
+        success = post.ejecutar(semana, fecha_base, rutas, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes)
+        if success:
+            reportes = glob.glob(os.path.join(OUTPUT_DIR, "Reporte_Consolidado_S*.xlsx"))
+            if reportes:
+                latest_report = max(reportes, key=os.path.getctime)
+                filename = os.path.basename(latest_report)
+                return jsonify({"success": True, "filename": filename, "downloadUrl": f"/reports/{filename}", "message": f"Reporte {filename} generado."})
+        return jsonify({"success": False, "error": "Error al generar Excel."}), 500
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/proy/send-report", methods=["POST"])
+def api_proy_send_report():
+    """Envía reporte de proyecciones por correo."""
+    try:
+        req = request.json
+        email = req.get("email"); password = req.get("password")
+        recipients = req.get("recipients"); cc = req.get("cc")
+        subject = req.get("subject")
+        proy_data = req.get("proyData")
+        filename = proy_data.get("filename") if proy_data else None
+        if not all([email, password, recipients, subject]):
+            return jsonify({"success": False, "error": "Faltan parámetros obligatorios."}), 400
+        attachment_path = os.path.join(OUTPUT_DIR, filename) if filename else None
+        adjuntos = []
+        if attachment_path and os.path.exists(attachment_path):
+            adjuntos.append(attachment_path)
+        from backend.utils.proy_email_sender import send_proy_report_email
+        enviados = send_proy_report_email(email, password, recipients, subject, proy_data, adjuntos, cc=cc)
+        return jsonify({"success": True, "message": f"Reporte de proyecciones enviado a {enviados} destinatario(s)."})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # --- Orquestación de Módulos Modulares Playwright ---
 
 @app.route("/api/ejecutar-modulo", methods=["POST"])
@@ -692,6 +928,11 @@ def api_ejecutar_modulo():
         state.progreso_texto = "Iniciando"
         state.visor_base64 = ""
         state.solicitar_mfa_flag = False
+
+        if modulo_id == "kpi_auto":
+            state.hud_kpi = {"logs": [], "progreso": 0.05, "texto": "Iniciando", "visor": "", "solicitar_mfa": False}
+        elif modulo_id == "proy_auto":
+            state.hud_proy = {"logs": [], "progreso": 0.05, "texto": "Iniciando", "visor": "", "solicitar_mfa": False}
         
         # Ejecutar corutina en hilo de background asíncrono
         asyncio.run_coroutine_threadsafe(modulo.ejecutar(params), state.loop)
@@ -706,7 +947,21 @@ def api_status_modulos():
         "progreso_texto": state.progreso_texto,
         "logs": state.logs_hud,
         "visor": state.visor_base64,
-        "solicitar_mfa": state.solicitar_mfa_flag
+        "solicitar_mfa": state.solicitar_mfa_flag,
+        "kpi": {
+            "progreso": state.hud_kpi["progreso"],
+            "progreso_texto": state.hud_kpi["texto"],
+            "logs": state.hud_kpi["logs"],
+            "visor": state.hud_kpi["visor"],
+            "solicitar_mfa": state.hud_kpi["solicitar_mfa"]
+        },
+        "proy": {
+            "progreso": state.hud_proy["progreso"],
+            "progreso_texto": state.hud_proy["texto"],
+            "logs": state.hud_proy["logs"],
+            "visor": state.hud_proy["visor"],
+            "solicitar_mfa": state.hud_proy["solicitar_mfa"]
+        }
     })
 
 @app.route("/api/pausar-modulo", methods=["POST"])
@@ -742,13 +997,27 @@ def api_enviar_mfa():
     try:
         req = request.json
         codigo = req.get("codigo")
+        contexto = req.get("contexto", "legacy")
         if not codigo:
             return jsonify({"success": False, "error": "Código vacío."}), 400
             
-        state.mfa_code = str(codigo).strip()
-        state.solicitar_mfa_flag = False
-        state.loop.call_soon_threadsafe(state.mfa_event.set)
-        state.emit_log("auth", "🔑 Código OTP MFA enviado al navegador.", "info")
+        codigo_str = str(codigo).strip()
+        
+        if contexto == "kpi":
+            state.mfa_code_kpi = codigo_str
+            state.hud_kpi["solicitar_mfa"] = False
+            state.loop.call_soon_threadsafe(state.mfa_event_kpi.set)
+            state.emit_log_kpi("🔑 Código OTP MFA enviado al navegador.", "info")
+        elif contexto == "proy":
+            state.mfa_code_proy = codigo_str
+            state.hud_proy["solicitar_mfa"] = False
+            state.loop.call_soon_threadsafe(state.mfa_event_proy.set)
+            state.emit_log_proy("🔑 Código OTP MFA enviado al navegador.", "info")
+        else:
+            state.mfa_code = codigo_str
+            state.solicitar_mfa_flag = False
+            state.loop.call_soon_threadsafe(state.mfa_event.set)
+            state.emit_log("auth", "🔑 Código OTP MFA enviado al navegador.", "info")
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

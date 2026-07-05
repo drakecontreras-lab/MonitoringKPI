@@ -298,6 +298,9 @@ export default function App() {
           <ProyeccionesTab
             defaultSemana={defaultSemana}
             defaultFechaBase={defaultFechaBase}
+            smtpConfig={smtpConfig}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            user={user}
           />
         </div>
 

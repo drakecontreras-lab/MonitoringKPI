@@ -1,6 +1,17 @@
 import os
 from supabase import create_client, Client
 
+_log_fn = None
+
+def set_log_fn(fn):
+    global _log_fn
+    _log_fn = fn
+
+def _log(msg, level="warn"):
+    print(f"[Supabase] {msg}")
+    if _log_fn:
+        _log_fn("db", msg, level)
+
 def get_supabase_client() -> Client:
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
@@ -59,6 +70,8 @@ def sync_hierarchy(division_name, gerencia_name, area_name):
         return area_res.data[0]["id"]
     except Exception as e:
         print(f"[Supabase] Error sincronizando jerarquía: {e}")
+        if _log_fn:
+            _log_fn("db", f"❌ Error sincronizando jerarquía: {e}", "error")
         return None
 
 def sync_proceso(area_id, proceso_name):
@@ -83,8 +96,8 @@ def save_kpi_to_supabase(area_id, anio, semana, data, user_email=""):
         
         def recolectar_procesos(grupos):
             for g in grupos:
-                p = g.get("proceso")
-                if p: procesos_encontrados.add(p)
+                p = g.get("proceso") or "Sin Proceso"
+                procesos_encontrados.add(p)
 
         if "resumenAvisos" in data: recolectar_procesos(data["resumenAvisos"].get("distribucion", []))
         if "resumenOrdenes" in data: recolectar_procesos(data["resumenOrdenes"].get("distribucion", []))
@@ -145,8 +158,12 @@ def save_kpi_to_supabase(area_id, anio, semana, data, user_email=""):
                 supabase.table("kpi_metrics").insert(metrics_to_insert).execute()
                 
             print(f"[Supabase] Reporte Semana {semana} guardado exitosamente para proceso {nombre_proceso} (Report ID: {report_id})")
+            if _log_fn:
+                _log_fn("db", f"✅ KPI guardado en DB: Semana {semana} · Proceso {nombre_proceso} (Report ID: {report_id})", "ok")
             
         return True
     except Exception as e:
         print(f"[Supabase] Error guardando KPI: {e}")
+        if _log_fn:
+            _log_fn("db", f"❌ Error guardando KPI en DB: {e}", "error")
         return False
