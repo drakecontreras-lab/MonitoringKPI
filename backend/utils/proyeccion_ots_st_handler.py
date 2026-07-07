@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from .sap_navigator import SAPNavigator
 from .iw29_handler import IW29Handler
 import os
+from .paths import get_output_dir
 import re
 import pyperclip
 
@@ -131,7 +132,7 @@ class ProyeccionOtsStHandler:
         # 6. Descargar y Guardar
         fecha_f = datetime.now().strftime("%d%m%Y")
         nombre_final = f"{fecha_f}_DIEA_Proy_ots{suffix}.xlsx"
-        ruta_final = os.path.join(os.getcwd(), "output", nombre_final)
+        ruta_final = os.path.join(get_output_dir(), nombre_final)
         
         ruta = await self.exportar_st()
         if ruta:
@@ -194,8 +195,8 @@ class ProyeccionOtsStHandler:
                 except: pass
 
             download = await download_info.value
-            os.makedirs(os.path.join(os.getcwd(), "output"), exist_ok=True)
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_ots_st_{datetime.now().strftime('%H%M%S')}.xlsx")
+            os.makedirs(get_output_dir(), exist_ok=True)
+            temp_path = os.path.join(get_output_dir(), f"tmp_ots_st_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
             return temp_path
         except Exception as e:

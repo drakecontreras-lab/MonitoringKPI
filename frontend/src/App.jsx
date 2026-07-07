@@ -35,8 +35,8 @@ export default function App() {
     header_tag: '■ &nbsp; DIVISIÓN CHUQUICAMATA &nbsp;·&nbsp; GSYS MANTENIMIENTO',
     title: 'Reporte Semanal de KPIs Corporativos',
     subtitle: 'Sistema de Gestión & Mantenimiento Industrial',
-    body_p1: 'Favor revisar la información y proceder de acuerdo con el flujograma establecido por directriz. Se solicita enviar HOY el plan de acción a Francisco Toro para su correspondiente revisión y validación.',
-    body_p2: '⚠️  Se enfatiza la importancia de generar oportunamente el plan, con el objetivo de corregir de manera inmediata las desviaciones detectadas.',
+    body_p1: 'Este es un texto tipo y se debe modificar.',
+    body_p2: 'Este es un texto tipo y se debe modificar.',
     generado_nombre: 'José Contreras Luna',
     generado_email: 'jose.contreras@monitoring.cl',
     avisos_target: 10,
@@ -200,7 +200,7 @@ export default function App() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,#00E5FF_0%,transparent_50%)] opacity-10 pointer-events-none"></div>
         <div className="login-card glass-panel shadow-2xl">
           <div className="brand-logo-glow"><span className="material-icons">security</span></div>
-          <h1 className="login-title">Monitoring KPI 2</h1>
+          <h1 className="login-title">Monitoring KPI's Corporativos</h1>
           <p className="login-subtitle">Entorno Unificado de Automatizaciones</p>
           <div className="login-divider"></div>
           <div className="login-info">
@@ -228,7 +228,7 @@ export default function App() {
       <header className="app-header glass-panel">
         <div className="brand-section">
           <div>
-            <h1 className="brand-title">Monitoring Suite 2.0</h1>
+            <h1 className="brand-title">Monitoring KPI's Corporativos</h1>
             <div className="brand-subtitle">KPIs</div>
           </div>
         </div>
@@ -238,6 +238,7 @@ export default function App() {
             <span className="material-icons">query_stats</span>
             <span>KPIs Corporativos</span>
           </button>
+          {/* Ocultado por requerimiento
           <button className={`tab-btn ${activeTab === 'sap-uso' ? 'active' : ''}`} onClick={() => setActiveTab('sap-uso')}>
             <span className="material-icons">hub</span>
             <span>CRUD</span>
@@ -246,6 +247,7 @@ export default function App() {
             <span className="material-icons">precision_manufacturing</span>
             <span>Proyecciones</span>
           </button>
+          */}
           <button className={`tab-btn ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
             <span className="material-icons">settings</span>
             <span>Configuración</span>

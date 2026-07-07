@@ -54,20 +54,7 @@ export default function EmailPreview({ kpiData, sending, onSendTestEmail, onSend
                 <span>Adjuntar Captura Power BI</span>
               </label>
               
-              <select
-                className="form-control"
-                style={{ padding: '0.4rem', fontSize: '0.85rem', width: 'auto', backgroundColor: 'rgba(0,0,0,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', marginRight: '0.2rem' }}
-                value={selectedTemplate || 7}
-                onChange={(e) => setSelectedTemplate(Number(e.target.value))}
-              >
-                <option value={7}>Plantilla 7 (Actual c/ Targets)</option>
-                <option value={6}>Plantilla 6</option>
-                <option value={5}>Plantilla 5</option>
-                <option value={4}>Plantilla 4</option>
-                <option value={3}>Plantilla 3</option>
-                <option value={2}>Plantilla 2</option>
-                <option value={1}>Plantilla 1</option>
-              </select>
+              {/* Ocultado selector de plantilla por requerimiento (fijado a Plantilla 7) */}
 
               <button
                 onClick={() => setShowTemplateEditor(true)}

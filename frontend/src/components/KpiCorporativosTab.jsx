@@ -20,7 +20,7 @@ const REQUIRED_FILES = [
  */
 export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, defaultSemana, emailSettings, setEmailSettings }) {
   // ─── Estado KPI ───
-  const [kpiSubTab, setKpiSubTab] = useState('dashboard');
+  const [kpiSubTab, setKpiSubTab] = useState('visualizacion');
   const [semana, setSemana] = useState(defaultSemana || '23');
   const [uploadMode, setUploadMode] = useState('raw');
   const [isEditing, setIsEditing] = useState(false);
@@ -134,7 +134,8 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
   }, []);
 
   useEffect(() => {
-    if (user?.preferred_username) setTestRecipients(user.preferred_username);
+    // Desactivado el auto-completado de destinatarios de prueba
+    setTestRecipients('');
   }, [user]);
 
   useEffect(() => {
@@ -142,7 +143,7 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
   }, [defaultSemana]);
 
   useEffect(() => {
-    if (semana) setSubject(`Reporte Semanal KPI - GSYS Mantenimiento DCH - Semana ${semana}`);
+    if (semana) setSubject(`Reporte Semanal KPI - Mantenimiento DCH - Semana ${semana}`);
   }, [semana]);
 
   // Cargar destinatarios y config de correo desde backend
@@ -564,9 +565,11 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
     <div className="kpis-container">
       {/* Sub-navegación */}
       <div className="sub-tab-navigation flex gap-2 mb-2">
+        {/* Ocultado por requerimiento de cliente
         <button className={`btn ${kpiSubTab === 'dashboard' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setKpiSubTab('dashboard')}>
           <span className="material-icons">analytics</span> Dashboard Histórico
         </button>
+        */}
         <button className={`btn ${kpiSubTab === 'visualizacion' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setKpiSubTab('visualizacion')}>
           <span className="material-icons">bar_chart</span> Carga y Visualización
         </button>

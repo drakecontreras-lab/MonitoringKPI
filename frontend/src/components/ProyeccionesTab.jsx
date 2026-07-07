@@ -127,7 +127,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
             semana: proyParams.semana,
             fecha_base: proyParams.fecha_base,
             lista_uts: utsArray,
-            grupo_planif: grupoPlanif,
+            grupo_planif: gruposArray.join(', '),
             grupo_planif_st: gruposArray.join(', '),
             activar_uts: activarUTs,
             activar_grupos: activarGrupos,
@@ -224,8 +224,8 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
     <div className="kpis-container">
       <div className="sub-tab-navigation flex gap-2 mb-2">
         <button className={`btn ${proySubTab === 'dashboard' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('dashboard')}><span className="material-icons">precision_manufacturing</span> Dashboard</button>
-        <button className={`btn ${proySubTab === 'visualizacion' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('visualizacion')} disabled={!proyData}><span className="material-icons">bar_chart</span> Visualización</button>
-        <button className={`btn ${proySubTab === 'envio' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('envio')} disabled={!proyData}><span className="material-icons">preview</span> Previsualizar y Enviar</button>
+        <button className={`btn ${proySubTab === 'visualizacion' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('visualizacion')}><span className="material-icons">bar_chart</span> Visualización</button>
+        <button className={`btn ${proySubTab === 'envio' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setProySubTab('envio')}><span className="material-icons">preview</span> Previsualizar y Enviar</button>
       </div>
 
       {proySubTab === 'dashboard' && (

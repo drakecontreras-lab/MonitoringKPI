@@ -16,9 +16,8 @@ export default function SettingsModal({ isOpen, onClose, onSave, initialConfig }
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isStoredPassword, setIsStoredPassword] = useState(false);
   
-  // Nuevos campos de ubicación
-  const [division, setDivision] = useState('Chuquicamata');
-  const [gerencia, setGerencia] = useState('Gerencia de servicios y suministros');
+  const [division, setDivision] = useState('');
+  const [gerencia, setGerencia] = useState('');
   const [area, setArea] = useState('');
 
   // Cargar credenciales guardadas en localStorage al montar el componente
@@ -26,8 +25,8 @@ export default function SettingsModal({ isOpen, onClose, onSave, initialConfig }
     if (isOpen) {
       const savedEmail = localStorage.getItem('outlook_email') || '';
       const savedPassword = localStorage.getItem('outlook_password') || '';
-      const savedDivision = localStorage.getItem('app_division') || 'Chuquicamata';
-      const savedGerencia = localStorage.getItem('app_gerencia') || 'Gerencia de servicios y suministros';
+      const savedDivision = localStorage.getItem('app_division') || '';
+      const savedGerencia = localStorage.getItem('app_gerencia') || '';
       const savedArea = localStorage.getItem('app_area') || '';
       
       setEmail(savedEmail);

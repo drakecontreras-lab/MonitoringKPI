@@ -1103,7 +1103,7 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         except:
             pass
 
-        hojas_orden = ["Resumen", "Avisos", "Ordenes",
+        hojas_orden = ["Avisos", "Ordenes",
                        "Trabajo planificado", "Programa semanal", "Plan Matriz"]
 
         # Crear hojas en orden (sin hoja 'Tablas')
@@ -1182,119 +1182,8 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         ws_tablas = None  # Ya no existe la hoja Tablas
         fila_actual = 1
 
-        # Referencia directa para la hoja Resumen
-        ws_res  = wb.Sheets("Resumen")
-        ws_res.Cells.Clear()
-        areas   = ["SEC", "SPS", "SP&L", "DIEA"]
-
-        # Encabezados
-        ws_res.Cells(1, 1).Value = "KPI"
-        ws_res.Cells(1, 2).Value = "DETALLE"
-        for a, area in enumerate(areas, 3):
-            ws_res.Cells(1, a).Value = area
-
-        rng_hdr = ws_res.Range(ws_res.Cells(1, 1), ws_res.Cells(1, 2 + len(areas)))
-        rng_hdr.Font.Bold            = True
-        rng_hdr.Interior.Color       = rgb(237, 125, 49)   # Naranja Énfasis 2
-        rng_hdr.Font.Color           = rgb(255, 255, 255)
-        rng_hdr.HorizontalAlignment  = -4108  # xlCenter
-
-        # Filas KPI: calcular directamente desde los DataFrames (sin tablas dinámicas)
-        def _calcular_kpis_desde_df():
-            """Calcula los valores de KPI por área directamente desde los DataFrames procesados."""
-            resultado = {}
-            for area in areas:
-                # KPI01: Avisos pendientes por área
-                col_areas_av = "Areas" if "Areas" in df_av.columns else None
-                av_area = df_av[df_av[col_areas_av] == area].shape[0] if col_areas_av else 0
-
-                # KPI02: Órdenes pendientes por área
-                col_areas_ot = "Areas" if "Areas" in df_ot.columns else None
-                ot_area = df_ot[df_ot[col_areas_ot] == area].shape[0] if col_areas_ot else 0
-
-                # KPI06: % Trabajo Planificado (Cumple/Total HH Trabajo Real por área)
-                col_areas_tp = "Areas" if "Areas" in df_tp.columns else None
-                col_cr_tp = encontrar_columna(df_tp, "Criterio")
-                col_tr_tp = (encontrar_columna(df_tp, "Trabajo real") or encontrar_columna(df_tp, "Trabajo Real"))
-                if col_areas_tp and col_cr_tp and col_tr_tp:
-                    df_tp_area = df_tp[df_tp[col_areas_tp] == area]
-                    total_tr = pd.to_numeric(df_tp_area[col_tr_tp], errors='coerce').fillna(0).sum()
-                    cumple_tr = pd.to_numeric(df_tp_area[df_tp_area[col_cr_tp] == "Cumple"][col_tr_tp], errors='coerce').fillna(0).sum()
-                    tp_pct = cumple_tr / total_tr if total_tr > 0 else 0.0
-                else:
-                    tp_pct = 0.0
-
-                # KPI10: % Programa Semanal (Cumple/Total Ordenes por área)
-                col_areas_ps = "Areas" if "Areas" in df_ps.columns else None
-                col_cr_ps = encontrar_columna(df_ps, "Criterio")
-                if col_areas_ps and col_cr_ps:
-                    df_ps_area = df_ps[df_ps[col_areas_ps] == area]
-                    total_ps = len(df_ps_area)
-                    cumple_ps = len(df_ps_area[df_ps_area[col_cr_ps] == "Cumple"])
-                    ps_pct = cumple_ps / total_ps if total_ps > 0 else 0.0
-                else:
-                    ps_pct = 0.0
-
-                # KPI13: % Plan Matriz (Cumple/Total Ordenes por área)
-                col_areas_pm = "Areas" if "Areas" in df_pm.columns else None
-                col_cr_pm = encontrar_columna(df_pm, "Criterio")
-                if col_areas_pm and col_cr_pm:
-                    df_pm_area = df_pm[df_pm[col_areas_pm] == area]
-                    total_pm = len(df_pm_area)
-                    cumple_pm = len(df_pm_area[df_pm_area[col_cr_pm] == "Cumple"])
-                    pm_pct = cumple_pm / total_pm if total_pm > 0 else 0.0
-                else:
-                    pm_pct = 0.0
-
-                resultado[area] = {
-                    "av": av_area, "ot": ot_area,
-                    "tp": tp_pct, "ps": ps_pct, "pm": pm_pct
-                }
-            return resultado
-
-        kpi_values = _calcular_kpis_desde_df()
-
-        kpis = [
-            ("KPI01",    "AVISOS PENDIENTES",   "av", "abs"),
-            ("KPI02",    "ORDENES PENDIENTES",   "ot", "abs"),
-            ("KPI06_02", "%TRABAJO PLANIFICADO", "tp", "pct"),
-            ("KPI10_01", "PROGRAMA SEMANAL",     "ps", "pct"),
-            ("KPI13",    "PLAN MATRIZ",          "pm", "pct"),
-        ]
-
-        for fila, (kpi_id, detalle, key, tipo) in enumerate(kpis, 2):
-            ws_res.Cells(fila, 1).Value = kpi_id
-            ws_res.Cells(fila, 2).Value = detalle
-            for a, area in enumerate(areas, 3):
-                val = kpi_values.get(area, {}).get(key, 0)
-                ws_res.Cells(fila, a).Value = val
-                if tipo == "pct":
-                    ws_res.Cells(fila, a).NumberFormat = "0%"
-
-        # Centrar columnas de áreas (C en adelante)
-        ult_fila_res = 1 + len(kpis)
-        ws_res.Range(
-            ws_res.Cells(2, 3),
-            ws_res.Cells(ult_fila_res, 2 + len(areas))
-        ).HorizontalAlignment = -4108  # xlCenter
-
-        ws_res.Columns("A:G").AutoFit()
-
-        # Bordes
-        ws_res.Range(
-            ws_res.Cells(1, 1),
-            ws_res.Cells(ult_fila_res, 2 + len(areas))
-        ).Borders.LineStyle = 1
-        ws_res.Range(
-            ws_res.Cells(1, 1),
-            ws_res.Cells(ult_fila_res, 2 + len(areas))
-        ).Borders.Weight = 2
-
-        # Freeze pane en A2
-        ws_res.Activate()
-        excel.ActiveWindow.FreezePanes = False
-        ws_res.Range("A2").Select()
-        excel.ActiveWindow.FreezePanes = True
+        # La hoja Resumen ha sido eliminada por solicitud del usuario
+        pass
 
         # ---- PASO 23: Formato general demás hojas ----
         for nombre_hoja in ("Avisos", "Ordenes", "Trabajo planificado",
@@ -1314,8 +1203,8 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         
         wb.SaveAs(os.path.abspath(ruta_final), 51)  # 51 = xlOpenXMLWorkbook (.xlsx)
 
-        # Activar hoja Resumen
-        wb.Sheets("Resumen").Activate()
+        # Activar primera hoja (Avisos)
+        wb.Sheets(1).Activate()
 
         excel.ScreenUpdating = True
         excel.Calculation    = -4105  # xlCalculationAutomatic

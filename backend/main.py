@@ -22,12 +22,34 @@ from backend.utils.kpi_excel_processor import process_kpi_excels, process_ready_
 from backend.utils.kpi_email_sender import send_kpi_report_email
 from backend.utils.supabase_client import supabase, set_log_fn
 
+if getattr(sys, 'frozen', False):
+    bundle_dir = sys._MEIPASS
+else:
+    bundle_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Inicializar Flask
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"))
+app = Flask(__name__, static_folder=os.path.join(bundle_dir, "frontend", "dist"))
 CORS(app)
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
+if getattr(sys, 'frozen', False):
+    # App is frozen (compiled)
+    appdata_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), "MonitoringKPIsCorporativos")
+    os.makedirs(appdata_dir, exist_ok=True)
+    CONFIG_PATH = os.path.join(appdata_dir, "config.json")
+    OUTPUT_DIR = os.path.join(appdata_dir, "output")
+    # Si no existe config.json en AppData, copiar el default del bundle
+    if not os.path.exists(CONFIG_PATH):
+        bundled_config = os.path.join(bundle_dir, "config.json")
+        if os.path.exists(bundled_config):
+            import shutil
+            try:
+                shutil.copy2(bundled_config, CONFIG_PATH)
+            except Exception as e:
+                print(f"[startup] Error al copiar config por defecto: {e}")
+else:
+    CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+    OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Estado global HUD y automatizaciones (compartido por módulos)
@@ -1187,7 +1209,7 @@ def main():
     print("[pywebview] Abriendo ventana nativa de escritorio...")
     api = NativeApi()
     window = webview.create_window(
-        title="Monitoring KPI 2 - Suite Corporativa Unificada",
+        title="Monitoring KPI's Corporativos",
         url=entry_url,
         js_api=api,
         width=1280,

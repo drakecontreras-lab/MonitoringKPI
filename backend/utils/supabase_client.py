@@ -1,4 +1,5 @@
 import os
+import sys
 from supabase import create_client, Client
 
 _log_fn = None
@@ -18,20 +19,35 @@ def get_supabase_client() -> Client:
     
     # Fallback: parse .env manually if not loaded in environment
     if not url or not key:
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        env_path = os.path.join(root_dir, ".env")
-        if os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        parts = line.split("=", 1)
-                        if len(parts) == 2:
-                            k, v = parts[0].strip(), parts[1].strip()
-                            if k == "SUPABASE_URL":
-                                url = v
-                            elif k == "SUPABASE_KEY":
-                                key = v
+        paths_to_check = []
+        if getattr(sys, 'frozen', False):
+            # 1. Directorio del ejecutable (.exe)
+            paths_to_check.append(os.path.join(os.path.dirname(sys.executable), ".env"))
+            # 2. Carpeta AppData (junto a config.json)
+            appdata_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), "MonitoringKPIsCorporativos")
+            paths_to_check.append(os.path.join(appdata_dir, ".env"))
+            # 3. Carpeta del bundle (recurso empaquetado)
+            if hasattr(sys, '_MEIPASS'):
+                paths_to_check.append(os.path.join(sys._MEIPASS, ".env"))
+        else:
+            root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            paths_to_check.append(os.path.join(root_dir, ".env"))
+            
+        for env_path in paths_to_check:
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            parts = line.split("=", 1)
+                            if len(parts) == 2:
+                                k, v = parts[0].strip(), parts[1].strip()
+                                if k == "SUPABASE_URL" and not url:
+                                    url = v
+                                elif k == "SUPABASE_KEY" and not key:
+                                    key = v
+                if url and key:
+                    break
     
     if not url or not key:
         raise ValueError("Supabase credentials not found in environment or .env file.")

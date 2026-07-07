@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from .sap_navigator import SAPNavigator
 from .iw29_handler import IW29Handler
 import os
+from .paths import get_output_dir
 import re
 
 
@@ -129,9 +130,28 @@ class ProyeccionOrdenesHandler:
             elif grupo_planif:
                 self.log(f"[IW37N] 🗂️ Filtrando por Grupo de planificación: {grupo_planif}")
                 try:
+                    import pyperclip
+                    grupos_fmt = "\r\n".join([g.strip() for g in grupo_planif.replace(",", "\n").split("\n") if g.strip()])
                     campo = ctx.get_by_role("textbox", name="Grupo planificación").first
-                    await campo.fill(grupo_planif)
-                    await self.page.keyboard.press("Enter")
+                    
+                    if "\r\n" in grupos_fmt:
+                        try:
+                            await ctx.get_by_role("button", name="Selección múltiple").first.click(timeout=2000)
+                            await asyncio.sleep(1.5)
+                            pyperclip.copy(grupos_fmt)
+                            await self.page.keyboard.press("Shift+F12")
+                            await asyncio.sleep(1.5)
+                            try:
+                                await ctx.get_by_role("button", name="Tomar (F8)").click(timeout=2000)
+                            except:
+                                await self.page.keyboard.press("F8")
+                            await asyncio.sleep(1)
+                        except Exception as ex:
+                            self.log(f"⚠️ No se pudo abrir Selección Múltiple: {ex}. Solo se ingresará el primer grupo.")
+                            await campo.fill(grupos_fmt.split("\r\n")[0])
+                    else:
+                        await campo.fill(grupo_planif)
+                        await self.page.keyboard.press("Enter")
                 except Exception as e:
                     self.log(f"⚠️ Error en Grupo Planif IW37N: {e}")
 
@@ -170,8 +190,8 @@ class ProyeccionOrdenesHandler:
                 download = await download_info.value
                 await page1.close()
 
-            os.makedirs(os.path.join(os.getcwd(), "output"), exist_ok=True)
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_37N_{datetime.now().strftime('%H%M%S')}.xlsx")
+            os.makedirs(get_output_dir(), exist_ok=True)
+            temp_path = os.path.join(get_output_dir(), f"tmp_37N_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
             
             fecha_f = datetime.now().strftime("%d%m%Y")
@@ -225,8 +245,8 @@ class ProyeccionOrdenesHandler:
                     await self.page.keyboard.press("Enter")
 
             download = await download_info.value
-            os.makedirs(os.path.join(os.getcwd(), "output"), exist_ok=True)
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_37n_{datetime.now().strftime('%H%M%S')}.xlsx")
+            os.makedirs(get_output_dir(), exist_ok=True)
+            temp_path = os.path.join(get_output_dir(), f"tmp_37n_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
             return temp_path
         except Exception as e:

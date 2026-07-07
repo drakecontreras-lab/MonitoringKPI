@@ -5,6 +5,7 @@ from .sap_navigator import SAPNavigator
 from .iw29_handler import IW29Handler
 import re
 import os
+from .paths import get_output_dir
 import pandas as pd
 
 
@@ -137,8 +138,8 @@ class ProyeccionOtsHandler:
                 download = await download_info.value
                 await page1.close()
 
-            os.makedirs(os.path.join(os.getcwd(), "output"), exist_ok=True)
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_ots_{datetime.now().strftime('%H%M%S')}.xlsx")
+            os.makedirs(get_output_dir(), exist_ok=True)
+            temp_path = os.path.join(get_output_dir(), f"tmp_ots_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
 
             fecha_f = datetime.now().strftime("%d%m%Y")

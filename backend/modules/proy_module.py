@@ -2,6 +2,7 @@ import os
 import threading
 from datetime import datetime
 from backend.modules.base_module import BaseModule
+from backend.utils.paths import get_output_dir
 
 class ProyMacroModule(BaseModule):
     """
@@ -48,7 +49,7 @@ class ProyMacroModule(BaseModule):
         self.log(f"⚙️ Iniciando consolidación de Excel para Semana {semana} y Fecha {fecha_base_str}...")
         self.actualizar_progreso(0.20)
 
-        output_dir = os.path.join(os.getcwd(), self.app_api.config_data["app"].get("output_dir", "output"))
+        output_dir = get_output_dir()
         os.makedirs(output_dir, exist_ok=True)
         
         fecha_str = datetime.now().strftime("%d%m%Y")

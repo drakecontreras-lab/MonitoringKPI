@@ -1,6 +1,6 @@
 {
     "app": {
-        "nombre": "Monitoring KPI 2",
+        "nombre": "Monitoring KPI's Corporativos",
         "version": "1.0.0",
         "output_dir": "output",
         "port": 3001
@@ -20,13 +20,13 @@
         "area": "Mantenimiento"
     },
     "navegador": {
+        "url_base": "https://cobreapps.codelco.cl/fiori",
         "headless": false,
-        "timeout_ms": 60000,
-        "url_base": "https://cobreapps.codelco.cl/fiori"
+        "timeout_ms": 60000
     },
     "credenciales": {
-        "contrasena": "X-%JEe$132",
-        "usuario": "jcont085@contratistas.codelco.cl"
+        "usuario": "jcont085@contratistas.codelco.cl",
+        "contrasena": "X-%JEe$132"
     },
     "modules": {
         "iw29": {
@@ -61,12 +61,12 @@
     "recipients": "valentina.borquez@monitoring.cl",
     "cc": "jose.contreras@monitoring.cl",
     "email_settings": {
-        "header_tag": "■ &nbsp; DIVISIÓN CHUQUICAMATA &nbsp;·&nbsp; SUBTE",
-        "title": "Reporte Semanal de KPIs Corporativos SUBTE",
-        "subtitle": "Sistema Operativo de Mantenimiento (SOMA)",
+        "header_tag": "■ &nbsp; DIVISIÓN CHUQUICAMATA &nbsp;·&nbsp; GSYS MANTENIMIENTO",
+        "title": "Reporte Semanal de KPIs Corporativos",
+        "subtitle": "Sistema de Gestión & Mantenimiento Industrial",
         "body_p1": "Favor revisar la información y proceder de acuerdo con el flujograma establecido por directriz. Se solicita enviar HOY el plan de acción a Francisco Toro para su correspondiente revisión y validación.",
         "body_p2": "⚠️  Se enfatiza la importancia de generar oportunamente el plan, con el objetivo de corregir de manera inmediata las desviaciones detectadas.",
-        "generado_nombre": "Valentina Borquez",
+        "generado_nombre": "José Contreras Luna",
         "generado_email": "jose.contreras@monitoring.cl",
         "avisos_target": "0",
         "ordenes_target": "13",

@@ -5,6 +5,7 @@ from datetime import datetime
 from backend.modules.base_module import BaseModule
 from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager, SAPNavigator
+from backend.utils.paths import get_output_dir
 
 class ProyAutoModule(BaseModule):
     """Módulo Proyecciones. HUD propio separado de KPIs Corporativos."""
@@ -48,7 +49,7 @@ class ProyAutoModule(BaseModule):
         grupo_planif_st = params.get("grupo_planif_st", "CI0")
         lista_grupos_st = [g.strip() for g in grupo_planif_st.split(",") if g.strip()]
 
-        output_dir = os.path.join(os.getcwd(), config_glob.get("app", {}).get("output_dir", "output"))
+        output_dir = get_output_dir()
         excel_trab_plan   = params.get("excel_trab_plan")   or self._buscar_excel_reciente(output_dir, "saved_trab_plan")
         excel_plan_matriz = params.get("excel_plan_matriz") or self._buscar_excel_reciente(output_dir, "saved_plan_matriz")
 
@@ -56,6 +57,15 @@ class ProyAutoModule(BaseModule):
             self.log(f"📎 Usará órdenes de Trabajo Planificado: {os.path.basename(excel_trab_plan)}")
         if excel_plan_matriz:
             self.log(f"📎 Usará órdenes de Plan Matriz: {os.path.basename(excel_plan_matriz)}")
+
+        # Limpiar archivos Excel crudos de proyecciones anteriores para evitar falsos avisos P1
+        try:
+            import glob
+            for f in glob.glob(os.path.join(output_dir, "*Proy_*.xlsx")):
+                try: os.remove(f)
+                except: pass
+        except Exception as e:
+            self.log(f"⚠️ No se pudieron limpiar algunos archivos temporales: {e}", "warning")
 
         try:
             # 1. Iniciar navegador
@@ -153,15 +163,15 @@ class ProyAutoModule(BaseModule):
                         self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
                         await h_avisos.ejecutar(lista_uts=lista_uts, layout="/JC_KPI", suffix="")
                         await self.manejar_pausa()
-                    if "trabajo_planificado" in selected:
+                    if any(s in selected for s in ("trabajo_planificado", "programa_semanal", "plan_matriz")):
                         step += 1
                         self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
-                        await h_ots.ejecutar(lista_uts=lista_uts, layout="/BDYTD_25_OT", suffix="")
+                        await h_ordenes.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="", excel_plan_matriz=excel_plan_matriz)
                         await self.manejar_pausa()
                     if "ordenes" in selected:
                         step += 1
                         self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
-                        await h_ordenes.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="", excel_plan_matriz=excel_plan_matriz)
+                        await h_ots.ejecutar(lista_uts=lista_uts, layout="/BDYTD_25_OT", suffix="")
                         await self.manejar_pausa()
                 else:
                     self.log("⏭️ FASE 1 omitida (UTs no activadas).")
@@ -177,15 +187,15 @@ class ProyAutoModule(BaseModule):
                         self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
                         await h_avisos_diea.ejecutar(grupo_planif=grupo_planif, layout="/JC_KPI", suffix="_DIEA")
                         await self.manejar_pausa()
-                    if "trabajo_planificado" in selected:
+                    if any(s in selected for s in ("trabajo_planificado", "programa_semanal", "plan_matriz")):
                         step += 1
                         self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
-                        await h_ots_diea.ejecutar(grupo_planif=grupo_planif, layout="/BDYTD_25_OT", suffix="_DIEA")
+                        await h_ordenes_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
                         await self.manejar_pausa()
                     if "ordenes" in selected:
                         step += 1
                         self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
-                        await h_ordenes_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
+                        await h_ots_diea.ejecutar(grupo_planif=grupo_planif, layout="/BDYTD_25_OT", suffix="_DIEA")
                         await self.manejar_pausa()
                 else:
                     self.log("⏭️ FASE 2 omitida (Grupos no activados).")
@@ -196,7 +206,7 @@ class ProyAutoModule(BaseModule):
                     self.log("📊 FASE 3: Generando Excel consolidado...")
                     from backend.utils.post_procesador import PostProcesador
                     import glob as _glob
-                    output_dir = os.path.join(os.getcwd(), self.app_api.config_data.get("app",{}).get("output_dir","output"))
+                    output_dir = get_output_dir()
                     fecha_str = datetime.now().strftime("%d%m%Y")
                     def _buscar(patron, excluir=None):
                         files = [f for f in os.listdir(output_dir) if patron in f and f.endswith(".xlsx") and not f.startswith("~$")]

@@ -4,6 +4,7 @@ from datetime import datetime
 from .sap_navigator import SAPNavigator
 from .iw29_handler import IW29Handler
 import os
+from .paths import get_output_dir
 import re
 
 class ProyeccionAvisosDieaHandler:
@@ -46,11 +47,32 @@ class ProyeccionAvisosDieaHandler:
         # 4. Filtro por Grupo (Selector específico dado por el usuario)
         self.log(f"[IW29-DIEA] 🔧 Filtrando por Grupo Planificación: {grupo_planif}")
         try:
+            import pyperclip
+            grupos_fmt = "\r\n".join([g.strip() for g in grupo_planif.replace(",", "\n").split("\n") if g.strip()])
+            
             # Selector exacto: get_by_role("textbox", name="Grupo planificación")
             campo = ctx.get_by_role("textbox", name="Grupo planificación").first
-            await campo.fill(grupo_planif)
-            await self.page.keyboard.press("Tab") # Cambiado de Enter a Tab para mayor estabilidad
-            await asyncio.sleep(1)
+            
+            if "\r\n" in grupos_fmt:
+                # Múltiples grupos: Usar botón de selección múltiple (ID de IW29)
+                btn_seleccion = ctx.locator("[id='M0:46:::41:78']") 
+                await btn_seleccion.click()
+                await asyncio.sleep(1.5)
+                
+                pyperclip.copy(grupos_fmt)
+                await self.page.keyboard.press("Shift+F12")
+                await asyncio.sleep(1.5)
+                
+                try:
+                    await ctx.get_by_role("button", name="Tomar (F8)").click(timeout=2000)
+                except:
+                    await self.page.keyboard.press("F8")
+                await asyncio.sleep(1)
+            else:
+                await campo.fill(grupo_planif)
+                await self.page.keyboard.press("Tab") # Cambiado de Enter a Tab para mayor estabilidad
+                await asyncio.sleep(1)
+
         except Exception as e:
             self.log(f"⚠️ Error al filtrar grupo: {e}")
 
@@ -144,8 +166,8 @@ class ProyeccionAvisosDieaHandler:
                 except: pass
 
             download = await download_info.value
-            os.makedirs(os.path.join(os.getcwd(), "output"), exist_ok=True)
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_avi_diea_{datetime.now().strftime('%H%M%S')}.xlsx")
+            os.makedirs(get_output_dir(), exist_ok=True)
+            temp_path = os.path.join(get_output_dir(), f"tmp_avi_diea_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
             return temp_path
         except Exception as e:

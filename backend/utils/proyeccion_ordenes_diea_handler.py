@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from .sap_navigator import SAPNavigator
 from .iw29_handler import IW29Handler
 import os
+from .paths import get_output_dir
 import re
 
 class ProyeccionOrdenesDieaHandler:
@@ -69,11 +70,35 @@ class ProyeccionOrdenesDieaHandler:
         # 3. FILTRO GRUPO PLANIFICACIÓN (DIEA)
         self.log(f"[DIEA-DEDICADO] 🏢 Filtrando por Grupo: {grupo_planif}")
         try:
+            import pyperclip
+            grupos_fmt = "\r\n".join([g.strip() for g in grupo_planif.replace(",", "\n").split("\n") if g.strip()])
+            
             # Ir a pestaña Emplazamiento
             await ctx.get_by_role("tablist").get_by_text("Emplazamiento/Imputaci").first.click()
             await asyncio.sleep(1) # Esperar a que la pestaña cargue
             # Selector exacto: get_by_role("textbox", name="Gr.planif.mantenimiento HRuta")
-            await ctx.get_by_role("textbox", name="Gr.planif.mantenimiento HRuta").fill(grupo_planif)
+            campo = ctx.get_by_role("textbox", name="Gr.planif.mantenimiento HRuta")
+            
+            if "\r\n" in grupos_fmt:
+                # No tenemos el ID exacto para IW37N. Intentaremos usar el botón de Selección Múltiple asociado
+                try:
+                    # En la pestaña Emplazamiento de IW37N, usualmente es el primer o segundo botón de selección múltiple
+                    await ctx.get_by_role("button", name="Selección múltiple").first.click(timeout=2000)
+                    await asyncio.sleep(1.5)
+                    pyperclip.copy(grupos_fmt)
+                    await self.page.keyboard.press("Shift+F12")
+                    await asyncio.sleep(1.5)
+                    try:
+                        await ctx.get_by_role("button", name="Tomar (F8)").click(timeout=2000)
+                    except:
+                        await self.page.keyboard.press("F8")
+                    await asyncio.sleep(1)
+                except Exception as ex:
+                    self.log(f"⚠️ No se pudo abrir Selección Múltiple en IW37N: {ex}. Solo se ingresará el primer grupo.")
+                    await campo.fill(grupos_fmt.split("\r\n")[0])
+            else:
+                await campo.fill(grupo_planif)
+
         except Exception as e:
             self.log(f"⚠️ Error al filtrar grupo: {e}")
 
@@ -178,7 +203,7 @@ class ProyeccionOrdenesDieaHandler:
                     await self.page.keyboard.press("Enter")
 
             download = await download_info.value
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_diea_37n_{datetime.now().strftime('%H%M%S')}.xlsx")
+            temp_path = os.path.join(get_output_dir(), f"tmp_diea_37n_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
             return temp_path
         except Exception as e:

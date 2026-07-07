@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from .sap_navigator import SAPNavigator
 from .iw29_handler import IW29Handler
 import os
+from .paths import get_output_dir
 import re
 import pyperclip
 
@@ -73,8 +74,12 @@ class ProyeccionOtsDieaHandler:
             btn_seleccion = ctx.locator("[id='M0:46:::88:78']")
             await btn_seleccion.click()
             await asyncio.sleep(1.5)
+            import pyperclip
+            # Si vienen separados por coma, o salto de linea desde frontend
+            # Reemplazar comas por saltos de linea y limpiar
+            grupos_fmt = "\r\n".join([g.strip() for g in grupo_planif.replace(",", "\n").split("\n") if g.strip()])
+            pyperclip.copy(grupos_fmt)
             
-            pyperclip.copy(grupo_planif)
             await self.page.keyboard.press("Shift+F12")
             await asyncio.sleep(1)
             
@@ -192,8 +197,8 @@ class ProyeccionOtsDieaHandler:
                 except: pass
 
             download = await download_info.value
-            os.makedirs(os.path.join(os.getcwd(), "output"), exist_ok=True)
-            temp_path = os.path.join(os.getcwd(), "output", f"tmp_ots_diea_{datetime.now().strftime('%H%M%S')}.xlsx")
+            os.makedirs(get_output_dir(), exist_ok=True)
+            temp_path = os.path.join(get_output_dir(), f"tmp_ots_diea_{datetime.now().strftime('%H%M%S')}.xlsx")
             await download.save_as(temp_path)
             return temp_path
         except Exception as e:

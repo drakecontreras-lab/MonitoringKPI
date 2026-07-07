@@ -4,6 +4,7 @@ iw29_handler.py - Automatización de la transacción IW29 (Notificaciones PM)
 import asyncio
 import re
 import os
+from .paths import get_output_dir
 from datetime import datetime
 from playwright.async_api import Page, Frame, TimeoutError as PlaywrightTimeout
 from typing import Callable, List, Dict, Optional
@@ -140,7 +141,7 @@ class IW29Handler:
                 except: pass
 
             download = await download_info.value
-            output_dir = os.path.join(os.getcwd(), "output")
+            output_dir = get_output_dir()
             os.makedirs(output_dir, exist_ok=True)
             
             ruta_final = custom_path if custom_path else os.path.join(output_dir, f"tmp_{datetime.now().strftime('%H%M%S')}.xlsx")

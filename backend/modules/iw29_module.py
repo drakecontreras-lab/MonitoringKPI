@@ -6,6 +6,7 @@ from datetime import datetime
 from backend.modules.base_module import BaseModule
 from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager, SAPNavigator
+from backend.utils.paths import get_output_dir
 
 class IW29Module(BaseModule):
     """
@@ -188,7 +189,7 @@ class IW29Module(BaseModule):
 
             download = await download_info.value
             
-            output_dir = os.path.join(os.getcwd(), config_glob["app"].get("output_dir", "output"))
+            output_dir = get_output_dir()
             os.makedirs(output_dir, exist_ok=True)
             
             fecha_hoy = datetime.now().strftime("%d%m%Y")
