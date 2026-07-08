@@ -6,7 +6,7 @@ from datetime import datetime
 from backend.modules.base_module import BaseModule
 from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager, SAPNavigator
-from backend.utils.paths import get_output_dir
+from backend.utils.paths import get_output_dir, get_browser_session_dir
 
 class IW29Module(BaseModule):
     """
@@ -52,7 +52,7 @@ class IW29Module(BaseModule):
         try:
             # 1. Iniciar navegador
             self.log("🌐 Iniciando navegador Playwright...")
-            self.browser_mgr = BrowserManager(headless=headless, user_data_dir="browser_session")
+            self.browser_mgr = BrowserManager(headless=headless, user_data_dir=get_browser_session_dir())
             page = await self.browser_mgr.iniciar()
             
             # Conectar la transmisión al visor

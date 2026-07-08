@@ -1,7 +1,9 @@
 import asyncio
 import base64
 import os
+from typing import Optional
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
+from .paths import get_browser_session_dir
 
 class BrowserManager:
     """
@@ -9,13 +11,14 @@ class BrowserManager:
     Controla el arranque, apagado y captura de pantalla periódica (screencast) para el visor web.
     """
 
-    def __init__(self, headless: bool = False, user_data_dir: str = "browser_session"):
+    def __init__(self, headless: bool = False, user_data_dir: Optional[str] = None):
         """
         Inicializa las opciones de configuración del navegador.
         Propósito: Configurar el modo oculto (headless) y la ruta de persistencia de sesión.
+        Si user_data_dir es None, se usa el directorio centralizado (AppData en exe).
         """
         self.headless = headless
-        self.user_data_dir = os.path.abspath(user_data_dir)
+        self.user_data_dir = os.path.abspath(user_data_dir) if user_data_dir else get_browser_session_dir()
         self.pw = None
         self.browser_context: BrowserContext = None
         self.page: Page = None
@@ -33,6 +36,7 @@ class BrowserManager:
         # Iniciar navegador persistente para mantener cookies y sesiones
         self.browser_context = await self.pw.chromium.launch_persistent_context(
             user_data_dir=self.user_data_dir,
+            channel="msedge",
             headless=self.headless,
             viewport={"width": 1280, "height": 720},
             args=["--disable-blink-features=AutomationControlled"],

@@ -105,6 +105,7 @@ def generate_template_6(data):
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("planificado"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:{codelco_orange if g.get("sinHr", 0) > 0 else '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("sinHr"))}</td>
+          <td style="padding:9px 8px;font-size:11px;color:{codelco_orange if g.get("sinHorizonte", 0) > 0 else '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("sinHorizonte"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:{codelco_orange if g.get("imprevistos", 0) > 0 else '#64748b'};border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("imprevistos"))}</td>
           <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;">{format_value(g.get("total"))}</td>
           <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">{get_codelco_badge_tp(g.get("cumplimiento", 0))}</td>
@@ -337,6 +338,7 @@ def generate_template_6(data):
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">{"Pto. Trabajo" if data.get("use_pto_trabajo") else "Gr. planif.PM"}</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">HH Plan.</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin HR</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Sin Horizonte</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Imprevistos</td>
         <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#475569;text-align:right;">Total HH</td>
         <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#475569;text-align:center;">% Cump.</td>
@@ -346,6 +348,7 @@ def generate_template_6(data):
         <td colspan="3" style="padding:11px 12px;font-size:12px;font-weight:bold;color:#ffffff;">TOTAL GENERAL</td>
         <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("planificado"))}</td>
         <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("sinHr"))}</td>
+        <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("sinHorizonte"))}</td>
         <td style="padding:11px 8px;font-size:11px;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("imprevistos"))}</td>
         <td style="padding:11px 8px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{format_value(trabajo_planificado.get("total", {}).get("total"))}</td>
         <td style="padding:11px 12px;text-align:center;">{get_codelco_badge_tp(trabajo_planificado.get("total", {}).get("cumplimiento", 0))}</td>
@@ -516,6 +519,7 @@ def generate_template_7(data):
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{g.get("ptoTrabajoDesc", "") if data.get("use_pto_trabajo") else g.get("grPlanifPM", "")}</td>
           <td style="padding:9px 8px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("planificado"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("sinHr"))}</td>
+          <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("sinHorizonte"))}</td>
           <td style="padding:9px 8px;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("imprevistos"))}</td>
           <td style="padding:9px 8px;font-size:11px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">{format_value(g.get("total"))}</td>
           <td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">{_badge_pct(g.get("cumplimiento", 0), tp_target)}</td>
@@ -680,6 +684,7 @@ def generate_template_7(data):
             <td align="center" style="padding:9px 6px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">{label_gr_planif_pm}</td>
             <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">HH Plan.</td>
             <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin HR</td>
+            <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Sin Horizonte</td>
             <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Imprevistos</td>
             <td align="right" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;border-right:1px solid #f09564;">Total HH</td>
             <td align="center" style="padding:9px 8px;font-family:Arial,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #E55302;">% Cump.</td>
@@ -689,6 +694,7 @@ def generate_template_7(data):
             <td colspan="3" style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">TOTAL GENERAL</td>
             <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("planificado"))}</td>
             <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("sinHr"))}</td>
+            <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("sinHorizonte"))}</td>
             <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("imprevistos"))}</td>
             <td align="right" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{format_value(trabajo_planificado.get("total", {}).get("total"))}</td>
             <td align="center" style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#334155;background-color:#f1f5f9;">{tp_display}</td>

@@ -123,17 +123,42 @@ class LoginManager:
                 if await campo_otp.is_visible(timeout=10000):
                     self.log("📱 Código del autenticador requerido. Solicitando al usuario en el panel...")
                     if async_get_otp_code:
-                        codigo = await async_get_otp_code()
-                        if not codigo:
-                            self.log("❌ Autenticación cancelada: No se proporcionó código OTP.", "error")
-                            return False
-                        await campo_otp.fill(codigo)
-                        # Botón "Comprobar" (selector exacto del Codegen)
-                        btn_comprobar = self.page.get_by_role("button", name="Comprobar")
-                        await btn_comprobar.click()
-                        await self.page.wait_for_load_state("networkidle", timeout=20000)
-                        self.log("✅ Código OTP verificado correctamente.")
-                        await asyncio.sleep(2)
+                        # Race: usuario ingresa OTP en la app, O completa login
+                        # directamente en el navegador (campo desaparece / URL sale de login).
+                        otp_task = asyncio.create_task(async_get_otp_code())
+                        watch_task = asyncio.create_task(self._esperar_post_mfa(timeout_s=180))
+                        done, pending = await asyncio.wait(
+                            {otp_task, watch_task},
+                            return_when=asyncio.FIRST_COMPLETED,
+                        )
+                        for t in pending:
+                            t.cancel()
+                        try:
+                            await asyncio.gather(*pending, return_exceptions=True)
+                        except Exception:
+                            pass
+
+                        if otp_task in done:
+                            codigo = otp_task.result()
+                            if not codigo:
+                                self.log("❌ Autenticación cancelada: No se proporcionó código OTP.", "error")
+                                return False
+                            # Re-verificar que el campo OTP siga visible antes de llenar
+                            try:
+                                if await campo_otp.is_visible(timeout=1000):
+                                    await campo_otp.fill(codigo)
+                                    btn_comprobar = self.page.get_by_role("button", name="Comprobar")
+                                    await btn_comprobar.click()
+                                    await self.page.wait_for_load_state("networkidle", timeout=20000)
+                                    self.log("✅ Código OTP verificado correctamente.")
+                                    await asyncio.sleep(2)
+                                else:
+                                    self.log("✅ Login ya completado en el navegador (OTP omitido).")
+                            except Exception as e:
+                                self.log(f"⚠️ No se pudo aplicar el código OTP (login ya avanzó): {e}")
+                        else:
+                            self.log("✅ Login completado en el navegador sin código desde la app.")
+                            await asyncio.sleep(2)
                     else:
                         self.log("❌ Autenticación fallida: No se proporcionó callback de OTP.", "error")
                         return False

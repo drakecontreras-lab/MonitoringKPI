@@ -5,7 +5,7 @@ from datetime import datetime
 from backend.modules.base_module import BaseModule
 from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager, SAPNavigator
-from backend.utils.paths import get_output_dir
+from backend.utils.paths import get_output_dir, get_browser_session_dir
 
 class ProyAutoModule(BaseModule):
     """Módulo Proyecciones. HUD propio separado de KPIs Corporativos."""
@@ -70,7 +70,7 @@ class ProyAutoModule(BaseModule):
         try:
             # 1. Iniciar navegador
             self.log("🌐 Iniciando navegador Playwright...")
-            self.browser_mgr = BrowserManager(headless=headless, user_data_dir="browser_session")
+            self.browser_mgr = BrowserManager(headless=headless, user_data_dir=get_browser_session_dir())
             page = await self.browser_mgr.iniciar()
             
             # Conectar visor embebido
@@ -106,6 +106,7 @@ class ProyAutoModule(BaseModule):
             if necesita_login:
                 self.log("🔐 Sesión no detectada o expirada. Iniciando sesión interactiva con Microsoft...")
                 success = await login_mgr.login_microsoft(async_get_otp_code=get_otp_code)
+                self.app_api.hud_proy["solicitar_mfa"] = False
                 if not success:
                     self.log("❌ Error en la autenticación corporativa.", "error")
                     await self.browser_mgr.cerrar()

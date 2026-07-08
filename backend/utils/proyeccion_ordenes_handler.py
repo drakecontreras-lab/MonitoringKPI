@@ -53,14 +53,13 @@ class ProyeccionOrdenesHandler:
             return []
 
     async def ejecutar(self, lista_uts: Optional[List[str]] = None, grupo_planif: Optional[str] = None,
-                       layout: str = "kpiat0610", suffix: str = "",
+                       layout: str = "/kpiat0610_M", suffix: str = "",
                        excel_plan_matriz: Optional[str] = None):
         """
         Ejecuta la automatización de la transacción SAP IW37N utilizando la secuencia de Playwright grabada por el usuario.
         Lee las órdenes del excel_plan_matriz para subirlas por selección múltiple, marca "Cerrado", limpia período,
         selecciona la pestaña "Otros", ingresa el layout y realiza la exportación de resultados.
         """
-        layout = layout.lstrip("/")
 
         self.log(f"[IW37N] 📋 Iniciando Proyección IW37N{suffix}...")
         await self.nav.abrir_transaccion_gui_url("IW37N")

@@ -5,6 +5,7 @@ from datetime import datetime
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 from backend.modules.base_module import BaseModule
 from backend.utils.browser import BrowserManager
+from backend.utils.paths import get_browser_session_dir
 
 class PowerBIModule(BaseModule):
     """
@@ -45,7 +46,7 @@ class PowerBIModule(BaseModule):
         try:
             # 1. Iniciar navegador
             self.log("🌐 Iniciando navegador Playwright (Viewport 1920x1080)...")
-            self.browser_mgr = BrowserManager(headless=headless, user_data_dir="browser_session")
+            self.browser_mgr = BrowserManager(headless=headless, user_data_dir=get_browser_session_dir())
             
             # Inicializamos y sobrescribimos el viewport a 1920x1080
             self.pw = await self.browser_mgr.iniciar()

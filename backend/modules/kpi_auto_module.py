@@ -5,6 +5,7 @@ from typing import Dict, Any
 from backend.modules.base_module import BaseModule
 from backend.utils.browser import BrowserManager
 from backend.utils.sap import LoginManager
+from backend.utils.paths import get_browser_session_dir
 
 class KpiAutoModule(BaseModule):
     """Módulo KPIs Corporativos. HUD propio separado de Proyecciones."""
@@ -44,7 +45,7 @@ class KpiAutoModule(BaseModule):
             self.actualizar_progreso(0.10)
 
             # Iniciar navegador
-            self.browser_mgr = BrowserManager(headless=headless, user_data_dir="browser_session")
+            self.browser_mgr = BrowserManager(headless=headless, user_data_dir=get_browser_session_dir())
             page = await self.browser_mgr.iniciar()
 
             # Conectar visor embebido
@@ -79,6 +80,8 @@ class KpiAutoModule(BaseModule):
                     return self.app_api.mfa_code_kpi
                 
                 exito_login = await login_mgr.login_microsoft(async_get_otp_code=_get_mfa)
+                # Asegurar que el prompt MFA del frontend se oculte tras login
+                self.app_api.hud_kpi["solicitar_mfa"] = False
                 if not exito_login:
                     self.log("❌ Autenticación corporativa fallida o cancelada.", "error")
                     await self.browser_mgr.cerrar()

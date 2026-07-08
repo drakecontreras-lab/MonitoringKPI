@@ -18,15 +18,30 @@ class ProyeccionOtsHandler:
 
     def _leer_ordenes_de_excel(self, excel_path: str) -> List[str]:
         """
-        Lee las órdenes de mantenimiento desde la columna I ('Orden mantenimiento')
-        de un Excel exportado de SAP (formato MIME o XLSX).
+        Lee las órdenes de mantenimiento desde una columna que contenga 'orden'
+        de un Excel exportado de SAP o manual (formato MIME o XLSX).
         Retorna lista de órdenes únicas, excluyendo filas de subtotal.
         """
         try:
             from .kpi_excel_processor import read_raw_sap_file
             df = read_raw_sap_file(excel_path)
-            # Columna I = índice 8 (0-based), encabezado en fila 0 o 1
-            col_idx = 8
+            
+            # Intentar encontrar la columna por nombre en las primeras filas
+            col_idx = 8  # Default: col I (Orden mantenimiento)
+            if len(df) > 0:
+                for test_row in range(min(4, len(df))):
+                    header_row = [str(v).strip().lower() for v in list(df.iloc[test_row])]
+                    exact = next((i for i, h in enumerate(header_row)
+                                  if h == 'orden mantenimiento' or 'orden' in h and 'mantenimiento' in h), None)
+                    if exact is not None:
+                        col_idx = exact
+                        break
+                    generic = next((i for i, h in enumerate(header_row)
+                                    if h == 'orden' or ('orden' in h and 'clase' not in h and 'sub' not in h)), None)
+                    if generic is not None:
+                        col_idx = generic
+                        break
+
             ordenes = set()
             for i, row in df.iterrows():
                 val = row.iloc[col_idx] if col_idx < len(row) else None
@@ -34,10 +49,11 @@ class ProyeccionOtsHandler:
                     continue
                 s = str(val).strip()
                 # Ignorar encabezados, subtotales y valores inválidos
-                if s in ('', 'nan', 'Resultado', 'Resultado total', 'Orden mantenimiento'):
+                if s.lower() in ('', 'nan', 'resultado', 'resultado total', 'orden mantenimiento', 'orden mantenimiento_1', 'orden'):
                     continue
                 if s.isdigit() and len(s) >= 6:
                     ordenes.add(s)
+            
             resultado = sorted(ordenes)
             self.log(f"[IW39] 📋 {len(resultado)} órdenes leídas del Excel de Trabajo Planificado")
             return resultado

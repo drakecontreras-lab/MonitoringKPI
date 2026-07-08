@@ -1068,6 +1068,20 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                   )}
                 </div>
               </div>
+            ) : kpiRobotVisor ? (
+              /* Última captura del robot — se mantiene visible después de finalizar la automatización */
+              <div className="glass-card flex-col gap-1 h-full" style={{ minHeight: '400px', position: 'relative', overflow: 'hidden' }}>
+                <h2 className="card-title mb-1">
+                  <span className="material-icons text-secondary">check_circle</span>
+                  <span>Última Captura del Robot SAP</span>
+                </h2>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted-light)', marginBottom: '0.5rem' }}>
+                  Pantalla final que dejó el robot al terminar la extracción. Pulsa "Iniciar" para una nueva automatización.
+                </p>
+                <div className="live-screencast-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <img src={`data:image/jpeg;base64,${kpiRobotVisor}`} alt="Última captura del navegador" className="screencast-img" style={{ flex: 1, objectFit: 'contain' }} />
+                </div>
+              </div>
             ) : (
               <div className="glass-card flex-center flex-col h-full" style={{ minHeight: '350px' }}>
                 <span className="material-icons text-muted" style={{ fontSize: '4.5rem', marginBottom: '1rem' }}>analytics</span>

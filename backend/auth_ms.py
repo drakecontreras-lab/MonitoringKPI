@@ -34,9 +34,11 @@ class EntraIDAuth:
         self.redirect_uri = redirect_uri
         self.scopes = scopes
         
-        # Caché de tokens en memoria por sesión
+        # Caché de tokens en APPDATA para que tenga permisos de escritura en la app compilada
         self.cache = msal.SerializableTokenCache()
-        self.cache_file = os.path.join(os.path.dirname(__file__), "token_cache.bin")
+        appdata_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), "MonitoringKPIsCorporativos")
+        os.makedirs(appdata_dir, exist_ok=True)
+        self.cache_file = os.path.join(appdata_dir, "token_cache.bin")
         if os.path.exists(self.cache_file):
             with open(self.cache_file, "r") as f:
                 self.cache.deserialize(f.read())

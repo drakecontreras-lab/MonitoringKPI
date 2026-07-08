@@ -20,13 +20,13 @@
         "area": "Mantenimiento"
     },
     "navegador": {
-        "url_base": "https://cobreapps.codelco.cl/fiori",
         "headless": false,
-        "timeout_ms": 60000
+        "timeout_ms": 60000,
+        "url_base": "https://cobreapps.codelco.cl/fiori"
     },
     "credenciales": {
-        "usuario": "jcont085@contratistas.codelco.cl",
-        "contrasena": "X-%JEe$132"
+        "contrasena": "X-%JEe$133",
+        "usuario": "jcont085@contratistas.codelco.cl"
     },
     "modules": {
         "iw29": {

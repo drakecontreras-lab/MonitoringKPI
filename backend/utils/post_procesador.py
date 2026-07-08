@@ -13,6 +13,7 @@ from datetime import datetime, date
 import tkinter as tk
 from tkinter import simpledialog, filedialog, messagebox
 import warnings
+from .paths import get_output_dir
 
 # Silenciar advertencias de Pandas (especialmente las de fechas mixtas)
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -1192,9 +1193,8 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
             ws.Cells.EntireColumn.AutoFit()
 
         # ---- GUARDAR ----
-        # Base de Automatizador/output
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        output_dir = os.path.join(base_dir, "output")
+        # Directorio de salida unificado (AppData en exe, raíz del proyecto en dev)
+        output_dir = get_output_dir()
         os.makedirs(output_dir, exist_ok=True)
         
         ts = datetime.now().strftime("%d%m%Y_%H%M")

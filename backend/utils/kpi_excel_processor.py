@@ -330,7 +330,7 @@ def _make_unique_headers(headers):
 # EXTRACTORES POR TIPO DE ARCHIVO
 # ──────────────────────────────────────────────────────────────────────────────
 
-def extract_avisos(path, puestos_mapping=None):
+def extract_avisos(path, puestos_mapping=None, grupos_mapping=None):
     """
     Procesa el archivo de Avisos Pendientes (SAP MIME-HTML o XLSX).
     Estructura del archivo:
@@ -339,6 +339,8 @@ def extract_avisos(path, puestos_mapping=None):
       - última fila: 'Resultado total'
     Retorna (df_limpio, stats_dict).
     """
+    if grupos_mapping is None:
+        grupos_mapping = dict(PLANNING_GROUP_MAP)
     df = read_raw_sap_file(path)
 
     group = {}
@@ -365,7 +367,7 @@ def extract_avisos(path, puestos_mapping=None):
         if not gr_planif or gr_planif in ('nan', '#'):
             gr_planif = 'N/A'
         if not gr_planif_pm or gr_planif_pm == 'nan':
-            gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
+            gr_planif_pm = grupos_mapping.get(gr_planif, gr_planif or 'N/A')
 
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
@@ -412,7 +414,7 @@ def extract_avisos(path, puestos_mapping=None):
     return df_clean, {'total': total, 'distribucion': distribucion}
 
 
-def extract_ordenes(path, puestos_mapping=None):
+def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
     """
     Procesa el archivo de Órdenes Pendientes (SAP MIME-HTML o XLSX).
     Estructura:
@@ -420,6 +422,8 @@ def extract_ordenes(path, puestos_mapping=None):
       - datos en fila 1:-1
     Retorna (df_limpio, stats_dict).
     """
+    if grupos_mapping is None:
+        grupos_mapping = dict(PLANNING_GROUP_MAP)
     df = read_raw_sap_file(path)
 
     group = {}
@@ -446,7 +450,7 @@ def extract_ordenes(path, puestos_mapping=None):
         if not gr_planif or gr_planif in ('nan', '#'):
             gr_planif = 'N/A'
         if not gr_planif_pm or gr_planif_pm == 'nan':
-            gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
+            gr_planif_pm = grupos_mapping.get(gr_planif, gr_planif or 'N/A')
 
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
@@ -490,7 +494,7 @@ def extract_ordenes(path, puestos_mapping=None):
     return df_clean, {'total': total, 'distribucion': distribucion}
 
 
-def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
+def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, grupos_mapping=None):
     """
     Procesa el archivo de % Trabajo Planificado (SAP MIME-HTML o XLSX).
     Propósito: Estructurar y limpiar los datos de Trabajo Planificado.
@@ -499,6 +503,8 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
     """
     if ots_mapping is None:
         ots_mapping = {}
+    if grupos_mapping is None:
+        grupos_mapping = dict(PLANNING_GROUP_MAP)
 
     df = read_raw_sap_file(path)
 
@@ -507,7 +513,7 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
     total_sin_hr      = 0.0
     total_imprevistos = 0.0
 
-    data_rows = df.iloc[2:-1]  # Saltar 2 filas de encabezado + última de total
+    data_rows = df.iloc[4:-1]  # Saltar 4 filas de encabezado (title, empty, partial, full headers) + última de total
 
     criterios_col = []
     gr_planif_col = []
@@ -550,18 +556,18 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
         # Heurística: los nombres de grupo PM del mapa son valores cortos sin espacios o tipo 'Pl.XXX'
         name_is_pm = any(
             v.lower() in gr_planif_pm_raw.lower()
-            for v in PLANNING_GROUP_MAP.values()
+            for v in grupos_mapping.values()
         )
         # Verificar si col 5 parece un código de grupo (C81, C82, CO0, etc.)
-        code_is_planif = gr_planif_from_file in PLANNING_GROUP_MAP
+        code_is_planif = gr_planif_from_file in grupos_mapping
 
         if code_is_planif:
             # El archivo tiene el código directamente → usar columnas del PATTERN
             gr_planif    = gr_planif_from_file
-            gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif_pm_raw if name_is_pm else gr_planif)
+            gr_planif_pm = grupos_mapping.get(gr_planif, gr_planif_pm_raw if name_is_pm else gr_planif)
         elif name_is_pm:
             # Sólo el nombre PM está disponible → deducir código desde el mapa inverso
-            inv_map = {v: k for k, v in PLANNING_GROUP_MAP.items()}
+            inv_map = {v: k for k, v in grupos_mapping.items()}
             gr_planif    = inv_map.get(gr_planif_pm_raw, 'N/A')
             gr_planif_pm = gr_planif_pm_raw
         else:
@@ -719,7 +725,7 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None):
     }
 
 
-def extract_programa_semanal(path, puestos_mapping=None):
+def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
     """
     Procesa el archivo de Programa Semanal (SAP MIME-HTML o XLSX).
     Estructura (doble encabezado):
@@ -730,6 +736,8 @@ def extract_programa_semanal(path, puestos_mapping=None):
     KPI = Σ(Ind.cumple) / Σ(Total Op ÷ 1000).
     Retorna (df_limpio, stats_dict).
     """
+    if grupos_mapping is None:
+        grupos_mapping = dict(PLANNING_GROUP_MAP)
     df = read_raw_sap_file(path)
 
     group = {}
@@ -764,7 +772,7 @@ def extract_programa_semanal(path, puestos_mapping=None):
         if not gr_planif or gr_planif in ('nan', '#'):
             gr_planif = 'N/A'
         if not gr_planif_pm or gr_planif_pm == 'nan':
-            gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
+            gr_planif_pm = grupos_mapping.get(gr_planif, gr_planif or 'N/A')
 
         # Cumple si el porcentaje es 100% (SAP lo exporta como 10000 = 100.00%)
         cumple_flag = cumpl_val >= 9900
@@ -862,7 +870,7 @@ def extract_programa_semanal(path, puestos_mapping=None):
     }
 
 
-def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None):
+def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, grupos_mapping=None):
     """
     Procesa el archivo de Plan Matriz (SAP MIME-HTML o XLSX).
     Estructura (doble encabezado):
@@ -877,6 +885,8 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None):
     """
     if export_ops_mapping is None:
         export_ops_mapping = {}
+    if grupos_mapping is None:
+        grupos_mapping = dict(PLANNING_GROUP_MAP)
 
     df = read_raw_sap_file(path)
 
@@ -941,7 +951,10 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None):
         if not gr_planif or gr_planif in ('nan', '#'):
             gr_planif = 'N/A'
         if not gr_planif_pm or gr_planif_pm == 'nan':
-            gr_planif_pm = PLANNING_GROUP_MAP.get(gr_planif, gr_planif or 'N/A')
+            gr_planif_pm = grupos_mapping.get(gr_planif, gr_planif or 'N/A')
+
+
+
 
 
         # Cumple si ejecutó todo lo planificado
@@ -1047,20 +1060,130 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None):
 # PROCESADOR PRINCIPAL — MÚLTIPLES EXCELS CRUDOS
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _build_tablas_sheet(wb, tablas_ws, stats, use_pto_trabajo):
+    """
+    Crea tablas resumen formateadas en la hoja 'Tablas' agrupando por
+    Gr. Planif o Pto. Trabajo según use_pto_trabajo.
+    Cada KPI ocupa su propio bloque con título, headers, datos y fila TOTAL.
+    """
+    from collections import OrderedDict
+
+    if use_pto_trabajo:
+        row_label = 'Pto. Trabajo'
+        row_cols  = ['ptoTrabajo', 'ptoTrabajoDesc']
+    else:
+        row_label = 'Gr. Planif'
+        row_cols  = ['grPlanif', 'grPlanifPM']
+
+    current_row = 2
+
+    def _add_table(title, grupos, value_cols_map):
+        """value_cols_map: {display_name: data_key}"""
+        nonlocal current_row
+        if not grupos:
+            return
+
+        data_keys = list(value_cols_map.values())
+        display_names = list(value_cols_map.keys())
+        num_cols = 1 + len(display_names)
+
+        # Título del bloque
+        tablas_ws.merge_cells(start_row=current_row, start_column=1,
+                              end_row=current_row, end_column=num_cols)
+        c = tablas_ws.cell(row=current_row, column=1, value=title)
+        c.font = openpyxl.styles.Font(bold=True, size=13, color="1F4E79")
+        c.fill = openpyxl.styles.PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
+        current_row += 1
+
+        # Headers
+        for ci, h in enumerate([row_label] + display_names, 1):
+            c = tablas_ws.cell(row=current_row, column=ci, value=h)
+            c.font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
+            c.fill = openpyxl.styles.PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+            c.border = openpyxl.styles.Border(
+                bottom=openpyxl.styles.Side(style='thin', color='B0B0B0'))
+        current_row += 1
+
+        # Agrupar por la columna elegida
+        agrupado = OrderedDict()
+        for g in grupos:
+            key = g.get(row_cols[0], 'N/A')
+            label = g.get(row_cols[1], '')
+            display = f"{key} - {label}" if label and label not in ('N/A', key) else str(key)
+            if key not in agrupado:
+                agrupado[key] = {'display': display, 'vals': {dk: 0.0 for dk in data_keys}}
+            for dk in data_keys:
+                agrupado[key]['vals'][dk] += float(g.get(dk, 0) or 0)
+
+        for info in agrupado.values():
+            tablas_ws.cell(row=current_row, column=1, value=info['display']).font = openpyxl.styles.Font(size=11)
+            for ci, dk in enumerate(data_keys, 2):
+                c = tablas_ws.cell(row=current_row, column=ci, value=round(info['vals'][dk], 1))
+                c.font = openpyxl.styles.Font(size=11)
+                c.number_format = '#,##0.0'
+            current_row += 1
+
+        # Fila TOTAL
+        tablas_ws.cell(row=current_row, column=1, value="TOTAL").font = openpyxl.styles.Font(bold=True, size=11)
+        for ci, dk in enumerate(data_keys, 2):
+            total = sum(info['vals'][dk] for info in agrupado.values())
+            c = tablas_ws.cell(row=current_row, column=ci, value=round(total, 1))
+            c.font = openpyxl.styles.Font(bold=True, size=11)
+            c.number_format = '#,##0.0'
+        for ci in range(1, num_cols + 1):
+            tablas_ws.cell(row=current_row, column=ci).fill = openpyxl.styles.PatternFill(
+                start_color="E8F0FE", end_color="E8F0FE", fill_type="solid")
+        current_row += 2  # Espacio entre bloques
+
+    # ── Trabajo Planificado ──
+    _add_table('% Trabajo Planificado', stats.get('trabajo', {}).get('grupos', []), OrderedDict([
+        ('Planificado', 'planificado'), ('Sin HR', 'sinHr'),
+        ('Sin Horizonte', 'sinHorizonte'), ('Imprevistos', 'imprevistos'),
+        ('Total HH', 'total')
+    ]))
+
+    # ── Programa Semanal ──
+    _add_table('Programa Semanal', stats.get('prog', {}).get('grupos', []), OrderedDict([
+        ('Cumple', 'cumple'), ('No Cumple', 'noCumple'), ('Total Ops', 'total')
+    ]))
+
+    # ── Plan Matriz ──
+    _add_table('Plan Matriz', stats.get('plan', {}).get('grupos', []), OrderedDict([
+        ('Cumple', 'cumple'), ('No Cumple', 'noCumple'), ('Total Ops', 'total')
+    ]))
+
+    # ── Avisos ──
+    _add_table('Avisos Pendientes', stats.get('avisos', {}).get('distribucion', []), OrderedDict([
+        ('Cantidad', 'cantidad')
+    ]))
+
+    # ── Órdenes ──
+    _add_table('Ordenes Pendientes', stats.get('ordenes', {}).get('distribucion', []), OrderedDict([
+        ('Cantidad', 'cantidad')
+    ]))
+
+    tablas_ws.column_dimensions['A'].width = 40
+    for c in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
+        tablas_ws.column_dimensions[c].width = 16
+
 def process_kpi_excels(file_paths, semana_num, output_path,
                        ots_mapping=None, export_ops_mapping=None,
-                       puestos_mapping=None, metadata=None):
+                       puestos_mapping=None, grupos_mapping=None,
+                       use_pto_trabajo=False, metadata=None):
     """
     Procesa los 5 archivos SAP crudos (flujo Múltiples Excel), aplica la lógica de
     preprocesamiento y genera el Excel consolidado.
     - ots_mapping: dict {orden: (gr_planif_code, gr_planif_pm)} para Trabajo Planificado.
     - export_ops_mapping: dict {orden: cant_ops} para corregir totales en Plan Matriz.
+    - grupos_mapping: dict {codigo_grupo: nombre_grupo} desde DB o PLANNING_GROUP_MAP.
     No afecta a process_ready_excel (flujo Excel Consolidado Listo).
     """
     if ots_mapping is None:
         ots_mapping = {}
     if export_ops_mapping is None:
         export_ops_mapping = {}
+    if grupos_mapping is None:
+        grupos_mapping = dict(PLANNING_GROUP_MAP)
 
     print(f"[ExcelProcessor] Procesando archivos múltiples semana {semana_num}...")
 
@@ -1083,17 +1206,31 @@ def process_kpi_excels(file_paths, semana_num, output_path,
             return empty_df, dict(empty_tp)
         return empty_df, dict(empty_ps)
 
-    df_avisos,  stats_avisos  = _safe('avisos',            extract_avisos, puestos_mapping=puestos_mapping)
-    df_ordenes, stats_ordenes = _safe('ordenes',           extract_ordenes, puestos_mapping=puestos_mapping)
-    df_trabajo, stats_trabajo = _safe('trabajoPlanificado', extract_trabajo_planificado, ots_mapping, puestos_mapping)
-    df_prog,    stats_prog    = _safe('programaSemanal',   extract_programa_semanal, puestos_mapping=puestos_mapping)
-    df_plan,    stats_plan    = _safe('planMatriz',        extract_plan_matriz, export_ops_mapping, puestos_mapping)
+    df_avisos,  stats_avisos  = _safe('avisos',            extract_avisos, puestos_mapping=puestos_mapping, grupos_mapping=grupos_mapping)
+    df_ordenes, stats_ordenes = _safe('ordenes',           extract_ordenes, puestos_mapping=puestos_mapping, grupos_mapping=grupos_mapping)
+    df_trabajo, stats_trabajo = _safe('trabajoPlanificado', extract_trabajo_planificado, ots_mapping, puestos_mapping, grupos_mapping=grupos_mapping)
+    df_prog,    stats_prog    = _safe('programaSemanal',   extract_programa_semanal, puestos_mapping=puestos_mapping, grupos_mapping=grupos_mapping)
+    df_plan,    stats_plan    = _safe('planMatriz',        extract_plan_matriz, export_ops_mapping, puestos_mapping, grupos_mapping=grupos_mapping)
 
-    # Generar XLSX consolidado con 5 hojas (sin hoja 'Tabla')
+    # Generar XLSX consolidado
     wb = openpyxl.Workbook()
     wb.remove(wb.active)  # Eliminar hoja por defecto
 
-    # Pares de (nombre de hoja, DataFrame); excluye 'Tabla'
+    # ── Hoja 1: Tablas (pivot tables agrupadas) ──
+    tablas_ws = wb.create_sheet('Tablas', 0)
+    combined_stats = {
+        'trabajo': stats_trabajo,
+        'prog': stats_prog,
+        'plan': stats_plan,
+        'avisos': stats_avisos,
+        'ordenes': stats_ordenes,
+    }
+    try:
+        _build_tablas_sheet(wb, tablas_ws, combined_stats, use_pto_trabajo)
+    except Exception as e:
+        print(f"[ExcelProcessor] Error construyendo hoja Tablas: {e}")
+
+    # Pares de (nombre de hoja, DataFrame); hojas de detalle
     sheet_pairs = [
         ('Avisos Pendientes',    df_avisos),
         ('Órdenes Pendientes',   df_ordenes),
