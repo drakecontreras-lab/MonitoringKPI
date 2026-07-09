@@ -2,7 +2,7 @@ import asyncio
 import base64
 import os
 from typing import Optional
-from playwright.async_api import async_playwright, Page, Browser, BrowserContext
+from playwright.async_api import async_playwright, Page, BrowserContext
 from .paths import get_browser_session_dir
 
 class BrowserManager:

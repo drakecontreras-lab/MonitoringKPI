@@ -711,6 +711,11 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
         cols.insert(idx + 1, 'Pto. Trabajo')
         df_clean = df_clean[cols]
 
+    # FIX: HH Plan. Reales y HH Totales Reales vienen de SAP x1000 (22000 = 22.000 HH)
+    for col_hh in ('HH Plan. Reales', 'HH Totales Reales'):
+        if col_hh in df_clean.columns:
+            df_clean[col_hh] = pd.to_numeric(df_clean[col_hh], errors='coerce').fillna(0) / 1000.0
+
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
     return df_clean, {
@@ -723,6 +728,7 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
             'cumplimiento': cumplimiento
         }
     }
+
 
 
 def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
@@ -746,11 +752,15 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
 
     data_rows   = df.iloc[2:-1]
     criterios_col = []
+    gr_planif_col = []
+    gr_planif_pm_col = []
 
     for _, row in data_rows.iterrows():
         row_list = list(row)
         if is_resultado_row(row_list):
             criterios_col.append('')
+            gr_planif_col.append('')
+            gr_planif_pm_col.append('')
             continue
 
         gr_planif_pm  = str(row_list[0] if len(row_list) > 0 else '').strip()
@@ -762,6 +772,8 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
 
         if not proceso_raw or proceso_raw == 'nan':
             criterios_col.append('')
+            gr_planif_col.append('N/A')
+            gr_planif_pm_col.append('N/A')
             continue
 
         cumpl_val  = parse_sap_count(row_list[14] if len(row_list) > 14 else 0)
@@ -778,6 +790,8 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
         cumple_flag = cumpl_val >= 9900
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
+        gr_planif_col.append(gr_planif)
+        gr_planif_pm_col.append(gr_planif_pm)
 
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
@@ -847,6 +861,8 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
 
     df_clean = df_clean.copy()
     df_clean['Criterio'] = criterios_col
+    df_clean['Gr.planif'] = gr_planif_col
+    df_clean['Gr.planif.PM'] = gr_planif_pm_col
     if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
         df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
 
@@ -856,6 +872,10 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
         idx = cols.index('Pto. Trabajo Descripcion')
         cols.insert(idx + 1, 'Pto. Trabajo')
         df_clean = df_clean[cols]
+
+    # FIX: Total Op. Programadas viene x1000 desde SAP (1000 = 1 operacion)
+    if 'Total Op. Programadas' in df_clean.columns:
+        df_clean['Total Op. Programadas'] = pd.to_numeric(df_clean['Total Op. Programadas'], errors='coerce').fillna(0) / 1000.0
 
     df_clean = df_clean.where(pd.notnull(df_clean), None)
 
@@ -868,6 +888,8 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
             'cumplimiento': cumplimiento_total
         }
     }
+
+
 
 
 def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, grupos_mapping=None):
@@ -896,6 +918,8 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
 
     data_rows     = df.iloc[2:-1]
     criterios_col = []
+    gr_planif_col = []
+    gr_planif_pm_col = []
     nuevos_totales_col = []
 
     # Detectar columna de orden en el encabezado (fila 1)
@@ -911,6 +935,8 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
         row_list = list(row)
         if is_resultado_row(row_list):
             criterios_col.append('')
+            gr_planif_col.append('')
+            gr_planif_pm_col.append('')
             nuevos_totales_col.append(None)
             continue
 
@@ -923,6 +949,8 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
 
         if not proceso_raw or proceso_raw == 'nan':
             criterios_col.append('')
+            gr_planif_col.append('N/A')
+            gr_planif_pm_col.append('N/A')
             nuevos_totales_col.append(None)
             continue
 
@@ -961,6 +989,8 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
         cumple_flag = (op_ejec >= op_total and op_total > 0)
         criterio = 'Cumple' if cumple_flag else 'No cumple'
         criterios_col.append(criterio)
+        gr_planif_col.append(gr_planif)
+        gr_planif_pm_col.append(gr_planif_pm)
 
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
@@ -1020,13 +1050,11 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
         if col_name in df_clean.columns:
             df_clean[col_name] = df_clean[col_name].apply(clean_pto_trabajo)
 
-    # Limpiar cumplimiento (columna 14)
-    if len(df_clean.columns) > 14:
-        col_cumpl = df_clean.columns[14]
-        df_clean[col_cumpl] = df_clean[col_cumpl].apply(clean_cumplimiento_val)
-
+    # Asignar Criterio y añadir los grupos calculados
     df_clean = df_clean.copy()
     df_clean['Criterio'] = criterios_col
+    df_clean['Gr.planif'] = gr_planif_col
+    df_clean['Gr.planif.PM'] = gr_planif_pm_col
 
     # Sobrescribir la columna 18 (Total Op original) con el nuevo conteo calculado
     if 18 < len(df_clean.columns):
@@ -1060,51 +1088,39 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
 # PROCESADOR PRINCIPAL — MÚLTIPLES EXCELS CRUDOS
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _build_tablas_sheet(wb, tablas_ws, stats, use_pto_trabajo):
-    """
-    Crea tablas resumen formateadas en la hoja 'Tablas' agrupando por
-    Gr. Planif o Pto. Trabajo según use_pto_trabajo.
-    Cada KPI ocupa su propio bloque con título, headers, datos y fila TOTAL.
-    """
+def _build_tablas_static(wb, tablas_ws, stats, use_pto_trabajo):
+    """Tablas resumen formateadas en hoja Tablas. Garantizado — siempre se crea."""
     from collections import OrderedDict
 
     if use_pto_trabajo:
         row_label = 'Pto. Trabajo'
-        row_cols  = ['ptoTrabajo', 'ptoTrabajoDesc']
+        row_cols = ['ptoTrabajo', 'ptoTrabajoDesc']
     else:
         row_label = 'Gr. Planif'
-        row_cols  = ['grPlanif', 'grPlanifPM']
+        row_cols = ['grPlanif', 'grPlanifPM']
 
     current_row = 2
 
     def _add_table(title, grupos, value_cols_map):
-        """value_cols_map: {display_name: data_key}"""
         nonlocal current_row
         if not grupos:
             return
-
         data_keys = list(value_cols_map.values())
         display_names = list(value_cols_map.keys())
         num_cols = 1 + len(display_names)
 
-        # Título del bloque
-        tablas_ws.merge_cells(start_row=current_row, start_column=1,
-                              end_row=current_row, end_column=num_cols)
+        tablas_ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=num_cols)
         c = tablas_ws.cell(row=current_row, column=1, value=title)
         c.font = openpyxl.styles.Font(bold=True, size=13, color="1F4E79")
         c.fill = openpyxl.styles.PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
         current_row += 1
 
-        # Headers
         for ci, h in enumerate([row_label] + display_names, 1):
             c = tablas_ws.cell(row=current_row, column=ci, value=h)
             c.font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
             c.fill = openpyxl.styles.PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
-            c.border = openpyxl.styles.Border(
-                bottom=openpyxl.styles.Side(style='thin', color='B0B0B0'))
         current_row += 1
 
-        # Agrupar por la columna elegida
         agrupado = OrderedDict()
         for g in grupos:
             key = g.get(row_cols[0], 'N/A')
@@ -1123,7 +1139,6 @@ def _build_tablas_sheet(wb, tablas_ws, stats, use_pto_trabajo):
                 c.number_format = '#,##0.0'
             current_row += 1
 
-        # Fila TOTAL
         tablas_ws.cell(row=current_row, column=1, value="TOTAL").font = openpyxl.styles.Font(bold=True, size=11)
         for ci, dk in enumerate(data_keys, 2):
             total = sum(info['vals'][dk] for info in agrupado.values())
@@ -1133,38 +1148,318 @@ def _build_tablas_sheet(wb, tablas_ws, stats, use_pto_trabajo):
         for ci in range(1, num_cols + 1):
             tablas_ws.cell(row=current_row, column=ci).fill = openpyxl.styles.PatternFill(
                 start_color="E8F0FE", end_color="E8F0FE", fill_type="solid")
-        current_row += 2  # Espacio entre bloques
+        current_row += 2
 
-    # ── Trabajo Planificado ──
+    # Orden: Avisos, Ordenes, Trabajo Planificado, Programa Semanal, Plan Matriz
+    _add_table('Avisos Pendientes', stats.get('avisos', {}).get('distribucion', []), OrderedDict([('Cantidad', 'cantidad')]))
+    _add_table('Ordenes Pendientes', stats.get('ordenes', {}).get('distribucion', []), OrderedDict([('Cantidad', 'cantidad')]))
     _add_table('% Trabajo Planificado', stats.get('trabajo', {}).get('grupos', []), OrderedDict([
-        ('Planificado', 'planificado'), ('Sin HR', 'sinHr'),
-        ('Sin Horizonte', 'sinHorizonte'), ('Imprevistos', 'imprevistos'),
-        ('Total HH', 'total')
-    ]))
-
-    # ── Programa Semanal ──
+        ('Planificado', 'planificado'), ('Sin HR', 'sinHr'), ('Sin Horizonte', 'sinHorizonte'),
+        ('Imprevistos', 'imprevistos'), ('Total HH', 'total')]))
     _add_table('Programa Semanal', stats.get('prog', {}).get('grupos', []), OrderedDict([
-        ('Cumple', 'cumple'), ('No Cumple', 'noCumple'), ('Total Ops', 'total')
-    ]))
-
-    # ── Plan Matriz ──
+        ('Cumple', 'cumple'), ('No Cumple', 'noCumple'), ('Total Ops', 'total')]))
     _add_table('Plan Matriz', stats.get('plan', {}).get('grupos', []), OrderedDict([
-        ('Cumple', 'cumple'), ('No Cumple', 'noCumple'), ('Total Ops', 'total')
-    ]))
-
-    # ── Avisos ──
-    _add_table('Avisos Pendientes', stats.get('avisos', {}).get('distribucion', []), OrderedDict([
-        ('Cantidad', 'cantidad')
-    ]))
-
-    # ── Órdenes ──
-    _add_table('Ordenes Pendientes', stats.get('ordenes', {}).get('distribucion', []), OrderedDict([
-        ('Cantidad', 'cantidad')
-    ]))
+        ('Cumple', 'cumple'), ('No Cumple', 'noCumple'), ('Total Ops', 'total')]))
 
     tablas_ws.column_dimensions['A'].width = 40
-    for c in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
-        tablas_ws.column_dimensions[c].width = 16
+    for col in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
+        tablas_ws.column_dimensions[col].width = 16
+
+
+def _add_pivot_tables_com(output_path, use_pto_trabajo):
+    """Abre XLSX con Excel COM. Crea PivotTables nativas en hoja 'Tablas'.
+    Patrón: MonitoringApp (DispatchEx, constantes numéricas, Range objects, AddDataField)."""
+    import os
+    try:
+        import pythoncom
+        pythoncom.CoInitialize()
+    except Exception:
+        pass
+
+    try:
+        import win32com.client as win32
+    except ImportError:
+        print("[PivotTable] win32com no disponible.")
+        return
+
+    # Constantes numéricas (MonitoringApp pattern)
+    XL_UP = -4162
+    XL_TO_LEFT = -4159
+    XL_DATABASE = 1
+    XL_ROW_FIELD = 1
+    XL_COL_FIELD = 2
+    XL_SUM = -4157
+    XL_COUNT = -4112
+    XL_CALC_MANUAL = -4135
+    XL_CALC_AUTO = -4105
+    XL_TABULAR_ROW = 1
+    XL_REPEAT_LABELS = 1
+
+    def _campo_existe(pt, nombre):
+        try:
+            pt.PivotFields(nombre)
+            return True
+        except Exception:
+            return False
+
+    def _aplicar_formato(pt, nombre):
+        """Aplica estilo naranja claro, quita subtotales y configura layout tabular."""
+        try:
+            pt.TableStyle2 = "PivotStyleMedium7"  # Naranja claro
+        except Exception:
+            try:
+                pt.TableStyle2 = "PivotStyleMedium2"
+            except Exception:
+                pass
+        try:
+            pt.RowAxisLayout(1)  # Tabular
+        except Exception:
+            pass
+        try:
+            pt.RepeatAllLabels(1)
+        except Exception:
+            pass
+        # Quitar subtotales de todos los row fields
+        try:
+            for pf in pt.PivotFields():
+                try:
+                    pf.Subtotals = (False,) * 12
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # Quitar Grand Total de filas
+        try:
+            pt.RowGrand = True   # Mantener total general
+        except Exception:
+            pass
+
+    excel = None
+    wb = None
+    try:
+        excel = win32.DispatchEx("Excel.Application")
+        excel.Visible = False
+        excel.DisplayAlerts = False
+        excel.ScreenUpdating = False
+
+        abs_path = os.path.abspath(output_path)
+        if not os.path.exists(abs_path):
+            print(f"[PivotTable] Archivo {abs_path} no encontrado.")
+            return
+
+        wb = excel.Workbooks.Open(abs_path)
+        
+        # Set calculation AFTER opening workbook, otherwise Excel COM throws error
+        try:
+            excel.Calculation = XL_CALC_MANUAL
+        except:
+            pass
+        
+        sheet_names = [s.Name for s in wb.Worksheets]
+
+        # Recrear hoja 'Tablas'
+        if "Tablas" in sheet_names:
+            tablas_ws = wb.Worksheets("Tablas")
+            tablas_ws.Cells.Clear()
+        else:
+            tablas_ws = wb.Worksheets.Add(Before=wb.Worksheets(1))
+            tablas_ws.Name = "Tablas"
+
+        def _first_row_with_data(ws, col=1):
+            for r in range(1, 20):
+                v = ws.Cells(r, col).Value
+                if v is not None and str(v).strip() not in ('', 'nan'):
+                    return r
+            return 1
+
+        def _find_header_row(ws):
+            """Encontrar fila que parece header (sin números, texto significativo)."""
+            for r in range(1, 8):
+                cell_text = []
+                for c in range(1, min(20, ws.UsedRange.Columns.Count + 1)):
+                    v = ws.Cells(r, c).Value
+                    if v is not None:
+                        cell_text.append(str(v).strip())
+                txt = ' '.join(cell_text).lower()
+                # Si esta fila contiene palabras clave tipo header
+                if any(k in txt for k in ('proceso', 'gr.', 'planif', 'orden', 'aviso', 'area', 'fase', 'ano natural')):
+                    return r
+            return 1
+
+        current_row = 1
+
+        # Estructura exacta replicando el Excel de referencia KPI GSYS SEM20:
+        # (keyword_sheet, titulo, col_field_kw, [(data_kw, agg, etiqueta)])
+        pivot_defs = [
+            ('Avisos',              'Avisos Pendientes',      None,       [('número de avisos pendientes', XL_COUNT, 'Cantidad')]),
+            ('rdenes',              'Órdenes Pendientes',      None,       [('número de órdenes', XL_COUNT, 'Cantidad')]),
+            ('Trabajo Planificado', '% Trabajo Planificado', 'criterio', [('hh totales reales', XL_COUNT, ' Recuento HH Totales Reales')]),
+            ('Programa Semanal',    'Programa Semanal',      'criterio', [('total op. programadas', XL_COUNT, ' Recuento Total Op. Programadas')]),
+            ('Plan Matriz',         'Plan Matriz',           'criterio', [('cantidad de operaciones totales', XL_COUNT, ' Cantidad Ops')]),
+        ]
+
+        for sheet_keyword, titulo, col_field_kw, data_defs in pivot_defs:
+            src_ws = None
+            for sn in sheet_names:
+                if sheet_keyword.lower() in str(sn).lower():
+                    src_ws = wb.Worksheets(sn)
+                    break
+            if src_ws is None:
+                continue
+
+            # Detectar rango de datos (xlUp / xlToLeft — MonitoringApp pattern)
+            ult_f = src_ws.Cells(src_ws.Rows.Count, 1).End(XL_UP).Row
+            ult_c = src_ws.Cells(1, src_ws.Columns.Count).End(XL_TO_LEFT).Column
+            if ult_f < 2:
+                continue
+
+            rng = src_ws.Range(src_ws.Cells(1, 1), src_ws.Cells(ult_f, ult_c))
+
+            # PivotCache (MonitoringApp pattern)
+            try:
+                pc = wb.PivotCaches().Create(XL_DATABASE, rng)
+            except Exception as e:
+                print(f"[PivotTable] Error CreatePivotCache para {sheet_keyword}: {e}")
+                continue
+
+            # Limpiar pivot anterior
+            nombre_pt = f"PT_{sheet_keyword.replace(' ','_')[:20]}"
+            try:
+                tablas_ws.PivotTables(nombre_pt).TableRange2.Clear()
+            except Exception:
+                pass
+
+            # --- Título sobre la pivot ---
+            if current_row > 1:
+                current_row += 1  # fila extra de separación
+            tablas_ws.Cells(current_row, 1).Value = titulo
+            try:
+                tablas_ws.Cells(current_row, 1).Font.Bold = True
+                tablas_ws.Cells(current_row, 1).Font.Size = 13
+                tablas_ws.Cells(current_row, 1).Font.Color = 0x000000  # Negro
+            except Exception:
+                pass
+            pivot_row = current_row + 1
+
+            # Crear PivotTable
+            try:
+                pt = pc.CreatePivotTable(tablas_ws.Cells(pivot_row, 1), nombre_pt)
+            except Exception as e:
+                print(f"[PivotTable] Error CreatePivotTable para {sheet_keyword}: {e}")
+                continue
+
+            # --- Row fields: Proceso (pos1) -> Gr.planif (pos2) -> Gr.planif.PM (pos3) ---
+            header_row = _find_header_row(src_ws)
+
+            def _set_row_field(pt, col_idx, position):
+                """Configura una columna como Row Field en la posición dada."""
+                if col_idx and _campo_existe(pt, col_idx):
+                    try:
+                        pf = pt.PivotFields(col_idx)
+                        pf.Orientation = XL_ROW_FIELD
+                        pf.Position = position
+                        return True
+                    except Exception:
+                        pass
+                return False
+
+            def _find_col_idx(kw_list, exclude_kw=None):
+                """Busca índice de columna por lista de keywords."""
+                for kw in kw_list:
+                    for c in range(1, min(ult_c + 1, 40)):
+                        val = str(src_ws.Cells(header_row, c).Value or '').strip().lower()
+                        if exclude_kw and any(ex in val for ex in exclude_kw):
+                            continue
+                        if kw in val:
+                            return c
+                return None
+
+            # Decidir si row fields son Gr.Planif o Pto. Trabajo según use_pto_trabajo
+            if use_pto_trabajo:
+                col2_kw   = ['pto. trabajo']
+                col2_ex   = ['descripcion', 'desc']
+                col3_kw   = ['puesto de trabajo']
+                col3_ex   = []
+            else:
+                col2_kw   = ['gr. planif', 'gr.planif']
+                col2_ex   = ['pm', 'pm_1']
+                col3_kw   = ['gr.planif.pm', 'gr. planif.pm']
+                col3_ex   = ['_1']
+
+            proceso_idx   = _find_col_idx(['proceso'], exclude_kw=['subprocess', 'subproceso'])
+            col2_idx      = _find_col_idx(col2_kw, exclude_kw=col2_ex)
+            col3_idx      = _find_col_idx(col3_kw, exclude_kw=col3_ex)
+
+            pos = 1
+            if _set_row_field(pt, proceso_idx, pos): pos += 1
+            if _set_row_field(pt, col2_idx, pos):    pos += 1
+            if _set_row_field(pt, col3_idx, pos):    pos += 1
+
+            # --- Column field: Criterio (si aplica) ---
+            if col_field_kw:
+                crit_idx = _find_col_idx([col_field_kw])
+                if crit_idx and _campo_existe(pt, crit_idx):
+                    try:
+                        pt.PivotFields(crit_idx).Orientation = XL_COL_FIELD
+                    except Exception:
+                        pass
+
+            # --- Data fields ---
+            found_data = False
+            for dh_kw, dh_agg, dh_label in data_defs:
+                col_idx = _find_col_idx([dh_kw])
+                if col_idx is None:
+                    continue
+                if _campo_existe(pt, col_idx):
+                    try:
+                        pt.AddDataField(pt.PivotFields(col_idx), dh_label, dh_agg)
+                        found_data = True
+                    except Exception:
+                        pass
+            # Fallback: count por col2
+            if not found_data and col2_idx and _campo_existe(pt, col2_idx):
+                try:
+                    pt.AddDataField(pt.PivotFields(col2_idx), 'Cantidad', XL_COUNT)
+                except Exception:
+                    pass
+
+            _aplicar_formato(pt, nombre_pt)
+
+            # Avanzar: 4 filas después de la tabla
+            current_row = pt.TableRange2.Row + pt.TableRange2.Rows.Count + 4
+
+
+        tablas_ws.Columns(1).ColumnWidth = 40
+        excel.Calculation = XL_CALC_AUTO
+        wb.Save()
+        print("[PivotTable] OK - PivotTables nativas creadas en hoja Tablas")
+
+    except Exception as e:
+        print(f"[PivotTable] Error: {e}")
+    finally:
+        # Cleanup (MonitoringApp pattern)
+        try:
+            if excel:
+                excel.ScreenUpdating = True
+                excel.DisplayAlerts = True
+                excel.Calculation = XL_CALC_AUTO
+                excel.EnableEvents = True
+        except Exception:
+            pass
+        if wb:
+            try:
+                wb.Close(SaveChanges=False)
+            except Exception:
+                pass
+        if excel:
+            try:
+                excel.Quit()
+            except Exception:
+                pass
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
 
 def process_kpi_excels(file_paths, semana_num, output_path,
                        ots_mapping=None, export_ops_mapping=None,
@@ -1214,23 +1509,20 @@ def process_kpi_excels(file_paths, semana_num, output_path,
 
     # Generar XLSX consolidado
     wb = openpyxl.Workbook()
-    wb.remove(wb.active)  # Eliminar hoja por defecto
+    wb.remove(wb.active)
 
-    # ── Hoja 1: Tablas (pivot tables agrupadas) ──
+    # ── Hoja 1: Tablas (estáticas formateadas — garantizadas) ──
     tablas_ws = wb.create_sheet('Tablas', 0)
     combined_stats = {
-        'trabajo': stats_trabajo,
-        'prog': stats_prog,
-        'plan': stats_plan,
-        'avisos': stats_avisos,
-        'ordenes': stats_ordenes,
+        'trabajo': stats_trabajo, 'prog': stats_prog, 'plan': stats_plan,
+        'avisos': stats_avisos, 'ordenes': stats_ordenes,
     }
     try:
-        _build_tablas_sheet(wb, tablas_ws, combined_stats, use_pto_trabajo)
+        _build_tablas_static(wb, tablas_ws, combined_stats, use_pto_trabajo)
     except Exception as e:
-        print(f"[ExcelProcessor] Error construyendo hoja Tablas: {e}")
+        print(f"[ExcelProcessor] Error hoja Tablas: {e}")
 
-    # Pares de (nombre de hoja, DataFrame); hojas de detalle
+    # ── Hojas de detalle ──
     sheet_pairs = [
         ('Avisos Pendientes',    df_avisos),
         ('Órdenes Pendientes',   df_ordenes),
@@ -1258,6 +1550,9 @@ def process_kpi_excels(file_paths, semana_num, output_path,
 
     wb.save(output_path)
     print(f"[ExcelProcessor] XLSX consolidado guardado en: {output_path}")
+
+    # Crear PivotTables nativas con Excel COM (drill-down real)
+    _add_pivot_tables_com(output_path, use_pto_trabajo)
 
     # Construir respuesta de KPIs en formato estándar
     tp   = stats_trabajo['total']

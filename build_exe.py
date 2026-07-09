@@ -52,13 +52,15 @@ if not os.path.exists(dist_path):
 command = [
     "pyinstaller",
     "--name=Monitoring KPIs Corporativos",
-    "--windowed",
+    "--console",
     f"--icon={ico_path}",
     "--noconfirm",
+    "--clean",
     "--add-data=frontend/dist;frontend/dist",
     "--add-data=config.json;.",
     "--add-data=.env;.",
     "--add-data=icon.ico;.",
+    "--add-data=.venv/Lib/site-packages/playwright/driver;playwright/driver",
     "main.py"
 ]
 

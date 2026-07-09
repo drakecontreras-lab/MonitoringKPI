@@ -144,6 +144,21 @@ h1, h2, h3, h4 {
   box-shadow: var(--shadow-premium);
 }
 
+.pywebview-drag-region {
+  -webkit-app-region: drag;
+}
+
+.window-btn {
+  -webkit-app-region: no-drag;
+}
+.window-btn:hover {
+  background: rgba(255,255,255,0.08) !important;
+}
+.window-btn.close:hover {
+  background: #e81123 !important;
+  color: #fff !important;
+}
+
 .brand-section {
   display: flex;
   align-items: center;

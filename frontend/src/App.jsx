@@ -225,7 +225,7 @@ export default function App() {
   return (
     <div className="app-container">
       {/* HEADER */}
-      <header className="app-header glass-panel">
+      <header className="app-header glass-panel" style={{ position: 'relative' }}>
         <div className="brand-section">
           <div>
             <h1 className="brand-title">Monitoring KPI's Corporativos</h1>
@@ -238,16 +238,6 @@ export default function App() {
             <span className="material-icons">query_stats</span>
             <span>KPIs Corporativos</span>
           </button>
-          {/* Ocultado por requerimiento
-          <button className={`tab-btn ${activeTab === 'sap-uso' ? 'active' : ''}`} onClick={() => setActiveTab('sap-uso')}>
-            <span className="material-icons">hub</span>
-            <span>CRUD</span>
-          </button>
-          <button className={`tab-btn ${activeTab === 'proyecciones' ? 'active' : ''}`} onClick={() => setActiveTab('proyecciones')}>
-            <span className="material-icons">precision_manufacturing</span>
-            <span>Proyecciones</span>
-          </button>
-          */}
           <button className={`tab-btn ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
             <span className="material-icons">settings</span>
             <span>Configuración</span>

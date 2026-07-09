@@ -121,34 +121,31 @@ def save_kpi_to_supabase(area_id, anio, semana, data, user_email=""):
         if "programaSemanal" in data: recolectar_procesos(data["programaSemanal"].get("grupos", []))
         if "planMatriz" in data: recolectar_procesos(data["planMatriz"].get("grupos", []))
 
-        # Iteramos por cada proceso para crear un reporte separado
+        # 1. Buscar si ya existe el reporte para esta área y semana
+        rep_res = supabase.table("kpi_reports").select("id")\
+            .eq("area_id", area_id)\
+            .eq("anio", anio)\
+            .eq("semana", semana).execute()
+        
+        if rep_res.data:
+            report_id = rep_res.data[0]["id"]
+            supabase.table("kpi_reports").update({"created_by": user_email}).eq("id", report_id).execute()
+            supabase.table("kpi_metrics").delete().eq("report_id", report_id).execute()
+        else:
+            rep_res = supabase.table("kpi_reports").insert({
+                "area_id": area_id,
+                "anio": anio,
+                "semana": semana,
+                "created_by": user_email
+            }).execute()
+            report_id = rep_res.data[0]["id"]
+
+        metrics_to_insert = []
+
+        # 2. Iteramos por cada proceso para recolectar sus métricas bajo el mismo reporte
         for nombre_proceso in procesos_encontrados:
             proceso_id = sync_proceso(area_id, nombre_proceso)
             if not proceso_id: continue
-            
-            # 1. Buscar si ya existe el reporte para esta área, proceso y semana
-            rep_res = supabase.table("kpi_reports").select("id")\
-                .eq("area_id", area_id)\
-                .eq("proceso_id", proceso_id)\
-                .eq("anio", anio)\
-                .eq("semana", semana).execute()
-            
-            if rep_res.data:
-                report_id = rep_res.data[0]["id"]
-                supabase.table("kpi_reports").update({"created_by": user_email}).eq("id", report_id).execute()
-                supabase.table("kpi_metrics").delete().eq("report_id", report_id).execute()
-            else:
-                rep_res = supabase.table("kpi_reports").insert({
-                    "area_id": area_id,
-                    "proceso_id": proceso_id,
-                    "anio": anio,
-                    "semana": semana,
-                    "created_by": user_email
-                }).execute()
-                report_id = rep_res.data[0]["id"]
-                
-            # 2. Preparar métricas a insertar (solo las que coincidan con este proceso)
-            metrics_to_insert = []
             
             def procesar_grupos(kpi_type, grupos):
                 for g in grupos:
@@ -169,14 +166,14 @@ def save_kpi_to_supabase(area_id, anio, semana, data, user_email=""):
             if "programaSemanal" in data: procesar_grupos("programa_semanal", data["programaSemanal"].get("grupos", []))
             if "planMatriz" in data: procesar_grupos("plan_matriz", data["planMatriz"].get("grupos", []))
                 
-            # 3. Insertar métricas masivamente
-            if metrics_to_insert:
-                supabase.table("kpi_metrics").insert(metrics_to_insert).execute()
-                
-            print(f"[Supabase] Reporte Semana {semana} guardado exitosamente para proceso {nombre_proceso} (Report ID: {report_id})")
-            if _log_fn:
-                _log_fn("db", f"✅ KPI guardado en DB: Semana {semana} · Proceso {nombre_proceso} (Report ID: {report_id})", "ok")
+        # 3. Insertar todas las métricas masivamente
+        if metrics_to_insert:
+            supabase.table("kpi_metrics").insert(metrics_to_insert).execute()
             
+        print(f"[Supabase] Reporte Semana {semana} guardado exitosamente (Report ID: {report_id})")
+        if _log_fn:
+            _log_fn("db", f"✅ KPI guardado en DB: Semana {semana} (Report ID: {report_id}) con {len(metrics_to_insert)} métricas", "ok")
+        
         return True
     except Exception as e:
         print(f"[Supabase] Error guardando KPI: {e}")

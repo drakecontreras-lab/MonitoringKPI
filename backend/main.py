@@ -5,12 +5,24 @@ import os
 import sys
 import threading
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory # Se removió send_from_bytes por no estar definida ni en uso en Flask.
+from flask import Flask, request, jsonify, send_from_directory # Se removió  por no estar definida ni en uso en Flask.
 from flask_cors import CORS
 import webview
 
 # Agregar el directorio raíz del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Solucionar error de Playwright/asyncio en PyInstaller --windowed (WinError 6: Handle is invalid)
+if sys.platform == "win32":
+    if sys.stdout is None:
+        sys.stdout = open(r'error.log', "w")
+    if sys.stderr is None:
+        sys.stderr = open(r'error.log', "w")
+    if sys.stdin is None:
+        sys.stdin = open(r'error.log', "r")
+
+# (Hack de PLAYWRIGHT_BROWSERS_PATH para PyInstaller)
+os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
 from backend.auth_ms import EntraIDAuth
 from backend.modules.iw29_module import IW29Module
@@ -37,6 +49,7 @@ if getattr(sys, 'frozen', False):
     os.makedirs(appdata_dir, exist_ok=True)
     CONFIG_PATH = os.path.join(appdata_dir, "config.json")
     OUTPUT_DIR = os.path.join(appdata_dir, "output")
+    os.environ["_MONITORING_OUTPUT_DIR"] = OUTPUT_DIR
     # Si no existe config.json en AppData, copiar el default del bundle
     if not os.path.exists(CONFIG_PATH):
         bundled_config = os.path.join(bundle_dir, "config.json")
@@ -51,6 +64,7 @@ else:
     OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.environ["_MONITORING_OUTPUT_DIR"] = OUTPUT_DIR
 
 # Estado global HUD y automatizaciones (compartido por módulos)
 class AppState:
@@ -388,7 +402,7 @@ def api_process_kpis():
         # Conservar trabajoPlanificado y planMatriz con nombre fijo para la automatización SAP.
         # Se usa extensión fija .xlsx como fallback si el archivo no fue subido.
         tp_ext  = os.path.splitext(file_paths['trabajoPlanificado'])[1] if 'trabajoPlanificado' in file_paths else '.xlsx'
-        pm_ext  = os.path.splitext(file_paths['planMatriz'])[1]         if 'planMatriz'         in file_paths else '.xlsx'
+        pm_ext  = os.path.splitext(file_paths['planMatriz'])[1] if 'planMatriz' in file_paths else '.xlsx'
         SAVED_TRAB_PLAN   = os.path.join(OUTPUT_DIR, f"saved_trab_plan{tp_ext}")
         SAVED_PLAN_MATRIZ = os.path.join(OUTPUT_DIR, f"saved_plan_matriz{pm_ext}")
 
@@ -443,6 +457,9 @@ def api_process_kpis():
                 state.emit_log("api", "✅ Automatización SAP de KPIs completada.", "ok")
             except Exception as e:
                 # La automatización falló o fue cancelada: continuar con archivos subidos
+                print(f"ERROR AUTOMATIZACION: {e}")
+                import traceback
+                traceback.print_exc()
                 state.emit_log("api", f"⚠️ Automatización SAP omitida o cancelada ({e}). Procesando con archivos disponibles.", "warning")
         else:
             state.emit_log("api", "⏭️ Ambos archivos SAP subidos manualmente. Se omite la automatización.", "info")
@@ -1194,7 +1211,10 @@ def run_flask():
     # Ejecutar en modo no-debug para evitar levantar subprocesos duplicados con pywebview
     app.run(host="127.0.0.1", port=3001, debug=False, threaded=True)
 
-def main():
+def main(flask_only=False):
+    if flask_only:
+        run_flask()
+        return
     """
     Función de entrada principal de la aplicación.
     Levanta el servidor Flask en background y abre la ventana nativa de escritorio (maximizada) usando pywebview.
