@@ -12,16 +12,6 @@ import webview
 # Agregar el directorio raíz del proyecto al path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Solucionar error de Playwright/asyncio en PyInstaller --windowed (WinError 6: Handle is invalid)
-if sys.platform == "win32":
-    if sys.stdout is None:
-        sys.stdout = open(os.devnull, "w")
-    if sys.stderr is None:
-        sys.stderr = open(os.devnull, "w")
-    if sys.stdin is None:
-        sys.stdin = open(os.devnull, "r")
-
-# (Hack de PLAYWRIGHT_BROWSERS_PATH eliminado, ahora se usa msedge)
 from backend.auth_ms import EntraIDAuth
 from backend.modules.iw29_module import IW29Module
 from backend.modules.proy_module import ProyMacroModule
@@ -46,11 +36,7 @@ if getattr(sys, 'frozen', False):
     appdata_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), "MonitoringKPIsCorporativos")
     os.makedirs(appdata_dir, exist_ok=True)
     CONFIG_PATH = os.path.join(appdata_dir, "config.json")
-    
-    # OUTPUT_DIR se coloca junto al ejecutable para que el usuario pueda ver/modificar los excels fácilmente
-    exe_dir = os.path.dirname(sys.executable)
-    OUTPUT_DIR = os.path.join(exe_dir, "output")
-    
+    OUTPUT_DIR = os.path.join(appdata_dir, "output")
     # Si no existe config.json en AppData, copiar el default del bundle
     if not os.path.exists(CONFIG_PATH):
         bundled_config = os.path.join(bundle_dir, "config.json")
@@ -64,11 +50,7 @@ else:
     CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
     OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 
-# Publicar OUTPUT_DIR como variable de entorno para que todos los handlers
-# lo usen en lugar de os.getcwd()/output (que difiere en la app compilada)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.environ["_MONITORING_OUTPUT_DIR"] = OUTPUT_DIR
-
 
 # Estado global HUD y automatizaciones (compartido por módulos)
 class AppState:
@@ -111,13 +93,12 @@ class AppState:
         self.solicitar_mfa_flag = False
         
         self.mfa_code = None
-        self.mfa_event = threading.Event()
+        self.mfa_event = asyncio.Event()
         # MFA separados por contexto
         self.mfa_code_kpi = None
-        self.mfa_event_kpi = threading.Event()
+        self.mfa_event_kpi = asyncio.Event()
         self.mfa_code_proy = None
-        self.mfa_event_proy = threading.Event()
-        self._mfa_event_kpi_async = None  # Se crea en el loop asyncio la primera vez
+        self.mfa_event_proy = asyncio.Event()
 
     def _run_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
@@ -472,88 +453,59 @@ def api_process_kpis():
         ots_mapping = {}
         export_ops_mapping = {}
 
-        # 3a. Construir ots_mapping desde Proy_ots (IW39)
-        # Estructura SAP IW39: fila 0 = headers, fila 1:-1 = datos
-        # col[5] = Orden, col[1] = CH01/GrPlanif  (layout /BDYTD_25_OT o similar)
+        # 3a. Construir ots_mapping desde Proy_ots
         ots_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_ots*.*"))
         if ots_files:
             latest_ots = max(ots_files, key=os.path.getctime)
             try:
-                df_ots = read_raw_sap_file(latest_ots)
-                data_rows_ots = df_ots.iloc[1:-1]  # saltar 1 fila de header + fila total (IW39 tiene 1 header)
-
-                # Buscar headers en filas 0-2 (export SAP IW39 tiene 2 filas de header)
-                col_orden = 4  # Default: col E (Orden)
-                col_grp = 0    # Default: col A (Grupo planificación)
-                for test_row in range(min(3, len(df_ots))):
-                    header_ots = [str(v).strip().lower() for v in df_ots.iloc[test_row]]
-                    if any('orden' in h for h in header_ots):
-                        found_orden = next((i for i, h in enumerate(header_ots)
-                                            if h == 'orden'), None)
-                        if found_orden is None:
-                            found_orden = next((i for i, h in enumerate(header_ots)
-                                                if h.startswith('orden')), None)
-                        if found_orden is None:
-                            found_orden = next((i for i, h in enumerate(header_ots)
-                                                if 'orden' in h and 'clase' not in h and 'sub' not in h), None)
-                        if found_orden is not None:
-                            col_orden = found_orden
-                        found_grp = next((i for i, h in enumerate(header_ots)
-                                          if 'gr' in h and ('planif' in h or 'planificación' in h)), None)
-                        if found_grp is not None:
-                            col_grp = found_grp
-                        break
-
-                cnt = 0
-                for _, row in data_rows_ots.iterrows():
-                    row_list = list(row)
-                    try:
-                        orden_val = str(int(float(row_list[col_orden]))).strip()
-                    except (ValueError, TypeError, IndexError):
-                        orden_val = str(row_list[col_orden]).strip() if col_orden < len(row_list) else ""
-
-                    if not orden_val or not orden_val.isdigit() or len(orden_val) < 6:
-                        continue
-
-                    grp_raw  = str(row_list[col_grp]).strip() if col_grp < len(row_list) else ""
-                    grp_code = grp_raw.replace("CH01/", "").strip()
-                    if grp_code in ("nan", "", "#"):
-                        continue
-                    grp_pm = PLANNING_GROUP_MAP.get(grp_code, grp_code)
-                    ots_mapping[orden_val] = (grp_code, grp_pm)
-                    cnt += 1
-
-                state.emit_log("api", f"📦 ots_mapping construido: {cnt} órdenes ({os.path.basename(latest_ots)})", "info")
+                import pandas as pd
+                df_ots = pd.read_excel(latest_ots, header=0)
+                cols_ots = [str(c).strip().lower() for c in df_ots.columns]
+                idx_orden = -1
+                idx_grp = -1
+                for i, h in enumerate(cols_ots):
+                    if h == 'orden' or h.startswith('orden'):
+                        idx_orden = i
+                    elif 'grupo planif' in h or 'gr. planif' in h or 'gr.planif' in h:
+                        idx_grp = i
+                
+                if idx_orden >= 0 and idx_grp >= 0:
+                    for _, row in df_ots.iterrows():
+                        try:
+                            orden_val = str(int(float(row.iloc[idx_orden]))).strip()
+                        except (ValueError, TypeError):
+                            orden_val = str(row.iloc[idx_orden]).strip()
+                        grp_code = str(row.iloc[idx_grp]).strip()
+                        if orden_val and orden_val.isdigit():
+                            grp_pm = PLANNING_GROUP_MAP.get(grp_code, grp_code)
+                            ots_mapping[orden_val] = (grp_code, grp_pm)
+                    state.emit_log("api", f"📦 ots_mapping construido: {len(ots_mapping)} órdenes ({os.path.basename(latest_ots)})", "info")
+                else:
+                    state.emit_log("api", f"⚠️ Archivo Proy_ots no tiene columnas 'Orden' o 'Grupo planif' reconocibles.", "warn")
             except Exception as e:
                 state.emit_log("api", f"Error leyendo Proy_ots: {e}", "error")
 
-        # 3b. Construir export_ops_mapping desde Proy_37N (IW37N)
-        # Estructura SAP IW37N: fila 0 = headers, fila 1:-1 = datos
-        # col[8] = Orden (layout KPIAT0610 / /KPIAT0610_M)
+        # 3b. Construir export_ops_mapping desde Proy_37N
         p37n_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_37N*.*"))
         if p37n_files:
             latest_37n = max(p37n_files, key=os.path.getctime)
             try:
-                df_37n = read_raw_sap_file(latest_37n)
-                data_rows_37n = df_37n.iloc[1:-1]  # saltar header y fila total
-
-                # Detectar columna de Orden desde el header de fila 0
-                header_37n = [str(v).strip().lower() for v in df_37n.iloc[0]]
-                col_orden_37n = next((i for i, h in enumerate(header_37n) if 'orden' in h), 8)
-
-                cnt = 0
-                for _, row in data_rows_37n.iterrows():
-                    row_list = list(row)
-                    try:
-                        orden_ep = str(int(float(row_list[col_orden_37n]))).strip()
-                    except (ValueError, TypeError, IndexError):
-                        orden_ep = str(row_list[col_orden_37n]).strip() if col_orden_37n < len(row_list) else ""
-
-                    if orden_ep and orden_ep.isdigit() and len(orden_ep) >= 6:
-                        export_ops_mapping[orden_ep] = export_ops_mapping.get(orden_ep, 0) + 1
-                        cnt += 1
-
-                state.emit_log("api", f"📦 export_ops_mapping construido: {cnt} órdenes ({os.path.basename(latest_37n)})", "info")
+                import pandas as pd
+                df_37n = pd.read_excel(latest_37n, header=0)
+                cols_37n = [str(c).strip().lower() for c in df_37n.columns]
+                idx_orden_ep = next((i for i, c in enumerate(cols_37n) if c == 'orden' or c.startswith('orden')), -1)
+                
+                if idx_orden_ep >= 0:
+                    for _, row in df_37n.iterrows():
+                        try:
+                            orden_ep = str(int(float(row.iloc[idx_orden_ep]))).strip()
+                        except (ValueError, TypeError):
+                            orden_ep = str(row.iloc[idx_orden_ep]).strip()
+                        if orden_ep and orden_ep.isdigit():
+                            export_ops_mapping[orden_ep] = export_ops_mapping.get(orden_ep, 0) + 1
+                    state.emit_log("api", f"📦 export_ops_mapping construido: {len(export_ops_mapping)} órdenes ({os.path.basename(latest_37n)})", "info")
+                else:
+                    state.emit_log("api", "⚠️ Archivo Proy_37N no tiene columna 'Orden' reconocible.", "warn")
             except Exception as e:
                 state.emit_log("api", f"Error leyendo Proy_37N: {e}", "error")
         else:
@@ -583,30 +535,11 @@ def api_process_kpis():
             except Exception as e:
                 state.emit_log("api", f"Error obteniendo puestos_trabajo de DB: {e}", "warn")
 
-        from backend.utils.kpi_excel_processor import PLANNING_GROUP_MAP
-        grupos_mapping = dict(PLANNING_GROUP_MAP)
-        if supabase:
-            try:
-                res_g = supabase.table("grupos_planificacion").select("gp,nombre").execute()
-                if hasattr(res_g, 'data') and res_g.data:
-                    for item in res_g.data:
-                        gp = str(item.get("gp", "")).strip()
-                        nombre = str(item.get("nombre", "")).strip()
-                        if gp and nombre:
-                            grupos_mapping[gp] = nombre
-                    state.emit_log("api", f"📦 grupos_mapping cargado de DB: {len(res_g.data)} grupos", "info")
-            except Exception as e:
-                state.emit_log("api", f"Error obteniendo grupos_planificacion de DB: {e}", "warn")
-
-        use_pto_trabajo = str(request.form.get('use_pto_trabajo', 'false')).strip().lower() == 'true'
-
         summary_data = process_kpi_excels(
             file_paths, semana_num, output_path,
             ots_mapping=ots_mapping,
             export_ops_mapping=export_ops_mapping,
             puestos_mapping=puestos_mapping,
-            grupos_mapping=grupos_mapping,
-            use_pto_trabajo=use_pto_trabajo,
             metadata=metadata
         )
 
@@ -618,8 +551,6 @@ def api_process_kpis():
         # Agregar URLs de descarga para React
         summary_data["downloadUrl"] = f"/reports/{filename}"
         summary_data["filename"] = filename
-
-        summary_data["use_pto_trabajo"] = use_pto_trabajo
         
         # --- Guardar en Supabase ---
         from backend.utils.supabase_client import sync_hierarchy, save_kpi_to_supabase
@@ -636,6 +567,9 @@ def api_process_kpis():
         if area_id:
             # Upsert de datos
             save_kpi_to_supabase(area_id, anio, semana_num, summary_data, user_email)
+
+        use_pto_trabajo = str(request.form.get('use_pto_trabajo', 'false')).lower() == 'true'
+        summary_data["use_pto_trabajo"] = use_pto_trabajo
 
 
         return jsonify({"success": True, "data": summary_data})
@@ -1094,17 +1028,17 @@ def api_enviar_mfa():
         if contexto == "kpi":
             state.mfa_code_kpi = codigo_str
             state.hud_kpi["solicitar_mfa"] = False
-            state.mfa_event_kpi.set()  # threading.Event, thread-safe directo
+            state.loop.call_soon_threadsafe(state.mfa_event_kpi.set)
             state.emit_log_kpi("🔑 Código OTP MFA enviado al navegador.", "info")
         elif contexto == "proy":
             state.mfa_code_proy = codigo_str
             state.hud_proy["solicitar_mfa"] = False
-            state.mfa_event_proy.set()  # threading.Event, thread-safe directo
+            state.loop.call_soon_threadsafe(state.mfa_event_proy.set)
             state.emit_log_proy("🔑 Código OTP MFA enviado al navegador.", "info")
         else:
             state.mfa_code = codigo_str
             state.solicitar_mfa_flag = False
-            state.mfa_event.set()  # threading.Event, thread-safe directo
+            state.loop.call_soon_threadsafe(state.mfa_event.set)
             state.emit_log("auth", "🔑 Código OTP MFA enviado al navegador.", "info")
         return jsonify({"success": True})
     except Exception as e:
@@ -1260,39 +1194,15 @@ def run_flask():
     # Ejecutar en modo no-debug para evitar levantar subprocesos duplicados con pywebview
     app.run(host="127.0.0.1", port=3001, debug=False, threaded=True)
 
-def main(flask_only=False):
+def main():
     """
     Función de entrada principal de la aplicación.
     Levanta el servidor Flask en background y abre la ventana nativa de escritorio (maximizada) usando pywebview.
-    Si flask_only=True, solo arranca Flask (sin pywebview) — útil para splash desde root main.py.
     """
     # 1. Levantar servidor Flask en un hilo background
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-
-    if flask_only:
-        return
-
-    # Inyectar icono en Windows usando ctypes
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            def set_window_icon():
-                import win32gui
-                import win32con
-                hwnd = win32gui.FindWindowW(None, "Monitoring KPI's Corporativos")
-                if hwnd:
-                    icon_path_w = icon_path if icon_path else ""
-                    hicon = ctypes.windll.user32.LoadImageW(0, icon_path_w, win32con.IMAGE_ICON, 0, 0, win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE)
-                    if hicon:
-                        ctypes.windll.user32.SendMessageW(hwnd, win32con.WM_SETICON, win32con.ICON_SMALL, hicon)
-                        ctypes.windll.user32.SendMessageW(hwnd, win32con.WM_SETICON, win32con.ICON_BIG, hicon)
-            
-            # Ejecutar después de 2 segundos para dar tiempo a que la ventana se cree
-            threading.Timer(2.0, set_window_icon).start()
-        except Exception as e:
-            print("[startup] No se pudo inyectar el icono:", e)
-            
+    
     # 2. Levantar la ventana de escritorio pywebview apuntando al servidor local
     entry_url = "http://127.0.0.1:3001"
     
@@ -1309,9 +1219,8 @@ def main(flask_only=False):
         maximized=True
     )
     
-    # Iniciar pywebview en modo normal de producción (sin debug inspector)
-    icon_path = os.path.join(bundle_dir, "icon.ico") if os.path.exists(os.path.join(bundle_dir, "icon.ico")) else None
-    webview.start(debug=False, icon=icon_path)
+    # Iniciar pywebview en modo debug para poder depurar errores del frontend
+    webview.start(debug=True)
 
 if __name__ == "__main__":
     main()
