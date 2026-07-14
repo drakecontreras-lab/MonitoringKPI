@@ -123,21 +123,21 @@ class ProyAutoModule(BaseModule):
 
             from backend.utils.proyeccion_avisos_handler import ProyeccionAvisosHandler
             from backend.utils.proyeccion_ots_proy_handler import ProyeccionOtsHandler
-            from backend.utils.proyeccion_ordenes_handler import ProyeccionOrdenesHandler
+            from backend.utils.proyeccion_iw37n_handler import ProyeccionIw37nHandler
             from backend.utils.proyeccion_avisos_diea_handler import ProyeccionAvisosDieaHandler
             from backend.utils.proyeccion_ots_diea_handler import ProyeccionOtsDieaHandler
-            from backend.utils.proyeccion_ordenes_diea_handler import ProyeccionOrdenesDieaHandler
+            from backend.utils.proyeccion_iw37n_diea_handler import ProyeccionIw37nDieaHandler
             from backend.utils.proyeccion_avisos_st_handler import ProyeccionAvisosStHandler
             from backend.utils.proyeccion_ots_st_handler import ProyeccionOtsStHandler
 
             # Instanciar handlers
             h_avisos = ProyeccionAvisosHandler(page, self.log, url_base)
             h_ots = ProyeccionOtsHandler(page, self.log, url_base)
-            h_ordenes = ProyeccionOrdenesHandler(page, self.log, url_base)
+            h_iw37n = ProyeccionIw37nHandler(page, self.log, url_base)
 
             h_avisos_diea = ProyeccionAvisosDieaHandler(page, self.log, url_base)
             h_ots_diea = ProyeccionOtsDieaHandler(page, self.log, url_base)
-            h_ordenes_diea = ProyeccionOrdenesDieaHandler(page, self.log, url_base)
+            h_iw37n_diea = ProyeccionIw37nDieaHandler(page, self.log, url_base)
 
             h_avisos_st = ProyeccionAvisosStHandler(page, self.log, url_base)
             h_ots_st = ProyeccionOtsStHandler(page, self.log, url_base)
@@ -168,7 +168,7 @@ class ProyAutoModule(BaseModule):
                     if any(s in selected for s in ("trabajo_planificado", "programa_semanal", "plan_matriz")):
                         step += 1
                         self.actualizar_progreso(0.10 + (step/max(total_steps,1))*0.30)
-                        await h_ordenes.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="", excel_plan_matriz=excel_plan_matriz)
+                        await h_iw37n.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="", excel_plan_matriz=excel_plan_matriz)
                         await self.manejar_pausa()
                     if "ordenes" in selected:
                         step += 1
@@ -192,7 +192,7 @@ class ProyAutoModule(BaseModule):
                     if any(s in selected for s in ("trabajo_planificado", "programa_semanal", "plan_matriz")):
                         step += 1
                         self.actualizar_progreso(0.50 + (step/max(total_steps,1))*0.20)
-                        await h_ordenes_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
+                        await h_iw37n_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
                         await self.manejar_pausa()
                     if "ordenes" in selected:
                         step += 1
@@ -254,7 +254,7 @@ class ProyAutoModule(BaseModule):
                 await self.manejar_pausa()
 
                 self.actualizar_progreso(0.65)
-                await h_ordenes.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="",
+                await h_iw37n.ejecutar(lista_uts=lista_uts, layout="KPIAT0610", suffix="",
                                          excel_plan_matriz=excel_plan_matriz)
                 await self.manejar_pausa()
 
@@ -268,7 +268,7 @@ class ProyAutoModule(BaseModule):
                 await self.manejar_pausa()
 
                 self.actualizar_progreso(0.95)
-                await h_ordenes_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
+                await h_iw37n_diea.ejecutar(grupo_planif=grupo_planif, layout="KPIAT0610", suffix="_DIEA")
 
                 self.log("✅ Ciclo de descargas completo finalizado correctamente.", "ok")
                 self.actualizar_progreso(1.0)
@@ -280,7 +280,7 @@ class ProyAutoModule(BaseModule):
                 await h_ots.ejecutar(lista_uts=lista_uts)
                 self.actualizar_progreso(1.0)
             elif modo == "ordenes_ut":
-                await h_ordenes.ejecutar(lista_uts=lista_uts, excel_plan_matriz=excel_plan_matriz)
+                await h_iw37n.ejecutar(lista_uts=lista_uts, excel_plan_matriz=excel_plan_matriz)
                 self.actualizar_progreso(1.0)
 
             elif modo == "avisos_diea":
@@ -290,7 +290,7 @@ class ProyAutoModule(BaseModule):
                 await h_ots_diea.ejecutar(grupo_planif=grupo_planif)
                 self.actualizar_progreso(1.0)
             elif modo == "ordenes_diea":
-                await h_ordenes_diea.ejecutar(grupo_planif=grupo_planif)
+                await h_iw37n_diea.ejecutar(grupo_planif=grupo_planif)
                 self.actualizar_progreso(1.0)
 
             elif modo == "avisos_st":

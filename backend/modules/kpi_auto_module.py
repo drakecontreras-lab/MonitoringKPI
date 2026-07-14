@@ -98,10 +98,10 @@ class KpiAutoModule(BaseModule):
 
             # Importar handlers
             from backend.utils.proyeccion_ots_handler import ProyeccionOtsHandler
-            from backend.utils.proyeccion_ordenes_handler import ProyeccionOrdenesHandler
+            from backend.utils.proyeccion_iw37n_handler import ProyeccionIw37nHandler
 
             h_ots = ProyeccionOtsHandler(page, self.log, url_base)
-            h_ordenes = ProyeccionOrdenesHandler(page, self.log, url_base)
+            h_iw37n = ProyeccionIw37nHandler(page, self.log, url_base)
 
             self.log("🗂️ Ejecutando batch de KPIs (OTs + Órdenes) en una misma sesión...")
             
