@@ -3,6 +3,7 @@ import EmailPreview from './EmailPreview';
 import SettingsModal from './SettingsModal';
 import { createPortal } from 'react-dom';
 import KpiDashboardCharts from './KpiDashboardCharts';
+import IndicatorCharts from './IndicatorCharts';
 import ConfirmDialog from './ConfirmDialog';
 import SortableRow from './SortableRow';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -29,6 +30,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   const [uploadMode, setUploadMode] = useState('raw');
   const [showArchivosApoyo, setShowArchivosApoyo] = useState(false);
   const [dialog, setDialog] = useState(null);
+  const [expandedImage, setExpandedImage] = useState(null);
   const pbiConsoleRef = useRef(null);
   const kpiConsoleRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -157,6 +159,13 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   useEffect(() => {
     if (kpiConsoleRef.current) kpiConsoleRef.current.scrollTop = kpiConsoleRef.current.scrollHeight;
   }, [kpiRobotLogs]);
+
+  useEffect(() => {
+    if (!expandedImage) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setExpandedImage(null); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [expandedImage]);
 
   useEffect(() => {
     if (pbiConsoleRef.current) pbiConsoleRef.current.scrollTop = pbiConsoleRef.current.scrollHeight;
@@ -976,6 +985,8 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                     })()}
                   </div>
 
+                  <IndicatorCharts kpiData={kpiData} />
+
                   {/* Descarga Excel y Power BI */}
                   <div className="excel-download-bar" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', alignItems: 'stretch' }}>
                     <div className="flex-between w-full">
@@ -1075,9 +1086,9 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
 
                       {pbiImage && (
                         <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 'bold' }}>Última captura obtenida:</span>
+                          <span style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 'bold' }}>Última captura obtenida (clic para ampliar):</span>
                           <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <img src={pbiImage} alt="Captura Power BI" style={{ width: '100%', display: 'block', maxHeight: '300px', objectFit: 'contain', background: '#0b0f19' }} />
+                            <img src={pbiImage} alt="Captura Power BI" onClick={() => setExpandedImage(pbiImage)} style={{ width: '100%', display: 'block', maxHeight: '300px', objectFit: 'contain', background: '#0b0f19', cursor: 'zoom-in' }} />
                           </div>
                         </div>
                       )}
@@ -1473,6 +1484,28 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
             />
           </div>
         </div>
+      )}
+
+      {expandedImage && createPortal(
+        <div
+          onClick={() => setExpandedImage(null)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, cursor: 'zoom-out', padding: '2rem' }}
+        >
+          <button
+            type="button"
+            onClick={() => setExpandedImage(null)}
+            style={{ position: 'fixed', top: '1.25rem', right: '1.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          >
+            <span className="material-icons">close</span>
+          </button>
+          <img
+            src={expandedImage}
+            alt="Captura Power BI ampliada"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '95vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)', cursor: 'default' }}
+          />
+        </div>,
+        document.body
       )}
 
       {dialog && (
