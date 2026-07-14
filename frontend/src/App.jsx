@@ -3,6 +3,7 @@ import SettingsModal from './components/SettingsModal';
 import KpiCorporativosTab from './components/KpiCorporativosTab';
 import ProyeccionesTab from './components/ProyeccionesTab';
 import KpiUsoSapTab from './components/KpiUsoSapTab';
+import MonitoringLogo from './components/MonitoringLogo';
 
 /**
  * Componente raíz App.
@@ -203,10 +204,8 @@ export default function App() {
       {/* HEADER */}
       <header className="app-header glass-panel" style={{ position: 'relative' }}>
         <div className="brand-section">
-          <div>
-            <h1 className="brand-title">KPI's Corporativos</h1>
-            <div className="brand-subtitle">KPIs</div>
-          </div>
+          <MonitoringLogo height="42px" />
+          <div className="brand-subtitle">KPI's Corporativos</div>
         </div>
 
         <nav className="tab-navigation">

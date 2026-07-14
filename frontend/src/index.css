@@ -170,6 +170,34 @@ h1, h2, h3, h4 {
   animation: float 4s ease-in-out infinite;
 }
 
+.brand-logo-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.brand-logo-img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  transition: opacity 0.35s ease-in-out;
+}
+
+.brand-logo-for-light {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+}
+
+[data-theme="light"] .brand-logo-for-dark {
+  opacity: 0;
+}
+
+[data-theme="light"] .brand-logo-for-light {
+  opacity: 1;
+}
+
 .brand-title {
   font-size: 1.75rem;
   font-weight: 800;
