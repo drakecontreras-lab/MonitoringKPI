@@ -6,6 +6,7 @@ import sys
 import threading
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory # Se removió  por no estar definida ni en uso en Flask.
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import webview
 
@@ -244,10 +245,14 @@ def get_db_tables():
     }
     return jsonify({"success": True, "tables": tables_meta})
 
+ALLOWED_CRUD_TABLES = {"divisiones", "gerencias", "areas", "procesos"}
+
 @app.route('/api/db/tables/<table_name>', methods=['GET'])
 def get_table_rows(table_name):
     if not supabase:
         return jsonify({"success": False, "error": "Supabase no configurado"}), 500
+    if table_name not in ALLOWED_CRUD_TABLES:
+        return jsonify({"success": False, "error": "Tabla no permitida"}), 400
     try:
         res = supabase.table(table_name).select("*").order("created_at", desc=True).execute()
         return jsonify({"success": True, "rows": res.data})
@@ -257,6 +262,8 @@ def get_table_rows(table_name):
 @app.route('/api/db/tables/<table_name>', methods=['POST'])
 def create_table_row(table_name):
     if not supabase: return jsonify({"success": False, "error": "No Supabase"}), 500
+    if table_name not in ALLOWED_CRUD_TABLES:
+        return jsonify({"success": False, "error": "Tabla no permitida"}), 400
     data = request.json
     try:
         # Excluir el campo id si viene vacío
@@ -269,6 +276,8 @@ def create_table_row(table_name):
 @app.route('/api/db/tables/<table_name>/<row_id>', methods=['PUT'])
 def update_table_row(table_name, row_id):
     if not supabase: return jsonify({"success": False, "error": "No Supabase"}), 500
+    if table_name not in ALLOWED_CRUD_TABLES:
+        return jsonify({"success": False, "error": "Tabla no permitida"}), 400
     data = request.json
     try:
         if "id" in data: del data["id"]
@@ -281,6 +290,8 @@ def update_table_row(table_name, row_id):
 @app.route('/api/db/tables/<table_name>/<row_id>', methods=['DELETE'])
 def delete_table_row(table_name, row_id):
     if not supabase: return jsonify({"success": False, "error": "No Supabase"}), 500
+    if table_name not in ALLOWED_CRUD_TABLES:
+        return jsonify({"success": False, "error": "Tabla no permitida"}), 400
     try:
         res = supabase.table(table_name).delete().eq("id", row_id).execute()
         return jsonify({"success": True})
@@ -361,7 +372,7 @@ def post_config():
             state.config_data["cc"] = req_data["cc"]
         if "email_settings" in req_data:
             state.config_data["email_settings"] = req_data["email_settings"]
-            
+
         state.guardar_config()
         return jsonify({"success": True, "message": "Configuración guardada correctamente."})
     except Exception as e:
@@ -417,16 +428,20 @@ def api_process_kpis():
         manual_ots_saved = "proy_ots" in request.files
         manual_37n_saved = "proy_37n" in request.files
 
+        # Sufijo "_KPI" evita colisión con los archivos "Proy_ots"/"Proy_37N" que
+        # también genera la automatización de Proyecciones (mismo OUTPUT_DIR,
+        # mismo handler). Sin distinguir el nombre, el glob de más abajo podía
+        # tomar por error el archivo de la otra automatización.
         if manual_ots_saved:
             f_ots = request.files["proy_ots"]
-            nombre_ots = f"{fecha_f}_Proy_ots.xlsx"
+            nombre_ots = f"{fecha_f}_Proy_ots_KPI.xlsx"
             ruta_ots = os.path.join(OUTPUT_DIR, nombre_ots)
             f_ots.save(ruta_ots)
             state.emit_log("api", f"📎 Proy_ots guardado manualmente: {nombre_ots}", "info")
 
         if manual_37n_saved:
             f_37n = request.files["proy_37n"]
-            nombre_37n = f"{fecha_f}_Proy_37N.xlsx"
+            nombre_37n = f"{fecha_f}_Proy_37N_KPI.xlsx"
             ruta_37n = os.path.join(OUTPUT_DIR, nombre_37n)
             f_37n.save(ruta_37n)
             state.emit_log("api", f"📎 Proy_37N guardado manualmente: {nombre_37n}", "info")
@@ -471,7 +486,7 @@ def api_process_kpis():
         export_ops_mapping = {}
 
         # 3a. Construir ots_mapping desde Proy_ots
-        ots_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_ots*.*"))
+        ots_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_ots_KPI*.*"))
         if ots_files:
             latest_ots = max(ots_files, key=os.path.getctime)
             try:
@@ -487,15 +502,14 @@ def api_process_kpis():
                         idx_grp = i
                 
                 if idx_orden >= 0 and idx_grp >= 0:
-                    for _, row in df_ots.iterrows():
-                        try:
-                            orden_val = str(int(float(row.iloc[idx_orden]))).strip()
-                        except (ValueError, TypeError):
-                            orden_val = str(row.iloc[idx_orden]).strip()
-                        grp_code = str(row.iloc[idx_grp]).strip()
-                        if orden_val and orden_val.isdigit():
-                            grp_pm = PLANNING_GROUP_MAP.get(grp_code, grp_code)
-                            ots_mapping[orden_val] = (grp_code, grp_pm)
+                    orden_num = pd.to_numeric(df_ots.iloc[:, idx_orden], errors='coerce')
+                    grp_col = df_ots.iloc[:, idx_grp].astype(str).str.strip()
+                    valid_mask = orden_num.notna()
+                    ordenes_validas = orden_num[valid_mask].astype(int).astype(str)
+                    grupos_validos = grp_col[valid_mask]
+                    for orden_val, grp_code in zip(ordenes_validas, grupos_validos):
+                        grp_pm = PLANNING_GROUP_MAP.get(grp_code, grp_code)
+                        ots_mapping[orden_val] = (grp_code, grp_pm)
                     state.emit_log("api", f"📦 ots_mapping construido: {len(ots_mapping)} órdenes ({os.path.basename(latest_ots)})", "info")
                 else:
                     state.emit_log("api", f"⚠️ Archivo Proy_ots no tiene columnas 'Orden' o 'Grupo planif' reconocibles.", "warn")
@@ -503,7 +517,7 @@ def api_process_kpis():
                 state.emit_log("api", f"Error leyendo Proy_ots: {e}", "error")
 
         # 3b. Construir export_ops_mapping desde Proy_37N
-        p37n_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_37N*.*"))
+        p37n_files = glob.glob(os.path.join(OUTPUT_DIR, "*Proy_37N_KPI*.*"))
         if p37n_files:
             latest_37n = max(p37n_files, key=os.path.getctime)
             try:
@@ -513,13 +527,9 @@ def api_process_kpis():
                 idx_orden_ep = next((i for i, c in enumerate(cols_37n) if c == 'orden' or c.startswith('orden')), -1)
                 
                 if idx_orden_ep >= 0:
-                    for _, row in df_37n.iterrows():
-                        try:
-                            orden_ep = str(int(float(row.iloc[idx_orden_ep]))).strip()
-                        except (ValueError, TypeError):
-                            orden_ep = str(row.iloc[idx_orden_ep]).strip()
-                        if orden_ep and orden_ep.isdigit():
-                            export_ops_mapping[orden_ep] = export_ops_mapping.get(orden_ep, 0) + 1
+                    orden_num_ep = pd.to_numeric(df_37n.iloc[:, idx_orden_ep], errors='coerce')
+                    ordenes_validas_ep = orden_num_ep.dropna().astype(int).astype(str)
+                    export_ops_mapping = ordenes_validas_ep.value_counts().to_dict()
                     state.emit_log("api", f"📦 export_ops_mapping construido: {len(export_ops_mapping)} órdenes ({os.path.basename(latest_37n)})", "info")
                 else:
                     state.emit_log("api", "⚠️ Archivo Proy_37N no tiene columna 'Orden' reconocible.", "warn")
@@ -552,12 +562,15 @@ def api_process_kpis():
             except Exception as e:
                 state.emit_log("api", f"Error obteniendo puestos_trabajo de DB: {e}", "warn")
 
+        use_pto_trabajo = str(request.form.get('use_pto_trabajo', 'false')).lower() == 'true'
+
         summary_data = process_kpi_excels(
             file_paths, semana_num, output_path,
             ots_mapping=ots_mapping,
             export_ops_mapping=export_ops_mapping,
             puestos_mapping=puestos_mapping,
-            metadata=metadata
+            metadata=metadata,
+            use_pto_trabajo=use_pto_trabajo
         )
 
         # Eliminar temporales
@@ -585,7 +598,6 @@ def api_process_kpis():
             # Upsert de datos
             save_kpi_to_supabase(area_id, anio, semana_num, summary_data, user_email)
 
-        use_pto_trabajo = str(request.form.get('use_pto_trabajo', 'false')).lower() == 'true'
         summary_data["use_pto_trabajo"] = use_pto_trabajo
 
 
@@ -642,7 +654,7 @@ def api_process_ready_excel():
             return jsonify({"success": False, "error": "Falta el Excel Consolidado."}), 400
 
         f = request.files["readyExcel"]
-        filename = f.filename or f"KPI GSYS SEM{semana_num}.xlsx"
+        filename = secure_filename(f.filename) or f"KPI GSYS SEM{semana_num}.xlsx"
         
         # Guardar en output
         output_path = os.path.join(OUTPUT_DIR, filename)
@@ -673,17 +685,19 @@ def api_process_ready_excel():
 def api_send_report():
     try:
         req = request.json
-        email = req.get("email")
-        password = req.get("password")
         recipients = req.get("recipients")
         cc = req.get("cc")
         subject = req.get("subject")
         kpi_data = req.get("kpiData")
         template_id = req.get("templateId", 7)
         email_settings = req.get("emailSettings") or req.get("email_settings")
-        
-        if not all([email, password, recipients, subject, kpi_data]):
+
+        if not all([recipients, subject, kpi_data]):
             return jsonify({"success": False, "error": "Faltan parámetros obligatorios."}), 400
+
+        access_token = state.auth.obtener_access_token()
+        if not access_token:
+            return jsonify({"success": False, "error": "Debe iniciar sesión con su cuenta Microsoft en la app antes de enviar correos."}), 401
 
         if email_settings and isinstance(kpi_data, dict):
             kpi_data["email_settings"] = email_settings
@@ -702,7 +716,7 @@ def api_send_report():
                 adjuntos.append(modulo_pbi.ultimo_screenshot)
         
         # Mandar correo
-        enviados = send_kpi_report_email(email, password, recipients, subject, kpi_data, adjuntos, template_id, cc=cc)
+        enviados = send_kpi_report_email(access_token, recipients, subject, kpi_data, adjuntos, template_id, cc=cc)
         
         # Guardar en Supabase tras envío exitoso
         try:
@@ -856,30 +870,41 @@ def api_proy_avisos_p1():
         avisos_p1 = []
         from datetime import date
         fecha_base = request.args.get('fecha_base', '')
-        for _, row in df.iterrows():
+
+        # Parsear fecha_base una sola vez (antes se reparseaba en cada fila)
+        fb = None
+        if fecha_base:
             try:
-                pri_val = row.iloc[idx_pri]
-                pri_num = float(pri_val) if pd.notna(pri_val) else None
-                if pri_num == 1:
-                    dias_trans = None
-                    if idx_fecha >= 0 and fecha_base:
-                        try:
-                            partes = fecha_base.replace("/","-").replace(".","-").split("-")
-                            fb = date(int(partes[2]), int(partes[1]), int(partes[0]))
-                            fecha_aviso = pd.to_datetime(row.iloc[idx_fecha], dayfirst=True, errors='coerce')
-                            if pd.notna(fecha_aviso):
-                                dias_trans = (fb - fecha_aviso.date()).days
-                        except: pass
-                    avisos_p1.append({
-                        "aviso": str(row.iloc[idx_aviso]).strip() if idx_aviso >= 0 else "",
-                        "prioridad": 1,
-                        "ut": str(row.iloc[idx_ut]).strip() if idx_ut >= 0 else "",
-                        "descripcion": str(row.iloc[idx_desc]).strip() if idx_desc >= 0 else "",
-                        "fecha_aviso": str(row.iloc[idx_fecha]).strip()[:10] if idx_fecha >= 0 else "",
-                        "dias_transcurridos": dias_trans if dias_trans is not None else 0,
-                        "estado": "Vencido"
-                    })
-            except: continue
+                partes = fecha_base.replace("/", "-").replace(".", "-").split("-")
+                fb = date(int(partes[2]), int(partes[1]), int(partes[0]))
+            except Exception:
+                fb = None
+
+        # Filtrar prioridad==1 de forma vectorizada antes de iterar (subset, no todo el archivo)
+        pri_col = pd.to_numeric(df.iloc[:, idx_pri], errors='coerce')
+        df_p1 = df[pri_col == 1]
+
+        for _, row in df_p1.iterrows():
+            try:
+                dias_trans = None
+                if idx_fecha >= 0 and fb:
+                    try:
+                        fecha_aviso = pd.to_datetime(row.iloc[idx_fecha], dayfirst=True, errors='coerce')
+                        if pd.notna(fecha_aviso):
+                            dias_trans = (fb - fecha_aviso.date()).days
+                    except Exception:
+                        pass
+                avisos_p1.append({
+                    "aviso": str(row.iloc[idx_aviso]).strip() if idx_aviso >= 0 else "",
+                    "prioridad": 1,
+                    "ut": str(row.iloc[idx_ut]).strip() if idx_ut >= 0 else "",
+                    "descripcion": str(row.iloc[idx_desc]).strip() if idx_desc >= 0 else "",
+                    "fecha_aviso": str(row.iloc[idx_fecha]).strip()[:10] if idx_fecha >= 0 else "",
+                    "dias_transcurridos": dias_trans if dias_trans is not None else 0,
+                    "estado": "Vencido"
+                })
+            except Exception:
+                continue
         return jsonify({"success": True, "avisos": avisos_p1, "total": len(avisos_p1)})
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -894,53 +919,79 @@ def api_proy_generate_excel():
         fecha_base = req.get("fecha_base", "")
         dias_venc_avisos = int(req.get("dias_venc_avisos", 7))
         dias_venc_ordenes = int(req.get("dias_venc_ordenes", 21))
+        use_pto_trabajo = str(req.get("use_pto_trabajo", False)).lower() in ("true", "1")
         import glob
         fecha_str = datetime.now().strftime("%d%m%Y")
         def buscar(patron, excluir=None):
             files = [f for f in os.listdir(OUTPUT_DIR) if patron in f and f.endswith(".xlsx") and not f.startswith("~$")]
-            if excluir: files = [f for f in files if excluir not in f]
+            if excluir:
+                excluir_list = excluir if isinstance(excluir, (list, tuple)) else [excluir]
+                files = [f for f in files if all(ex not in f for ex in excluir_list)]
             if not files: return None
             full = [os.path.join(OUTPUT_DIR, f) for f in files]
             return sorted(full, key=os.path.getmtime, reverse=True)[0]
+        # "_KPI" excluye los archivos generados por la automatización de KPIs
+        # Corporativos (mismo patrón de nombre, mismo OUTPUT_DIR): sin esta
+        # exclusión, Proyecciones podía tomar por error el archivo del otro módulo.
+        excl_normal = ["_DIEA", "_KPI"]
         rutas = {
-            "avisos": [buscar("Proy_avi", excluir="_DIEA"), buscar("Proy_avi_DIEA")],
-            "ordenes": [buscar("Proy_ots", excluir="_DIEA"), buscar("Proy_ots_DIEA")],
-            "trabajo": [buscar("Proy_37N", excluir="_DIEA"), buscar("Proy_37N_DIEA")]
+            "avisos": [buscar("Proy_avi", excluir=excl_normal), buscar("Proy_avi_DIEA")],
+            "ordenes": [buscar("Proy_ots", excluir=excl_normal), buscar("Proy_ots_DIEA")],
+            "trabajo": [buscar("Proy_37N", excluir=excl_normal), buscar("Proy_37N_DIEA")]
         }
         if not rutas["avisos"][0] or not rutas["ordenes"][0] or not rutas["trabajo"][0]:
             return jsonify({"success": False, "error": "Faltan archivos base. Ejecute descargas primero."}), 400
         from backend.utils.post_procesador import PostProcesador
         post = PostProcesador(log_fn=state.emit_log_proy)
-        success = post.ejecutar(semana, fecha_base, rutas, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes)
-        if success:
-            reportes = glob.glob(os.path.join(OUTPUT_DIR, "Reporte_Consolidado_S*.xlsx"))
-            if reportes:
-                latest_report = max(reportes, key=os.path.getctime)
-                filename = os.path.basename(latest_report)
-                return jsonify({"success": True, "filename": filename, "downloadUrl": f"/reports/{filename}", "message": f"Reporte {filename} generado."})
+        summary = post.ejecutar(semana, fecha_base, rutas, dias_venc_avisos=dias_venc_avisos,
+                                dias_venc_ordenes=dias_venc_ordenes, use_pto_trabajo=use_pto_trabajo)
+        if isinstance(summary, dict) and summary.get("filename"):
+            summary["success"] = True
+            summary["message"] = f"Reporte {summary['filename']} generado."
+            return jsonify(summary)
         return jsonify({"success": False, "error": "Error al generar Excel."}), 500
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/proy/latest-summary", methods=["GET"])
+def api_proy_latest_summary():
+    """Devuelve el resumen estructurado del reporte de proyecciones más reciente,
+    leyendo el JSON persistido junto al Excel (flujo robot: FASE 3 lo generó)."""
+    try:
+        import glob, json as _json
+        jsons = glob.glob(os.path.join(OUTPUT_DIR, "Reporte_Consolidado_S*.summary.json"))
+        if not jsons:
+            return jsonify({"success": False, "error": "No hay resumen disponible."}), 404
+        latest = max(jsons, key=os.path.getmtime)
+        with open(latest, "r", encoding="utf-8") as jf:
+            summary = _json.load(jf)
+        summary["success"] = True
+        return jsonify(summary)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/api/proy/send-report", methods=["POST"])
 def api_proy_send_report():
     """Envía reporte de proyecciones por correo."""
     try:
         req = request.json
-        email = req.get("email"); password = req.get("password")
         recipients = req.get("recipients"); cc = req.get("cc")
         subject = req.get("subject")
         proy_data = req.get("proyData")
         filename = proy_data.get("filename") if proy_data else None
-        if not all([email, password, recipients, subject]):
+        if not all([recipients, subject]):
             return jsonify({"success": False, "error": "Faltan parámetros obligatorios."}), 400
+        access_token = state.auth.obtener_access_token()
+        if not access_token:
+            return jsonify({"success": False, "error": "Debe iniciar sesión con su cuenta Microsoft en la app antes de enviar correos."}), 401
         attachment_path = os.path.join(OUTPUT_DIR, filename) if filename else None
         adjuntos = []
         if attachment_path and os.path.exists(attachment_path):
             adjuntos.append(attachment_path)
         from backend.utils.proy_email_sender import send_proy_report_email
-        enviados = send_proy_report_email(email, password, recipients, subject, proy_data, adjuntos, cc=cc)
+        enviados = send_proy_report_email(access_token, recipients, subject, proy_data, adjuntos, cc=cc)
         return jsonify({"success": True, "message": f"Reporte de proyecciones enviado a {enviados} destinatario(s)."})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
