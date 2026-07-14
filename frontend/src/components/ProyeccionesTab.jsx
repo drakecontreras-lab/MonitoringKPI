@@ -9,7 +9,7 @@ const PROJECTION_OPTIONS = [
   { key: 'plan_matriz', label: 'Plan Matriz' }
 ];
 
-export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpConfig, onOpenSettings, user }) {
+export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpenSettings, user }) {
   const [proySubTab, setProySubTab] = useState('dashboard');
   const [proyParams, setProyParams] = useState({
     semana: defaultSemana || '23',
@@ -37,6 +37,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
   const [avisosP1, setAvisosP1] = useState([]);
   const [proyData, setProyData] = useState(null);
   const [generatingExcel, setGeneratingExcel] = useState(false);
+  const [usePtoTrabajo, setUsePtoTrabajo] = useState(false);
 
   const [recipients, setRecipients] = useState('');
   const [cc, setCc] = useState('');
@@ -91,6 +92,11 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
             setProyRunning(false);
             clearInterval(interval);
             cargarAvisosP1();
+            try {
+              const resSummary = await fetch('/api/proy/latest-summary');
+              const dataSummary = await resSummary.json();
+              if (dataSummary.success) setProyData(dataSummary);
+            } catch (e) {}
           }
         } catch (e) {}
       }, 1000);
@@ -133,7 +139,8 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
             activar_grupos: activarGrupos,
             selected_projections: proyParams.selected_projections,
             dias_venc_avisos: diasVencAvisos,
-            dias_venc_ordenes: diasVencOrdenes
+            dias_venc_ordenes: diasVencOrdenes,
+            use_pto_trabajo: usePtoTrabajo
           }
         })
       });
@@ -168,7 +175,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
     try {
       const res = await fetch('/api/proy/generate-excel', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ semana: proyParams.semana, fecha_base: proyParams.fecha_base, dias_venc_avisos: diasVencAvisos, dias_venc_ordenes: diasVencOrdenes })
+        body: JSON.stringify({ semana: proyParams.semana, fecha_base: proyParams.fecha_base, dias_venc_avisos: diasVencAvisos, dias_venc_ordenes: diasVencOrdenes, use_pto_trabajo: usePtoTrabajo })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar Excel.');
@@ -179,14 +186,14 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
   };
 
   const enviarCorreo = async (esPrueba = false) => {
-    if (!smtpConfig.email || !smtpConfig.password) { onOpenSettings(); setEmailStatus({ success: false, error: 'Configure credenciales SMTP.', message: '' }); return; }
+    if (!user?.preferred_username) { setEmailStatus({ success: false, error: 'Debe iniciar sesión con su cuenta Microsoft.', message: '' }); return; }
     const dest = esPrueba ? (user?.preferred_username || '') : recipients;
     if (!dest) { setEmailStatus({ success: false, error: 'Faltan destinatarios.', message: '' }); return; }
     setSendingEmail(true);
     try {
       const res = await fetch('/api/proy/send-report', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: smtpConfig.email, password: smtpConfig.password, recipients: dest, cc: cc, subject: esPrueba ? `[PRUEBA] ${subject}` : subject, proyData: { ...proyData, semana: proyParams.semana, avisos_p1: avisosP1 } })
+        body: JSON.stringify({ recipients: dest, cc: cc, subject: esPrueba ? `[PRUEBA] ${subject}` : subject, proyData: { ...proyData, semana: proyParams.semana, avisos_p1: avisosP1 } })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al enviar.');
@@ -194,6 +201,107 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
     } catch (e) { setEmailStatus({ success: false, error: e.message, message: '' }); }
     finally { setSendingEmail(false); }
   };
+
+  const PROY_TEAL = '#0d7a8c';
+  const PROY_ORANGE = '#bb5726';
+  const grupoColLabel = usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif';
+
+  const renderProyPctBadge = (val) => {
+    const pct = (val || 0) * 100;
+    let className = 'pct-badge error';
+    if (pct >= 95) className = 'pct-badge success';
+    else if (pct >= 70) className = 'pct-badge warning';
+    return <span className={className}>{pct % 1 === 0 ? Math.round(pct) : pct.toFixed(1)}%</span>;
+  };
+
+  const renderProyKpiCards = (resumen) => (
+    <div className="flex gap-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+      <div className="glass-card flex-col gap-0.5" style={{ borderTop: `3px solid ${PROY_TEAL}` }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: PROY_TEAL }}>Avisos Pendientes</span>
+        <span className="font-number font-bold" style={{ fontSize: '1.8rem', color: 'var(--text-main)' }}>{resumen.avisos?.total ?? 0}</span>
+      </div>
+      <div className="glass-card flex-col gap-0.5" style={{ borderTop: `3px solid ${PROY_TEAL}` }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: PROY_TEAL }}>Órdenes Pendientes</span>
+        <span className="font-number font-bold" style={{ fontSize: '1.8rem', color: 'var(--text-main)' }}>{resumen.ordenes?.total ?? 0}</span>
+      </div>
+      <div className="glass-card flex-col gap-0.5" style={{ borderTop: `3px solid ${PROY_ORANGE}` }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: PROY_ORANGE }}>% Trabajo Planificado</span>
+        <span className="font-number font-bold" style={{ fontSize: '1.8rem', color: 'var(--text-main)' }}>{Math.round((resumen.trabajoPlanificado?.cumplimiento || 0) * 100)}%</span>
+      </div>
+      <div className="glass-card flex-col gap-0.5" style={{ borderTop: `3px solid ${PROY_ORANGE}` }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: PROY_ORANGE }}>% Programa Semanal</span>
+        <span className="font-number font-bold" style={{ fontSize: '1.8rem', color: 'var(--text-main)' }}>{Math.round((resumen.programaSemanal?.cumplimiento || 0) * 100)}%</span>
+      </div>
+      <div className="glass-card flex-col gap-0.5" style={{ borderTop: `3px solid ${PROY_ORANGE}` }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: PROY_ORANGE }}>% Plan Matriz</span>
+        <span className="font-number font-bold" style={{ fontSize: '1.8rem', color: 'var(--text-main)' }}>{Math.round((resumen.planMatriz?.cumplimiento || 0) * 100)}%</span>
+      </div>
+    </div>
+  );
+
+  const renderProyDistribucionTable = (title, icon, distribucion) => (
+    <div className="glass-card flex-col gap-1">
+      <h2 className="card-title"><span className="material-icons" style={{ color: PROY_TEAL }}>{icon}</span><span style={{ color: PROY_TEAL }}>{title}</span></h2>
+      <div className="responsive-table-wrapper">
+        <table className="premium-table">
+          <thead><tr style={{ background: 'rgba(13,122,140,0.1)' }}><th style={{ color: PROY_TEAL }}>{grupoColLabel}</th><th className="text-center" style={{ color: PROY_TEAL }}>Cantidad</th></tr></thead>
+          <tbody>
+            {(distribucion || []).map((g, idx) => (
+              <tr key={idx}>
+                <td>{g.grupo}{g.desc ? ` - ${g.desc}` : ''}</td>
+                <td className="text-center font-number">{g.cantidad}</td>
+              </tr>
+            ))}
+            {(!distribucion || distribucion.length === 0) && (<tr><td colSpan="2" className="text-center text-muted">Sin datos</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderProyCumplimientoTable = (title, icon, grupos) => (
+    <div className="glass-card flex-col gap-1">
+      <h2 className="card-title"><span className="material-icons" style={{ color: PROY_ORANGE }}>{icon}</span><span style={{ color: PROY_ORANGE }}>{title}</span></h2>
+      <div className="responsive-table-wrapper">
+        <table className="premium-table">
+          <thead>
+            <tr style={{ background: 'rgba(187,87,38,0.1)' }}>
+              <th style={{ color: PROY_ORANGE }}>{grupoColLabel}</th>
+              <th className="text-center" style={{ color: PROY_ORANGE }}>Cumple</th>
+              <th className="text-center" style={{ color: PROY_ORANGE }}>No Cumple</th>
+              <th className="text-center" style={{ color: PROY_ORANGE }}>Total</th>
+              <th className="text-center" style={{ color: PROY_ORANGE }}>%Cumpl</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(grupos || []).map((g, idx) => (
+              <tr key={idx}>
+                <td>{g.grupo}{g.desc ? ` - ${g.desc}` : ''}</td>
+                <td className="text-center font-number">{g.cumple}</td>
+                <td className="text-center font-number">{g.noCumple}</td>
+                <td className="text-center font-number font-bold">{g.total}</td>
+                <td className="text-center">{renderProyPctBadge(g.cumplimiento)}</td>
+              </tr>
+            ))}
+            {(!grupos || grupos.length === 0) && (<tr><td colSpan="5" className="text-center text-muted">Sin datos</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderProyDashboard = () => (
+    proyData?.resumen && (
+      <div className="flex-col gap-1.5">
+        {renderProyKpiCards(proyData.resumen)}
+        {renderProyDistribucionTable('Avisos Pendientes por ' + grupoColLabel, 'assignment_late', proyData.resumen.avisos?.distribucion)}
+        {renderProyDistribucionTable('Órdenes Pendientes por ' + grupoColLabel, 'build_circle', proyData.resumen.ordenes?.distribucion)}
+        {renderProyCumplimientoTable('Trabajo Planificado', 'fact_check', proyData.resumen.trabajoPlanificado?.grupos)}
+        {renderProyCumplimientoTable('Programa Semanal', 'event_available', proyData.resumen.programaSemanal?.grupos)}
+        {renderProyCumplimientoTable('Plan Matriz', 'grid_view', proyData.resumen.planMatriz?.grupos)}
+      </div>
+    )
+  );
 
   const renderAvisosP1Table = () => (
     avisosP1.length > 0 && (
@@ -249,6 +357,13 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
                 <span className="material-icons" style={{ color: activarGrupos ? '#8b5cf6' : 'var(--text-muted)' }}>group_work</span> Activar Grupos de Planificación
               </label>
               {activarGrupos && <textarea className="form-control h-80 font-mono" value={proyParams.grupos_planif} onChange={(e) => setProyParams({ ...proyParams, grupos_planif: e.target.value })} placeholder="Un grupo por línea" style={{ marginTop: '0.5rem' }} />}
+            </div>
+            <div className="form-group" style={{ background: 'rgba(13,122,140,0.06)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(13,122,140,0.25)' }}>
+              <label style={{ fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <input type="checkbox" checked={usePtoTrabajo} onChange={(e) => setUsePtoTrabajo(e.target.checked)} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                <span className="material-icons" style={{ color: usePtoTrabajo ? '#0d7a8c' : 'var(--text-muted)' }}>engineering</span> Agrupar por Puesto de Trabajo
+              </label>
+              <span style={{ fontSize: '0.72rem', color: '#0d7a8c', marginTop: '0.35rem', display: 'block' }}>{usePtoTrabajo ? 'El resumen se agrupará por Puesto de Trabajo.' : 'El resumen se agrupará por Grupo de Planificación.'}</span>
             </div>
             <div className="form-group">
               <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Proyecciones a Obtener</label>
@@ -331,6 +446,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, smtpC
                   </div>
                 </div>
                 {renderAvisosP1Table()}
+                {renderProyDashboard()}
               </>
             ) : (
               <div className="flex-center flex-col" style={{ minHeight: '300px' }}>
