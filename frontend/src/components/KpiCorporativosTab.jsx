@@ -3,6 +3,9 @@ import EmailPreview from './EmailPreview';
 import SettingsModal from './SettingsModal';
 import { createPortal } from 'react-dom';
 import KpiDashboardCharts from './KpiDashboardCharts';
+import SortableRow from './SortableRow';
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 // Archivos requeridos para el procesamiento de KPIs
 const REQUIRED_FILES = [
@@ -545,6 +548,23 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
         newData[section].total[field] = Math.max(0, Number(value) || 0);
       }
     }
+    setKpiData(newData);
+  };
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (section, subKey, event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const newData = JSON.parse(JSON.stringify(kpiData));
+    const arr = newData[section][subKey];
+    const oldIndex = arr.findIndex(g => g._rowId === active.id);
+    const newIndex = arr.findIndex(g => g._rowId === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    newData[section][subKey] = arrayMove(arr, oldIndex, newIndex);
     setKpiData(newData);
   };
 
