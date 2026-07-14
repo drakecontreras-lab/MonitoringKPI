@@ -10,7 +10,7 @@ import { generateKpiEmailTemplate } from '../utils/emailTemplate.jsx';
  * @param {function} props.onSendTestEmail - Callback para enviar el correo de prueba.
  * @param {object} props.emailSettings - Parámetros editables de correo a previsualizar.
  */
-export default function EmailPreview({ kpiData, sending, onSendTestEmail, onSendRealEmail, emailSettings, setEmailSettings, onSaveEmailSettings, includePowerBI, setIncludePowerBI, selectedTemplate, setSelectedTemplate }) {
+export default function EmailPreview({ kpiData, sending, onSendTestEmail, onSendRealEmail, emailSettings, setEmailSettings, onSaveEmailSettings, includePowerBI, setIncludePowerBI, selectedTemplate, setSelectedTemplate, emailLayouts, selectedEmailLayoutId, onSaveEmailLayout, onUpdateEmailLayout, onLoadEmailLayout, onDeleteEmailLayout }) {
   const [showTemplateEditor, setShowTemplateEditor] = React.useState(false);
 
   /**
@@ -161,6 +161,18 @@ export default function EmailPreview({ kpiData, sending, onSendTestEmail, onSend
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flexGrow: 1 }}>
+            <div className="form-group" style={{ background: 'rgba(139,92,246,0.08)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.25)' }}>
+              <label style={{ color: '#cbd5e0', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '0.4rem', display: 'block' }}>Layouts de Plantilla Guardados</label>
+              <div className="flex gap-0.5" style={{ alignItems: 'center' }}>
+                <select className="form-control" style={{ flex: 1 }} value={selectedEmailLayoutId || ''} onChange={(e) => onLoadEmailLayout(e.target.value)}>
+                  <option value="">Seleccionar layout...</option>
+                  {(emailLayouts || []).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+                <button type="button" onClick={onSaveEmailLayout} className="btn btn-outline" title="Guardar como nuevo layout"><i className="bi bi-plus-lg"></i></button>
+                <button type="button" onClick={onUpdateEmailLayout} disabled={!selectedEmailLayoutId} className="btn btn-outline" title="Actualizar layout seleccionado"><i className="bi bi-save"></i></button>
+                <button type="button" onClick={onDeleteEmailLayout} disabled={!selectedEmailLayoutId} className="btn btn-outline" title="Eliminar layout seleccionado"><i className="bi bi-trash"></i></button>
+              </div>
+            </div>
             <div className="form-group">
               <label style={{ color: '#cbd5e0', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '0.25rem', display: 'block' }}>Texto Superior de División (Header Tag)</label>
               <input

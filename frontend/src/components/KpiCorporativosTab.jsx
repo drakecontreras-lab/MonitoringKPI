@@ -26,6 +26,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   const [kpiSubTab, setKpiSubTab] = useState('visualizacion');
   const [semana, setSemana] = useState(defaultSemana || '23');
   const [uploadMode, setUploadMode] = useState('raw');
+  const [showArchivosApoyo, setShowArchivosApoyo] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [files, setFiles] = useState({
     avisos: null, ordenes: null, trabajoPlanificado: null,
@@ -113,6 +114,10 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   const [recipients, setRecipients] = useState('');
   const [cc, setCc] = useState('');
   const [testRecipients, setTestRecipients] = useState('');
+  const [recipientLists, setRecipientLists] = useState([]);
+  const [selectedRecipientListId, setSelectedRecipientListId] = useState('');
+  const [emailLayouts, setEmailLayouts] = useState([]);
+  const [selectedEmailLayoutId, setSelectedEmailLayoutId] = useState('');
   const [subject, setSubject] = useState('GSYS | Reporte Semanal KPI corporativo');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState({ success: false, error: '', message: '' });
@@ -158,6 +163,8 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
         if (data.recipients) setRecipients(data.recipients);
         if (data.cc) setCc(data.cc);
         if (data.email_settings) setEmailSettings(prev => ({ ...prev, ...data.email_settings }));
+        if (data.recipient_lists) setRecipientLists(data.recipient_lists);
+        if (data.email_layouts) setEmailLayouts(data.email_layouts);
       } catch (e) {}
     };
     cargar();
@@ -460,6 +467,94 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     setIncludePowerBI(false);
   };
 
+  const persistRecipientLists = async (lists) => {
+    try {
+      await fetch('/api/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_lists: lists })
+      });
+    } catch (e) {}
+  };
+
+  const handleSaveRecipientList = async () => {
+    const name = window.prompt('Nombre para la lista de correo:');
+    if (!name) return;
+    const newList = { id: `rl_${Date.now()}`, name, recipients, cc, testRecipients };
+    const updated = [...recipientLists, newList];
+    setRecipientLists(updated);
+    setSelectedRecipientListId(newList.id);
+    await persistRecipientLists(updated);
+  };
+
+  const handleUpdateRecipientList = async () => {
+    if (!selectedRecipientListId) return;
+    const updated = recipientLists.map(l => l.id === selectedRecipientListId ? { ...l, recipients, cc, testRecipients } : l);
+    setRecipientLists(updated);
+    await persistRecipientLists(updated);
+    alert('Lista actualizada.');
+  };
+
+  const handleLoadRecipientList = (id) => {
+    setSelectedRecipientListId(id);
+    const list = recipientLists.find(l => l.id === id);
+    if (list) {
+      setRecipients(list.recipients || '');
+      setCc(list.cc || '');
+      setTestRecipients(list.testRecipients || '');
+    }
+  };
+
+  const handleDeleteRecipientList = async () => {
+    if (!selectedRecipientListId) return;
+    if (!window.confirm('¿Eliminar la lista de correo seleccionada?')) return;
+    const updated = recipientLists.filter(l => l.id !== selectedRecipientListId);
+    setRecipientLists(updated);
+    setSelectedRecipientListId('');
+    await persistRecipientLists(updated);
+  };
+
+  const persistEmailLayouts = async (layouts) => {
+    try {
+      await fetch('/api/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email_layouts: layouts })
+      });
+    } catch (e) {}
+  };
+
+  const handleSaveEmailLayout = async () => {
+    const name = window.prompt('Nombre para el layout de plantilla:');
+    if (!name) return;
+    const newLayout = { id: `el_${Date.now()}`, name, settings: { ...emailSettings } };
+    const updated = [...emailLayouts, newLayout];
+    setEmailLayouts(updated);
+    setSelectedEmailLayoutId(newLayout.id);
+    await persistEmailLayouts(updated);
+  };
+
+  const handleUpdateEmailLayout = async () => {
+    if (!selectedEmailLayoutId) return;
+    const updated = emailLayouts.map(l => l.id === selectedEmailLayoutId ? { ...l, settings: { ...emailSettings } } : l);
+    setEmailLayouts(updated);
+    await persistEmailLayouts(updated);
+    alert('Layout actualizado.');
+  };
+
+  const handleLoadEmailLayout = (id) => {
+    setSelectedEmailLayoutId(id);
+    const layout = emailLayouts.find(l => l.id === id);
+    if (layout) setEmailSettings(prev => ({ ...prev, ...layout.settings }));
+  };
+
+  const handleDeleteEmailLayout = async () => {
+    if (!selectedEmailLayoutId) return;
+    if (!window.confirm('¿Eliminar el layout seleccionado?')) return;
+    const updated = emailLayouts.filter(l => l.id !== selectedEmailLayoutId);
+    setEmailLayouts(updated);
+    setSelectedEmailLayoutId('');
+    await persistEmailLayouts(updated);
+  };
+
   const handleSaveEmailSettings = async () => {
     try {
       const response = await fetch('/api/config', {
@@ -685,26 +780,38 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                     })}
                   </div>
                   <div className="mt-1" style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem' }}>
-                    <p className="text-muted" style={{ fontSize: '0.7rem', marginBottom: '0.5rem', fontWeight: 500 }}>
-                      <span className="material-icons" style={{ fontSize: '0.8rem', verticalAlign: 'middle', marginRight: '0.2rem' }}>info</span>
-                      Opcional: Sube los Excel descargados de IW39 e IW37N para saltar la automatización SAP
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                      {[
-                        { key: 'proyOts', label: 'Proy OTs (IW39)', desc: 'Excel descargado de IW39' },
-                        { key: 'proy37n', label: 'Proy 37N (IW37N)', desc: 'Excel descargado de IW37N' }
-                      ].map(item => {
-                        const hasFile = !!files[item.key];
-                        return (
-                          <div key={item.key} className={`dropzone dropzone-optional ${hasFile ? 'filled' : ''}`}>
-                            <input type="file" accept=".xlsx,.xlsm,.xls" onChange={(e) => setFiles(prev => ({ ...prev, [item.key]: e.target.files[0] }))} />
-                            <span className="material-icons drop-icon">{hasFile ? 'task' : 'attach_file'}</span>
-                            <div className="drop-title">{item.label}</div>
-                            <div className="drop-desc">{hasFile ? files[item.key].name : item.desc}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {!showArchivosApoyo ? (
+                      <button type="button" onClick={() => setShowArchivosApoyo(true)} className="btn btn-outline w-full flex-center gap-0.5" style={{ fontSize: '0.78rem' }}>
+                        <span className="material-icons" style={{ fontSize: '1.05rem' }}>attach_file</span>
+                        <span>Agregar Archivos de Apoyo (IW39 / IW37N)</span>
+                      </button>
+                    ) : (
+                      <>
+                        <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                          <p className="text-muted" style={{ fontSize: '0.7rem', fontWeight: 500, margin: 0 }}>
+                            <span className="material-icons" style={{ fontSize: '0.8rem', verticalAlign: 'middle', marginRight: '0.2rem' }}>info</span>
+                            Opcional: Sube los Excel descargados de IW39 e IW37N para saltar la automatización SAP
+                          </p>
+                          <button type="button" onClick={() => setShowArchivosApoyo(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>Ocultar</button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          {[
+                            { key: 'proyOts', label: 'IW39', desc: 'Layout: /BDYTD_25_OT' },
+                            { key: 'proy37n', label: 'IW37N', desc: 'Layout: /KPIAT0610_M' }
+                          ].map(item => {
+                            const hasFile = !!files[item.key];
+                            return (
+                              <div key={item.key} className={`dropzone dropzone-optional ${hasFile ? 'filled' : ''}`}>
+                                <input type="file" accept=".xlsx,.xlsm,.xls" onChange={(e) => setFiles(prev => ({ ...prev, [item.key]: e.target.files[0] }))} />
+                                <span className="material-icons drop-icon">{hasFile ? 'task' : 'attach_file'}</span>
+                                <div className="drop-title">{item.label}</div>
+                                <div className="drop-desc">{hasFile ? files[item.key].name : item.desc}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1261,6 +1368,18 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
         <div className="dashboard-grid-rows" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
           <div className="glass-card flex-col gap-1.5">
             <h2 className="card-title"><span className="material-icons text-indigo">mail</span><span>Configuración y Envío de Reporte</span></h2>
+            <div className="form-group" style={{ background: 'rgba(139,92,246,0.05)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.2)' }}>
+              <label style={{ fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>Listas de Correo Guardadas</label>
+              <div className="flex gap-0.5" style={{ alignItems: 'center' }}>
+                <select className="form-control" style={{ flex: 1 }} value={selectedRecipientListId} onChange={(e) => handleLoadRecipientList(e.target.value)}>
+                  <option value="">Seleccionar lista...</option>
+                  {recipientLists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+                <button type="button" onClick={handleSaveRecipientList} className="btn btn-outline" title="Guardar como nueva lista"><span className="material-icons">add</span></button>
+                <button type="button" onClick={handleUpdateRecipientList} disabled={!selectedRecipientListId} className="btn btn-outline" title="Actualizar lista seleccionada"><span className="material-icons">save</span></button>
+                <button type="button" onClick={handleDeleteRecipientList} disabled={!selectedRecipientListId} className="btn btn-outline" title="Eliminar lista seleccionada"><span className="material-icons">delete</span></button>
+              </div>
+            </div>
             <div className="form-group">
               <label>Destinatarios Oficiales (Separados por coma o punto y coma)</label>
               <textarea required placeholder="destinatario1@codelco.cl, destinatario2@codelco.cl" className="form-control h-80" style={{ resize: 'none' }} value={recipients} onChange={(e) => setRecipients(e.target.value)} />
@@ -1298,6 +1417,12 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
               setIncludePowerBI={setIncludePowerBI}
               selectedTemplate={selectedTemplate}
               setSelectedTemplate={setSelectedTemplate}
+              emailLayouts={emailLayouts}
+              selectedEmailLayoutId={selectedEmailLayoutId}
+              onSaveEmailLayout={handleSaveEmailLayout}
+              onUpdateEmailLayout={handleUpdateEmailLayout}
+              onLoadEmailLayout={handleLoadEmailLayout}
+              onDeleteEmailLayout={handleDeleteEmailLayout}
             />
           </div>
         </div>
