@@ -857,14 +857,10 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
 
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         if key not in group:
-            group[key] = {'cumple': 0.0, 'noCumple': 0.0, 'sumIndCumple': 0.0, 'sumTotalOp': 0.0}
+            group[key] = {'sumIndCumple': 0.0, 'sumTotalOp': 0.0}
 
         group[key]['sumIndCumple'] += ind_cumple
         group[key]['sumTotalOp']   += total_op
-        if cumple_flag:
-            group[key]['cumple'] += total_op
-        else:
-            group[key]['noCumple'] += total_op
 
         total_ind_cumple += ind_cumple
         total_ops        += total_op
@@ -881,9 +877,13 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
         pto_desc = str(puestos_mapping.get(pto, 'N/A')).capitalize() if puestos_mapping and puestos_mapping.get(pto) else 'N/A'
         vals = group[key]
         cump = vals['sumIndCumple'] / vals['sumTotalOp'] if vals['sumTotalOp'] > 0 else 0.0
+        # 'cumple'/'noCumple' se derivan de Indicador cumple sem (misma fuente
+        # que el %), para que Cumple/Total coincida siempre con el porcentaje
+        # mostrado. Antes 'cumple' salía de un bucket distinto (flag 100%),
+        # que podía no coincidir con Indicador cumple sem fila a fila.
         grupos.append({
             'proceso': p, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
-            'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
+            'cumple': vals['sumIndCumple'], 'noCumple': vals['sumTotalOp'] - vals['sumIndCumple'],
             'total': vals['sumTotalOp'], 'cumplimiento': cump
         })
 
@@ -1967,8 +1967,6 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
     total_prog_cumplimiento_value = extract_total_percentage(prog_rows_raw, 4)
 
     group_prog      = {}
-    total_prog_cumple    = 0.0
-    total_prog_no_cumple = 0.0
     total_prog_total_ops = 0.0
     total_prog_ind_cumple= 0.0
 
@@ -1979,7 +1977,6 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
             col_proc    = _find_col_idx(df_prog.columns, 'proceso')
             col_gp      = _find_col_idx(df_prog.columns, 'gr. planif', 'gr.planif')
             col_gppm    = _find_col_idx(df_prog.columns, 'gr.planif.pm', 'gr. planif.pm')
-            col_criterio= _find_col_idx(df_prog.columns, 'criterio')
             col_ind     = _find_col_idx(df_prog.columns, 'indicador cumple', 'ind cumple')
             col_total   = _find_col_idx(df_prog.columns, 'total op', 'total op. programadas')
             col_pto     = _find_col_idx(df_prog.columns, 'pto. trabajo', 'pto trabajo', 'puesto de trabajo')
@@ -1992,7 +1989,6 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
                 proceso_raw  = str(row_l[col_proc]  if col_proc >= 0  else row_l[4]).strip()
                 gr_planif    = str(row_l[col_gp]    if col_gp >= 0    else row_l[1]).strip()
                 gr_planif_pm = str(row_l[col_gppm]  if col_gppm >= 0  else row_l[0]).strip()
-                criterio_raw = str(row_l[col_criterio] if col_criterio >= 0 else 'Cumple').strip().lower()
                 ind_cumple   = get_num(row_l, col_ind   if col_ind >= 0   else 15)
                 total_op     = get_num(row_l, col_total if col_total >= 0 else 16)
                 pto_trabajo  = clean_pto_trabajo(str(row_l[col_pto] if col_pto >= 0 else 'N/A').strip())
@@ -2010,15 +2006,7 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
 
                 key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
                 if key not in group_prog:
-                    group_prog[key] = {'cumple': 0.0, 'noCumple': 0.0,
-                                       'sumTotalOp': 0.0, 'sumIndicadorCumple': 0.0}
-
-                if 'cumple' in criterio_raw and 'no cumple' not in criterio_raw:
-                    group_prog[key]['cumple'] += total_op
-                    total_prog_cumple += total_op
-                else:
-                    group_prog[key]['noCumple'] += total_op
-                    total_prog_no_cumple += total_op
+                    group_prog[key] = {'sumTotalOp': 0.0, 'sumIndicadorCumple': 0.0}
 
                 group_prog[key]['sumTotalOp']         += total_op
                 group_prog[key]['sumIndicadorCumple'] += ind_cumple
@@ -2037,7 +2025,7 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
         c = vals['sumIndicadorCumple'] / vals['sumTotalOp'] if vals['sumTotalOp'] > 0 else 0.0
         cump_programa_semanal.append({
             'proceso': proceso, 'grPlanif': gp, 'grPlanifPM': gppm, 'ptoTrabajo': pto, 'ptoTrabajoDesc': pto_desc,
-            'cumple': vals['cumple'], 'noCumple': vals['noCumple'],
+            'cumple': vals['sumIndicadorCumple'], 'noCumple': vals['sumTotalOp'] - vals['sumIndicadorCumple'],
             'total': vals['sumTotalOp'], 'cumplimiento': c
         })
 
@@ -2159,8 +2147,8 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
         'programaSemanal': {
             'grupos': cump_programa_semanal,
             'total': {
-                'cumple':    total_prog_cumple,
-                'noCumple':  total_prog_no_cumple,
+                'cumple':    total_prog_ind_cumple,
+                'noCumple':  total_prog_total_ops - total_prog_ind_cumple,
                 'total':     total_prog_total_ops,
                 'cumplimiento': float(total_prog_cumplimiento)
             }
