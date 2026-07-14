@@ -532,11 +532,12 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
     df = read_raw_sap_file(path)
 
     group = {}
-    total_planificado = 0.0
-    total_sin_hr      = 0.0
-    total_imprevistos = 0.0
+    total_planificado   = 0.0
+    total_sin_hr        = 0.0
+    total_sin_horizonte = 0.0
+    total_imprevistos   = 0.0
 
-    data_rows = df.iloc[4:-1]  # Saltar 4 filas de encabezado (title, empty, partial, full headers) + última de total
+    data_rows = df.iloc[2:-1]  # Saltar 2 filas de encabezado (title/vacía + headers) + última de total
 
     criterios_col = []
     gr_planif_col = []
@@ -665,12 +666,12 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
             total_sin_hr += hh_totales
         elif criterio == 'Sin horizonte':
             group[key]['sinHorizonte'] += hh_totales
-            total_sin_hr += hh_totales  # ambos descuentan del cumplimiento
+            total_sin_horizonte += hh_totales
         else:
             group[key]['imprevistos'] += hh_totales
             total_imprevistos += hh_totales
 
-    total_total   = total_planificado + total_sin_hr + total_imprevistos
+    total_total   = total_planificado + total_sin_hr + total_sin_horizonte + total_imprevistos
     cumplimiento  = total_planificado / total_total if total_total > 0 else 0.0
 
     grupos = []
@@ -754,6 +755,7 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
         'total': {
             'planificado': total_planificado,
             'sinHr': total_sin_hr,
+            'sinHorizonte': total_sin_horizonte,
             'imprevistos': total_imprevistos,
             'total': total_total,
             'cumplimiento': cumplimiento
