@@ -19,8 +19,6 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // ─── Configuración SMTP (compartida: usada por KpiCorporativosTab para envíos) ───
-  const [smtpConfig, setSmtpConfig] = useState({ email: '', password: '' });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // ─── Configuración general de SAP / navegador ───
@@ -83,22 +81,18 @@ export default function App() {
   const cerrarSesion = async () => {
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) { }
     
-    localStorage.removeItem('outlook_email');
-    localStorage.removeItem('outlook_password');
     setGeneralConfig({
       credenciales: { usuario: '', contrasena: '' },
       navegador: { url_base: '', headless: false }
     });
-    setSmtpConfig({ email: '', password: '' });
-    
+
     try {
       await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           credenciales: { usuario: '', contrasena: '' },
-          navegador: { url_base: '', headless: false },
-          smtp: { email: '', password: '' }
+          navegador: { url_base: '', headless: false }
         })
       });
     } catch (e) {}
@@ -124,20 +118,9 @@ export default function App() {
             credenciales: data.credenciales || { usuario: '', contrasena: '' },
             navegador: data.navegador || { url_base: '', headless: false }
           });
-          if (data.smtp?.email) {
-            setSmtpConfig({ email: data.smtp.email, password: data.smtp.password || '' });
-            localStorage.setItem('outlook_email', data.smtp.email);
-            if (data.smtp.password) localStorage.setItem('outlook_password', data.smtp.password);
-          }
           if (data.email_settings) setEmailSettings(prev => ({ ...prev, ...data.email_settings }));
         }
       } catch (e) { console.error('Error al cargar configuración:', e); }
-
-      const savedEmail = localStorage.getItem('outlook_email') || '';
-      const savedPassword = localStorage.getItem('outlook_password') || '';
-      if (savedEmail) {
-        setSmtpConfig(prev => (!prev.email ? { email: savedEmail, password: savedPassword } : prev));
-      }
 
       try {
         const resFechas = await fetch('/api/proy/default-dates');
@@ -152,25 +135,18 @@ export default function App() {
     cargarDatosIniciales();
   }, []);
 
-  const handleSaveSettings = async (config) => {
-    setSmtpConfig(config);
-    try {
-      await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ smtp: config })
-      });
-    } catch (e) { console.error('Error al guardar config SMTP:', e); }
-  };
-
   const handleSaveGeneralConfig = async (e) => {
     e.preventDefault();
     setSaveConfigLoading(true);
     try {
+      const payload = {
+        ...generalConfig,
+        email_settings: emailSettings
+      };
       const res = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(generalConfig)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok && data.success) alert('Configuración general guardada con éxito.');
@@ -200,7 +176,7 @@ export default function App() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,#00E5FF_0%,transparent_50%)] opacity-10 pointer-events-none"></div>
         <div className="login-card glass-panel shadow-2xl">
           <div className="brand-logo-glow"><span className="material-icons">security</span></div>
-          <h1 className="login-title">Monitoring KPI's Corporativos</h1>
+          <h1 className="login-title">KPI's Corporativos</h1>
           <p className="login-subtitle">Entorno Unificado de Automatizaciones</p>
           <div className="login-divider"></div>
           <div className="login-info">
@@ -228,7 +204,7 @@ export default function App() {
       <header className="app-header glass-panel" style={{ position: 'relative' }}>
         <div className="brand-section">
           <div>
-            <h1 className="brand-title">Monitoring KPI's Corporativos</h1>
+            <h1 className="brand-title">KPI's Corporativos</h1>
             <div className="brand-subtitle">KPIs</div>
           </div>
         </div>
@@ -238,6 +214,12 @@ export default function App() {
             <span className="material-icons">query_stats</span>
             <span>KPIs Corporativos</span>
           </button>
+          {/* Ocultado a pedido del usuario
+          <button className={`tab-btn ${activeTab === 'proyecciones' ? 'active' : ''}`} onClick={() => setActiveTab('proyecciones')}>
+            <span className="material-icons">precision_manufacturing</span>
+            <span>Proyecciones</span>
+          </button>
+          */}
           <button className={`tab-btn ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
             <span className="material-icons">settings</span>
             <span>Configuración</span>
@@ -271,7 +253,6 @@ export default function App() {
         {/* ── Pestaña 1: KPIs Corporativos ─ siempre montado, oculto cuando inactivo ── */}
         <div style={{ display: activeTab === 'kpis' ? 'contents' : 'none' }}>
           <KpiCorporativosTab
-            smtpConfig={smtpConfig}
             onOpenSettings={() => setIsSettingsOpen(true)}
             user={user}
             defaultSemana={defaultSemana}
@@ -290,7 +271,6 @@ export default function App() {
           <ProyeccionesTab
             defaultSemana={defaultSemana}
             defaultFechaBase={defaultFechaBase}
-            smtpConfig={smtpConfig}
             onOpenSettings={() => setIsSettingsOpen(true)}
             user={user}
           />
@@ -330,6 +310,26 @@ export default function App() {
                   onChange={(e) => setGeneralConfig({ ...generalConfig, navegador: { ...generalConfig.navegador, headless: e.target.checked } })} />
                 <label htmlFor="headless-mode" style={{ cursor: 'pointer', fontSize: '0.88rem' }}>Ejecutar en Segundo Plano (Headless)</label>
               </div>
+
+              <div style={{ height: '1px', background: 'var(--bg-card-border)', margin: '1rem 0' }}></div>
+              <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--text-light)' }}>Configuración de Correo Remitente</h3>
+              <p className="text-muted" style={{ fontSize: '0.8rem', margin: '-0.3rem 0 0.5rem 0' }}>
+                Los correos se envían con la cuenta Microsoft con la que inició sesión en la app ({user?.preferred_username}). No requiere contraseña adicional.
+              </p>
+
+              <div className="form-group">
+                <label>Nombre del Remitente (Firma)</label>
+                <input type="text" required className="form-control" placeholder="Ej. José Contreras"
+                  value={emailSettings.generado_nombre || ''}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, generado_nombre: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Correo del Remitente (Firma)</label>
+                <input type="email" required className="form-control" placeholder="ejemplo@monitoring.cl"
+                  value={emailSettings.generado_email || ''}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, generado_email: e.target.value })} />
+              </div>
+
               <button type="submit" disabled={saveConfigLoading} className="btn btn-primary w-full flex-center gap-0.5" style={{ marginTop: '1.5rem' }}>
                 {saveConfigLoading ? (
                   <><span className="spinner-mini"></span><span>Guardando Ajustes...</span></>
@@ -343,11 +343,10 @@ export default function App() {
 
       </main>
 
-      {/* Modal SMTP */}
+      {/* Modal de ubicación organizativa */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={handleSaveSettings}
       />
     </div>
   );
