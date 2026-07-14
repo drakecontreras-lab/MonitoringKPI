@@ -874,15 +874,174 @@ def get_pivot_safe(ws_tablas, nombre: str):
 
 
 # ============================================================
+# RESUMEN ESTRUCTURADO (para dashboard y correo)
+# ============================================================
+
+def _norm_grupo(v) -> str:
+    """Normaliza el valor de agrupación; vacíos/nan → 'Sin asignar'."""
+    s = str(v).strip()
+    if not s or s.lower() in ("nan", "none", "#", "n/a"):
+        return "Sin asignar"
+    return s.replace("CH01/", "")
+
+
+def _col_grupo(df, use_pto_trabajo: bool):
+    """Devuelve el nombre real de la columna de agrupación según el toggle.
+    - use_pto_trabajo=True  → Puesto de trabajo (Pto.tbjo.responsable)
+    - use_pto_trabajo=False → Grupo de planificación (o 'Grupo hojas ruta' en 37N)"""
+    if use_pto_trabajo:
+        candidatos = ["Pto.tbjo.responsable", "Puesto de trabajo responsable",
+                      "Puesto de trabajo", "Pto. Trabajo"]
+    else:
+        candidatos = ["Grupo planificación", "Grupo planificacion", "Grupo hojas ruta",
+                      "Grupo planif.", "Gr. Planif", "Gr.planif"]
+    for c in candidatos:
+        col = encontrar_columna(df, c)
+        if col:
+            return col
+    return None
+
+
+def calcular_resumen_proyecciones(df_av, df_ot, df_ps, df_pm, df_tp, use_pto_trabajo=False):
+    """Construye el resumen estructurado del reporte de proyecciones agrupado por
+    Grupo de Planificación o Puesto de Trabajo (según use_pto_trabajo).
+    Retorna dict con 'avisos_p1' y 'resumen' (misma forma que KPI corporativos)."""
+
+    def dist_count(df):
+        col = _col_grupo(df, use_pto_trabajo)
+        if col is None or df is None or df.empty:
+            return [], 0
+        agg = {}
+        for v in df[col]:
+            k = _norm_grupo(v)
+            agg[k] = agg.get(k, 0) + 1
+        total = sum(agg.values())
+        dist = [{"grupo": k, "desc": "", "cantidad": agg[k]} for k in sorted(agg)]
+        return dist, total
+
+    def cumpl_por_conteo(df):
+        col = _col_grupo(df, use_pto_trabajo)
+        col_cri = encontrar_columna(df, "Criterio")
+        if col is None or col_cri is None or df is None or df.empty:
+            return [], 0.0
+        grupos = {}
+        for _, row in df.iterrows():
+            k = _norm_grupo(row[col])
+            cri = str(row[col_cri]).strip().lower()
+            g = grupos.setdefault(k, {"cumple": 0, "noCumple": 0})
+            if cri == "cumple":
+                g["cumple"] += 1
+            else:
+                g["noCumple"] += 1
+        out, tc, tt = [], 0, 0
+        for k in sorted(grupos):
+            c, nc = grupos[k]["cumple"], grupos[k]["noCumple"]
+            t = c + nc
+            out.append({"grupo": k, "desc": "", "cumple": c, "noCumple": nc,
+                        "total": t, "cumplimiento": c / t if t > 0 else 0.0})
+            tc += c
+            tt += t
+        return out, (tc / tt if tt > 0 else 0.0)
+
+    def cumpl_por_hh(df):
+        col = _col_grupo(df, use_pto_trabajo)
+        col_cri = encontrar_columna(df, "Criterio")
+        col_hh = (encontrar_columna(df, "Trabajo real") or
+                  encontrar_columna(df, "Trabajo Real") or encontrar_columna(df, "Trabajo"))
+        if col is None or col_cri is None or col_hh is None or df is None or df.empty:
+            return [], 0.0
+        grupos = {}
+        for _, row in df.iterrows():
+            k = _norm_grupo(row[col])
+            cri = str(row[col_cri]).strip().lower()
+            try:
+                hh = float(row[col_hh])
+            except Exception:
+                hh = 0.0
+            g = grupos.setdefault(k, {"cumple": 0.0, "noCumple": 0.0})
+            if cri == "cumple":
+                g["cumple"] += hh
+            else:
+                g["noCumple"] += hh
+        out, tc, tt = [], 0.0, 0.0
+        for k in sorted(grupos):
+            c, nc = grupos[k]["cumple"], grupos[k]["noCumple"]
+            t = c + nc
+            out.append({"grupo": k, "desc": "", "cumple": round(c, 1), "noCumple": round(nc, 1),
+                        "total": round(t, 1), "cumplimiento": c / t if t > 0 else 0.0})
+            tc += c
+            tt += t
+        return out, (tc / tt if tt > 0 else 0.0)
+
+    av_dist, av_total = dist_count(df_av)
+    ot_dist, ot_total = dist_count(df_ot)
+    tp_grupos, tp_cump = cumpl_por_hh(df_tp)
+    ps_grupos, ps_cump = cumpl_por_conteo(df_ps)
+    pm_grupos, pm_cump = cumpl_por_conteo(df_pm)
+
+    # Avisos Prioridad 1
+    avisos_p1 = []
+    col_pri = encontrar_columna(df_av, "Prioridad") or encontrar_columna(df_av, "Prioridad aviso")
+    col_avi = encontrar_columna(df_av, "Aviso")
+    col_ut = encontrar_columna(df_av, "Ubicación técnica")
+    col_desc = (encontrar_columna(df_av, "Descripción") or encontrar_columna(df_av, "Descripcion") or
+                encontrar_columna(df_av, "Texto de aviso") or encontrar_columna(df_av, "Texto breve"))
+    col_fec = encontrar_columna(df_av, "Creado el") or encontrar_columna(df_av, "Fecha de aviso")
+    col_dias = "Días Transcurridos" if (df_av is not None and "Días Transcurridos" in df_av.columns) else None
+    col_est = "Estado" if (df_av is not None and "Estado" in df_av.columns) else None
+    if df_av is not None and not df_av.empty and col_pri and col_avi:
+        for _, r in df_av.iterrows():
+            try:
+                pri = float(r[col_pri])
+            except Exception:
+                pri = None
+            if pri == 1:
+                try:
+                    dias_val = int(r[col_dias]) if col_dias and pd.notna(r[col_dias]) else 0
+                except Exception:
+                    dias_val = 0
+                avisos_p1.append({
+                    "aviso": str(r[col_avi]).strip(),
+                    "prioridad": 1,
+                    "ut": str(r[col_ut]).strip() if col_ut else "",
+                    "descripcion": str(r[col_desc]).strip() if col_desc else "",
+                    "fecha_aviso": str(r[col_fec])[:10] if col_fec else "",
+                    "dias_transcurridos": dias_val,
+                    "estado": str(r[col_est]).strip() if col_est else "Vencido",
+                })
+
+    return {
+        "use_pto_trabajo": use_pto_trabajo,
+        "avisos_p1": avisos_p1,
+        "resumen": {
+            "avisos": {"total": av_total, "distribucion": av_dist},
+            "ordenes": {"total": ot_total, "distribucion": ot_dist},
+            "trabajoPlanificado": {"cumplimiento": tp_cump, "grupos": tp_grupos},
+            "programaSemanal": {"cumplimiento": ps_cump, "grupos": ps_grupos},
+            "planMatriz": {"cumplimiento": pm_cump, "grupos": pm_grupos},
+        },
+    }
+
+
+# ============================================================
 # PROCESO PRINCIPAL
 # ============================================================
 
 def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=None, log_fn=None,
-                           dias_venc_avisos=7, dias_venc_ordenes=21):
+                           dias_venc_avisos=7, dias_venc_ordenes=21, use_pto_trabajo=False):
     pythoncom.CoInitialize()
 
-    root = tk.Tk()
-    root.withdraw()
+    # Modo automatizado: no crear ventana Tk ni usar diálogos/messagebox bloqueantes.
+    # tk.Tk() y messagebox.showinfo/showerror SOLO son válidos en modo manual (main thread,
+    # usuario presente). En automático esta función se llama desde un hilo en background
+    # (proy_auto_module._hilo_macro o el request de Flask); un messagebox ahí bloquea
+    # indefinidamente esperando un click que nunca llega.
+    modo_automatico = bool(num_semana_arg and fecha_base_arg and rutas_dict)
+
+    root = None
+    if not modo_automatico:
+        root = tk.Tk()
+        root.withdraw()
 
     excel = None
     wb    = None
@@ -893,7 +1052,7 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
             log_fn(msg)
 
     try:
-        if num_semana_arg and fecha_base_arg and rutas_dict:
+        if modo_automatico:
             # Modo automatizado
             num_semana = num_semana_arg
             # Parse fecha (dd-mm-yyyy)
@@ -944,7 +1103,7 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         df_av = leer_excel(ruta_avisos)
         # Limpieza (EliminarFilasVaciasOrden equivalente)
         df_av = df_av.dropna(subset=["Aviso"]) if "Aviso" in df_av.columns else df_av
-        
+
         if ruta_avisos2:
             df_av2 = leer_excel(ruta_avisos2)
             df_av2["Areas"] = "DIEA"
@@ -953,7 +1112,7 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
 
         df_ot = leer_excel(ruta_ordenes)
         df_ot = df_ot.dropna(subset=["Orden"]) if "Orden" in df_ot.columns else df_ot
-        
+
         if ruta_ordenes2:
             df_ot2 = leer_excel(ruta_ordenes2)
             df_ot2["Areas"] = "DIEA"
@@ -962,7 +1121,7 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
 
         df_tp = leer_excel(ruta_trabajo)
         df_tp = df_tp.dropna(subset=["Orden"]) if "Orden" in df_tp.columns else df_tp
-        
+
         if ruta_trabajo2:
             df_tp2 = leer_excel(ruta_trabajo2)
             df_tp2["Areas"] = "DIEA"
@@ -974,7 +1133,7 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         col_orden_ot = encontrar_columna(df_ot, "Orden")
         col_gp_ot = encontrar_columna(df_ot, "Gr. planif") or encontrar_columna(df_ot, "Gr. Planif") or encontrar_columna(df_ot, "Grupo planificación") or encontrar_columna(df_ot, "Grupo planif.")
         col_gppm_ot = encontrar_columna(df_ot, "Gr.planif.pm") or encontrar_columna(df_ot, "Gr. planif.pm") or encontrar_columna(df_ot, "Grupo planif. PM") or encontrar_columna(df_ot, "Gr.planif.PM")
-        
+
         ots_mapping = {}
         if col_orden_ot and col_gp_ot and col_gppm_ot:
             for _, row in df_ot.iterrows():
@@ -983,11 +1142,11 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
                     gp_val = str(row[col_gp_ot]).strip().replace('CH01/', '')
                     gppm_val = str(row[col_gppm_ot]).strip()
                     ots_mapping[orden_val] = (gp_val, gppm_val)
-                    
+
         col_orden_tp = encontrar_columna(df_tp, "Orden")
         col_gp_tp = encontrar_columna(df_tp, "Gr. planif") or encontrar_columna(df_tp, "Gr. Planif") or encontrar_columna(df_tp, "Grupo planificación") or encontrar_columna(df_tp, "Grupo planif.")
         col_gppm_tp = encontrar_columna(df_tp, "Gr.planif.pm") or encontrar_columna(df_tp, "Gr. planif.pm") or encontrar_columna(df_tp, "Grupo planif. PM") or encontrar_columna(df_tp, "Gr.planif.PM")
-        
+
         if col_orden_tp:
             if not col_gp_tp:
                 df_tp["Gr. planif"] = ""
@@ -995,14 +1154,14 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
             if not col_gppm_tp:
                 df_tp["Gr.planif.pm"] = ""
                 col_gppm_tp = "Gr.planif.pm"
-                
+
             nuevos_gp = []
             nuevos_gppm = []
             for _, row in df_tp.iterrows():
                 orden_val = str(row[col_orden_tp]).strip()
                 gp_val = row[col_gp_tp]
                 gppm_val = row[col_gppm_tp]
-                
+
                 if orden_val in ots_mapping:
                     mapped_gp, mapped_gppm = ots_mapping[orden_val]
                     val_actual_gp = str(gp_val).strip().lower()
@@ -1011,10 +1170,10 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
                     val_actual_gppm = str(gppm_val).strip().lower()
                     if val_actual_gppm in ('', 'nan', 'none', 'n/a', '#'):
                         gppm_val = mapped_gppm
-                
+
                 nuevos_gp.append(gp_val)
                 nuevos_gppm.append(gppm_val)
-                
+
             df_tp[col_gp_tp] = nuevos_gp
             df_tp[col_gppm_tp] = nuevos_gppm
 
@@ -1084,14 +1243,34 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         df_ps = filtrar_programa_semanal(df_tp)
         df_pm = filtrar_plan_matriz(df_tp)
 
+        # ---- Resumen estructurado (para dashboard y correo) ----
+        # Se calcula ANTES de la sección COM de Excel para que exista aunque Excel falle.
+        print_log("Calculando resumen estructurado de proyecciones...")
+        try:
+            resumen_summary = calcular_resumen_proyecciones(
+                df_av, df_ot, df_ps, df_pm, df_tp, use_pto_trabajo=use_pto_trabajo
+            )
+        except Exception as e:
+            print_log(f"Advertencia: no se pudo calcular el resumen estructurado: {e}")
+            resumen_summary = {"use_pto_trabajo": use_pto_trabajo, "avisos_p1": [],
+                               "resumen": {}}
+
         # ---- PASO 6/20: Crear libro Excel y escribir hojas ----
         print("Creando libro Excel...")
+        excel_pid = None
         try:
             excel = win32com.client.DispatchEx("Excel.Application")
             try:
-                excel.Visible = True
+                # En modo automático Excel debe ser invisible (corre en background/servidor).
+                # En modo manual se muestra para que el usuario vea el resultado.
+                excel.Visible = not modo_automatico
             except:
                 pass
+            try:
+                import win32process
+                excel_pid = win32process.GetWindowThreadProcessId(excel.Hwnd)[1]
+            except Exception:
+                excel_pid = None
         except Exception as e:
             if log_fn: log_fn(f"Error al iniciar Excel: {e}", "error")
             return False
@@ -1212,18 +1391,37 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
         if (log_fn):
             log_fn(f"Reporte guardado: {nombre_final}", "ok")
 
-        messagebox.showinfo(
-            "Éxito",
-            f"Proceso completado exitosamente para la Semana {num_semana}\n\n{nombre_final}"
-        )
-        return True
+        # Completar y persistir el resumen estructurado junto al reporte (JSON).
+        # Permite que el endpoint /api/proy/generate-excel y la FASE 3 del robot
+        # recuperen los datos del dashboard/correo entre requests/hilos.
+        resumen_summary["semana"] = num_semana
+        resumen_summary["fecha_base"] = fecha_base_arg or fecha_base.strftime("%d-%m-%Y")
+        resumen_summary["filename"] = nombre_final
+        resumen_summary["downloadUrl"] = f"/reports/{nombre_final}"
+        try:
+            import json as _json
+            json_path = os.path.join(output_dir, os.path.splitext(nombre_final)[0] + ".summary.json")
+            with open(json_path, "w", encoding="utf-8") as jf:
+                _json.dump(resumen_summary, jf, ensure_ascii=False, default=str)
+        except Exception as e:
+            print_log(f"Advertencia: no se pudo guardar el JSON de resumen: {e}")
+
+        if modo_automatico:
+            print_log(f"Proceso completado exitosamente para la Semana {num_semana}: {nombre_final}")
+        else:
+            messagebox.showinfo(
+                "Éxito",
+                f"Proceso completado exitosamente para la Semana {num_semana}\n\n{nombre_final}"
+            )
+        return resumen_summary
 
     except Exception as e:
         import traceback
         err_msg = f"Error en procesar_planificacion: {e}\n{traceback.format_exc()}"
         if log_fn:
             log_fn(err_msg, "error")
-        messagebox.showerror("Error", f"Error en el proceso:\n\n{e}\n\n{traceback.format_exc()}")
+        if not modo_automatico:
+            messagebox.showerror("Error", f"Error en el proceso:\n\n{e}\n\n{traceback.format_exc()}")
         return False
     finally:
         try:
@@ -1232,14 +1430,53 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
                 excel.DisplayAlerts  = True
                 excel.Calculation    = -4105
                 excel.EnableEvents   = True
-                try:
-                    wb.Close(SaveChanges=False)
-                except:
-                    pass
-                excel.Quit()
+                # En modo automático cerrar Excel; en manual dejarlo abierto para
+                # que el usuario vea el resultado.
+                if modo_automatico:
+                    try:
+                        if wb:
+                            wb.Close(SaveChanges=False)
+                    except:
+                        pass
+                    try:
+                        excel.Quit()
+                    except:
+                        pass
         except:
             pass
-        root.destroy()
+        # Liberar referencias COM y forzar el recolector: pywin32 no libera Excel
+        # solo con Quit() si Python aún referencia los objetos (ws, new_ws, wb,
+        # excel siguen vivos en este frame hasta que el finally termina),
+        # dejando EXCEL.EXE huérfano en segundo plano y bloqueando el archivo generado.
+        if modo_automatico:
+            wb = None
+            excel = None
+            try:
+                ws = None
+                new_ws = None
+                ws_tablas = None
+            except Exception:
+                pass
+            try:
+                import gc
+                gc.collect()
+            except Exception:
+                pass
+            # Red de seguridad: si pese al cleanup anterior EXCEL.EXE sigue vivo
+            # (referencia COM oculta en algún helper de escritura), forzar su
+            # cierre por PID para no dejar el archivo generado bloqueado.
+            if excel_pid:
+                try:
+                    import time as _time, subprocess as _subprocess, win32process as _win32process, win32con as _win32con
+                    _time.sleep(1.0)
+                    handle = _win32process.OpenProcess(_win32con.PROCESS_QUERY_INFORMATION, False, excel_pid)
+                    still_alive = _win32process.GetExitCodeProcess(handle) == _win32con.STILL_ACTIVE
+                    if still_alive:
+                        _subprocess.run(["taskkill", "/F", "/PID", str(excel_pid)], capture_output=True)
+                except Exception:
+                    pass
+        if root:
+            root.destroy()
         pythoncom.CoUninitialize()
 
 
@@ -1251,12 +1488,18 @@ class PostProcesador:
     def __init__(self, log_fn=None):
         self.log_fn = log_fn
 
-    def ejecutar(self, semana, fecha_base, rutas, dias_venc_avisos=7, dias_venc_ordenes=21):
+    def ejecutar(self, semana, fecha_base, rutas, dias_venc_avisos=7, dias_venc_ordenes=21,
+                 use_pto_trabajo=False):
+        """Ejecuta el post-procesamiento. Retorna el dict de resumen (truthy) si tuvo
+        éxito, o False si falló. El dict incluye filename, downloadUrl, avisos_p1 y resumen."""
         try:
-            return procesar_planificacion(
+            resultado = procesar_planificacion(
                 num_semana_arg=semana, fecha_base_arg=fecha_base, rutas_dict=rutas,
-                log_fn=self.log_fn, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes
-            ) is True
+                log_fn=self.log_fn, dias_venc_avisos=dias_venc_avisos,
+                dias_venc_ordenes=dias_venc_ordenes, use_pto_trabajo=use_pto_trabajo
+            )
+            # procesar_planificacion devuelve el dict de resumen en éxito, o False/None en fallo
+            return resultado if isinstance(resultado, dict) else False
         except Exception as e:
             if self.log_fn:
                 self.log_fn(f"Error procesando planificacion: {e}", "error")
