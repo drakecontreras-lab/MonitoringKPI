@@ -945,8 +945,8 @@ def api_proy_generate_excel():
             "ordenes": [buscar("Proy_ots", excluir=excl_normal), buscar("Proy_ots_DIEA")],
             "trabajo": [buscar("Proy_37N", excluir=excl_normal), buscar("Proy_37N_DIEA")]
         }
-        if not rutas["avisos"][0] or not rutas["ordenes"][0] or not rutas["trabajo"][0]:
-            return jsonify({"success": False, "error": "Faltan archivos base. Ejecute descargas primero."}), 400
+        if not rutas["avisos"][0] and not rutas["ordenes"][0] and not rutas["trabajo"][0]:
+            return jsonify({"success": False, "error": "No se encontró ningún archivo base. Ejecute descargas primero."}), 400
         from backend.utils.post_procesador import PostProcesador
         post = PostProcesador(log_fn=state.emit_log_proy)
         summary = post.ejecutar(semana, fecha_base, rutas, dias_venc_avisos=dias_venc_avisos,

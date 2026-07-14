@@ -1066,8 +1066,8 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
             ruta_trabajo = rutas_dict.get("trabajo", [None, None])[0]
             ruta_trabajo2 = rutas_dict.get("trabajo", [None, None])[1]
             
-            if not ruta_avisos or not ruta_ordenes or not ruta_trabajo:
-                print_log("Faltan archivos base para realizar el proceso. Revise las exportaciones.")
+            if not ruta_avisos and not ruta_ordenes and not ruta_trabajo:
+                print_log("No se encontró ningún archivo base (Avisos/Órdenes/Trabajo Planificado). Revise las exportaciones.")
                 return False
         else:
             # Modo manual UI
@@ -1098,109 +1098,133 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
                 "Seleccione el archivo 2 de TRABAJO PLANIFICADO (37N) (DIEA) (Cancelar = no usar)", root)
 
         # ---- PASOS 7-9: Leer y combinar datos ----
+        # Cada archivo base es independiente: si falta uno (ej. solo se activó
+        # Avisos), se omite su sección entera en vez de abortar todo el reporte.
         print_log("Leyendo archivos...")
 
-        df_av = leer_excel(ruta_avisos)
-        # Limpieza (EliminarFilasVaciasOrden equivalente)
-        df_av = df_av.dropna(subset=["Aviso"]) if "Aviso" in df_av.columns else df_av
+        if ruta_avisos:
+            df_av = leer_excel(ruta_avisos)
+            # Limpieza (EliminarFilasVaciasOrden equivalente)
+            df_av = df_av.dropna(subset=["Aviso"]) if "Aviso" in df_av.columns else df_av
 
-        if ruta_avisos2:
-            df_av2 = leer_excel(ruta_avisos2)
-            df_av2["Areas"] = "DIEA"
-            df_av2 = df_av2.dropna(subset=["Aviso"]) if "Aviso" in df_av2.columns else df_av2
-            df_av = combinar_con_diea(df_av, df_av2)
+            if ruta_avisos2:
+                df_av2 = leer_excel(ruta_avisos2)
+                df_av2["Areas"] = "DIEA"
+                df_av2 = df_av2.dropna(subset=["Aviso"]) if "Aviso" in df_av2.columns else df_av2
+                df_av = combinar_con_diea(df_av, df_av2)
+        else:
+            print_log("⏭️ Sin archivo de Avisos: se omite esa sección del reporte.")
+            df_av = pd.DataFrame()
 
-        df_ot = leer_excel(ruta_ordenes)
-        df_ot = df_ot.dropna(subset=["Orden"]) if "Orden" in df_ot.columns else df_ot
+        if ruta_ordenes:
+            df_ot = leer_excel(ruta_ordenes)
+            df_ot = df_ot.dropna(subset=["Orden"]) if "Orden" in df_ot.columns else df_ot
 
-        if ruta_ordenes2:
-            df_ot2 = leer_excel(ruta_ordenes2)
-            df_ot2["Areas"] = "DIEA"
-            df_ot2 = df_ot2.dropna(subset=["Orden"]) if "Orden" in df_ot2.columns else df_ot2
-            df_ot = combinar_con_diea(df_ot, df_ot2)
+            if ruta_ordenes2:
+                df_ot2 = leer_excel(ruta_ordenes2)
+                df_ot2["Areas"] = "DIEA"
+                df_ot2 = df_ot2.dropna(subset=["Orden"]) if "Orden" in df_ot2.columns else df_ot2
+                df_ot = combinar_con_diea(df_ot, df_ot2)
+        else:
+            print_log("⏭️ Sin archivo de Órdenes: se omite esa sección del reporte.")
+            df_ot = pd.DataFrame()
 
-        df_tp = leer_excel(ruta_trabajo)
-        df_tp = df_tp.dropna(subset=["Orden"]) if "Orden" in df_tp.columns else df_tp
+        if ruta_trabajo:
+            df_tp = leer_excel(ruta_trabajo)
+            df_tp = df_tp.dropna(subset=["Orden"]) if "Orden" in df_tp.columns else df_tp
 
-        if ruta_trabajo2:
-            df_tp2 = leer_excel(ruta_trabajo2)
-            df_tp2["Areas"] = "DIEA"
-            df_tp2 = df_tp2.dropna(subset=["Orden"]) if "Orden" in df_tp2.columns else df_tp2
-            df_tp = combinar_con_diea(df_tp, df_tp2)
+            if ruta_trabajo2:
+                df_tp2 = leer_excel(ruta_trabajo2)
+                df_tp2["Areas"] = "DIEA"
+                df_tp2 = df_tp2.dropna(subset=["Orden"]) if "Orden" in df_tp2.columns else df_tp2
+                df_tp = combinar_con_diea(df_tp, df_tp2)
+        else:
+            print_log("⏭️ Sin archivo de Trabajo Planificado: se omiten Trabajo Planificado, Programa Semanal y Plan Matriz.")
+            df_tp = pd.DataFrame()
 
         # ---- Rellenar columnas vacías de grupo de planificación en Trabajo Planificado usando IW39 ----
-        print_log("Rellenando columnas vacías de grupo de planificación en Trabajo Planificado...")
-        col_orden_ot = encontrar_columna(df_ot, "Orden")
-        col_gp_ot = encontrar_columna(df_ot, "Gr. planif") or encontrar_columna(df_ot, "Gr. Planif") or encontrar_columna(df_ot, "Grupo planificación") or encontrar_columna(df_ot, "Grupo planif.")
-        col_gppm_ot = encontrar_columna(df_ot, "Gr.planif.pm") or encontrar_columna(df_ot, "Gr. planif.pm") or encontrar_columna(df_ot, "Grupo planif. PM") or encontrar_columna(df_ot, "Gr.planif.PM")
+        # Requiere ambos archivos (Órdenes + Trabajo Planificado); si falta cualquiera, se omite el cruce.
+        if not df_ot.empty and not df_tp.empty:
+            print_log("Rellenando columnas vacías de grupo de planificación en Trabajo Planificado...")
+            col_orden_ot = encontrar_columna(df_ot, "Orden")
+            col_gp_ot = encontrar_columna(df_ot, "Gr. planif") or encontrar_columna(df_ot, "Gr. Planif") or encontrar_columna(df_ot, "Grupo planificación") or encontrar_columna(df_ot, "Grupo planif.")
+            col_gppm_ot = encontrar_columna(df_ot, "Gr.planif.pm") or encontrar_columna(df_ot, "Gr. planif.pm") or encontrar_columna(df_ot, "Grupo planif. PM") or encontrar_columna(df_ot, "Gr.planif.PM")
 
-        ots_mapping = {}
-        if col_orden_ot and col_gp_ot and col_gppm_ot:
-            for _, row in df_ot.iterrows():
-                orden_val = str(row[col_orden_ot]).strip()
-                if orden_val and orden_val.isdigit():
-                    gp_val = str(row[col_gp_ot]).strip().replace('CH01/', '')
-                    gppm_val = str(row[col_gppm_ot]).strip()
-                    ots_mapping[orden_val] = (gp_val, gppm_val)
+            ots_mapping = {}
+            if col_orden_ot and col_gp_ot and col_gppm_ot:
+                for _, row in df_ot.iterrows():
+                    orden_val = str(row[col_orden_ot]).strip()
+                    if orden_val and orden_val.isdigit():
+                        gp_val = str(row[col_gp_ot]).strip().replace('CH01/', '')
+                        gppm_val = str(row[col_gppm_ot]).strip()
+                        ots_mapping[orden_val] = (gp_val, gppm_val)
 
-        col_orden_tp = encontrar_columna(df_tp, "Orden")
-        col_gp_tp = encontrar_columna(df_tp, "Gr. planif") or encontrar_columna(df_tp, "Gr. Planif") or encontrar_columna(df_tp, "Grupo planificación") or encontrar_columna(df_tp, "Grupo planif.")
-        col_gppm_tp = encontrar_columna(df_tp, "Gr.planif.pm") or encontrar_columna(df_tp, "Gr. planif.pm") or encontrar_columna(df_tp, "Grupo planif. PM") or encontrar_columna(df_tp, "Gr.planif.PM")
+            col_orden_tp = encontrar_columna(df_tp, "Orden")
+            col_gp_tp = encontrar_columna(df_tp, "Gr. planif") or encontrar_columna(df_tp, "Gr. Planif") or encontrar_columna(df_tp, "Grupo planificación") or encontrar_columna(df_tp, "Grupo planif.")
+            col_gppm_tp = encontrar_columna(df_tp, "Gr.planif.pm") or encontrar_columna(df_tp, "Gr. planif.pm") or encontrar_columna(df_tp, "Grupo planif. PM") or encontrar_columna(df_tp, "Gr.planif.PM")
 
-        if col_orden_tp:
-            if not col_gp_tp:
-                df_tp["Gr. planif"] = ""
-                col_gp_tp = "Gr. planif"
-            if not col_gppm_tp:
-                df_tp["Gr.planif.pm"] = ""
-                col_gppm_tp = "Gr.planif.pm"
+            if col_orden_tp:
+                if not col_gp_tp:
+                    df_tp["Gr. planif"] = ""
+                    col_gp_tp = "Gr. planif"
+                if not col_gppm_tp:
+                    df_tp["Gr.planif.pm"] = ""
+                    col_gppm_tp = "Gr.planif.pm"
 
-            nuevos_gp = []
-            nuevos_gppm = []
-            for _, row in df_tp.iterrows():
-                orden_val = str(row[col_orden_tp]).strip()
-                gp_val = row[col_gp_tp]
-                gppm_val = row[col_gppm_tp]
+                nuevos_gp = []
+                nuevos_gppm = []
+                for _, row in df_tp.iterrows():
+                    orden_val = str(row[col_orden_tp]).strip()
+                    gp_val = row[col_gp_tp]
+                    gppm_val = row[col_gppm_tp]
 
-                if orden_val in ots_mapping:
-                    mapped_gp, mapped_gppm = ots_mapping[orden_val]
-                    val_actual_gp = str(gp_val).strip().lower()
-                    if val_actual_gp in ('', 'nan', 'none', 'n/a', '#'):
-                        gp_val = mapped_gp
-                    val_actual_gppm = str(gppm_val).strip().lower()
-                    if val_actual_gppm in ('', 'nan', 'none', 'n/a', '#'):
-                        gppm_val = mapped_gppm
+                    if orden_val in ots_mapping:
+                        mapped_gp, mapped_gppm = ots_mapping[orden_val]
+                        val_actual_gp = str(gp_val).strip().lower()
+                        if val_actual_gp in ('', 'nan', 'none', 'n/a', '#'):
+                            gp_val = mapped_gp
+                        val_actual_gppm = str(gppm_val).strip().lower()
+                        if val_actual_gppm in ('', 'nan', 'none', 'n/a', '#'):
+                            gppm_val = mapped_gppm
 
-                nuevos_gp.append(gp_val)
-                nuevos_gppm.append(gppm_val)
+                    nuevos_gp.append(gp_val)
+                    nuevos_gppm.append(gppm_val)
 
-            df_tp[col_gp_tp] = nuevos_gp
-            df_tp[col_gppm_tp] = nuevos_gppm
+                df_tp[col_gp_tp] = nuevos_gp
+                df_tp[col_gppm_tp] = nuevos_gppm
 
         # ---- PASO 9.2: Parsear fechas ANTES de insertar columnas (para que coincidan las letras) ----
         print_log("Parseando formatos de fecha...")
-        parse_dates_by_letter(df_av, ["I","J","K","T","U"])
-        parse_dates_by_letter(df_ot, ["N","O","R","S","T","U","V"])
-        parse_dates_by_letter(df_tp, ["F","G","X","Y","Z","AA","AB","AC","AD","AE"])
+        if not df_av.empty:
+            parse_dates_by_letter(df_av, ["I","J","K","T","U"])
+        if not df_ot.empty:
+            parse_dates_by_letter(df_ot, ["N","O","R","S","T","U","V"])
+        if not df_tp.empty:
+            parse_dates_by_letter(df_tp, ["F","G","X","Y","Z","AA","AB","AC","AD","AE"])
 
         # ---- PASOS 10-13: Estado + Días ----
         print_log(f"Calculando Estado y Días (Base: {fecha_base})")
-        df_av = preparar_estado_dias(df_av)
-        # Macro usa columna 9 (I) -> "Creado el"
-        cols_avi = ["Creado el", "Fecha de aviso", "Inicio de avería"]
-        df_av = calcular_dias_transcurridos(df_av, cols_avi, fecha_base, indice_vba=9)
-        df_av = calcular_estado_avisos(df_av, dias_venc_avisos)
+        if not df_av.empty:
+            df_av = preparar_estado_dias(df_av)
+            # Macro usa columna 9 (I) -> "Creado el"
+            cols_avi = ["Creado el", "Fecha de aviso", "Inicio de avería"]
+            df_av = calcular_dias_transcurridos(df_av, cols_avi, fecha_base, indice_vba=9)
+            df_av = calcular_estado_avisos(df_av, dias_venc_avisos)
 
-        df_ot = preparar_estado_dias(df_ot)
-        cols_ot = ["Fecha inicio extrema", "Fecha de inicio extrema", "Fecha de creación"]
-        df_ot = calcular_dias_transcurridos(df_ot, cols_ot, fecha_base, indice_vba=14)
-        df_ot = calcular_estado_ordenes(df_ot, dias_venc_ordenes)
+        if not df_ot.empty:
+            df_ot = preparar_estado_dias(df_ot)
+            cols_ot = ["Fecha inicio extrema", "Fecha de inicio extrema", "Fecha de creación"]
+            df_ot = calcular_dias_transcurridos(df_ot, cols_ot, fecha_base, indice_vba=14)
+            df_ot = calcular_estado_ordenes(df_ot, dias_venc_ordenes)
 
         # ---- PASO 14: Areas ----
         print("Calculando Áreas...")
-        df_av = agregar_columna_areas(df_av)
-        df_ot = agregar_columna_areas(df_ot)
-        df_tp = agregar_columna_areas(df_tp)
+        if not df_av.empty:
+            df_av = agregar_columna_areas(df_av)
+        if not df_ot.empty:
+            df_ot = agregar_columna_areas(df_ot)
+        if not df_tp.empty:
+            df_tp = agregar_columna_areas(df_tp)
 
         # Las filas de archivo2 ya tienen Areas="DIEA" por combinar_con_diea,
         # no se sobreescriben porque agregar_columna_areas solo llena las vacías implícitamente.
@@ -1209,39 +1233,45 @@ def procesar_planificacion(num_semana_arg=None, fecha_base_arg=None, rutas_dict=
 
         # ---- PASO 14.2: Eliminar filas vacías ----
         print("Eliminando filas vacías...")
-        df_av = eliminar_filas_vacias_orden(df_av, "Aviso")
-        df_ot = eliminar_filas_vacias_orden(df_ot, "Orden")
-        df_tp = eliminar_filas_vacias_orden(df_tp, "Orden")
+        if not df_av.empty:
+            df_av = eliminar_filas_vacias_orden(df_av, "Aviso")
+        if not df_ot.empty:
+            df_ot = eliminar_filas_vacias_orden(df_ot, "Orden")
+        if not df_tp.empty:
+            df_tp = eliminar_filas_vacias_orden(df_tp, "Orden")
 
         # ---- PASO 15: Horizonte + Criterio ----
-        print("Calculando Horizonte y Criterio...")
-        df_tp = agregar_horizonte_criterio(df_tp)
+        df_ps = pd.DataFrame()
+        df_pm = pd.DataFrame()
+        if not df_tp.empty:
+            print("Calculando Horizonte y Criterio...")
+            df_tp = agregar_horizonte_criterio(df_tp)
 
-# ARREGLO: conversión numérica preservando decimales (formato europeo)
-        def _parse_hh(val):
-            """Replica parse_sap_hh de kpi_excel_processor. SAP exporta HHx1000."""
-            s = str(val).strip()
-            if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
-                return 0.0
-            try:
-                if ',' in s:
-                    s = s.replace('.', '').replace(',', '.')
-                    return float(s)
-                else:
-                    v = float(s)
-                    return v / 1000.0
-            except:
-                return 0.0
+            # ARREGLO: conversión numérica preservando decimales (formato europeo)
+            def _parse_hh(val):
+                """Replica parse_sap_hh de kpi_excel_processor. SAP exporta HHx1000."""
+                s = str(val).strip()
+                if s in ('nan', '', '#', 'NaN', 'None', 'Resultado total', 'Resultado'):
+                    return 0.0
+                try:
+                    if ',' in s:
+                        s = s.replace('.', '').replace(',', '.')
+                        return float(s)
+                    else:
+                        v = float(s)
+                        return v / 1000.0
+                except:
+                    return 0.0
 
-        for col_name in ("Trabajo real", "Trabajo Real", "Trabajo"):
-            c = encontrar_columna(df_tp, col_name)
-            if c:
-                df_tp[c] = df_tp[c].apply(_parse_hh)
+            for col_name in ("Trabajo real", "Trabajo Real", "Trabajo"):
+                c = encontrar_columna(df_tp, col_name)
+                if c:
+                    df_tp[c] = df_tp[c].apply(_parse_hh)
 
-        # ---- PASOS 16-19: Subhojas ----
-        print("Filtrando Programa Semanal y Plan Matriz...")
-        df_ps = filtrar_programa_semanal(df_tp)
-        df_pm = filtrar_plan_matriz(df_tp)
+            # ---- PASOS 16-19: Subhojas ----
+            print("Filtrando Programa Semanal y Plan Matriz...")
+            df_ps = filtrar_programa_semanal(df_tp)
+            df_pm = filtrar_plan_matriz(df_tp)
 
         # ---- Resumen estructurado (para dashboard y correo) ----
         # Se calcula ANTES de la sección COM de Excel para que exista aunque Excel falle.
