@@ -431,9 +431,14 @@ def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
 
     data_rows = df.iloc[1:-1]
 
+    gr_planif_col = []
+    gr_planif_pm_col = []
+
     for _, row in data_rows.iterrows():
         row_list = list(row)
         if is_resultado_row(row_list):
+            gr_planif_col.append(None)
+            gr_planif_pm_col.append(None)
             continue
 
         gr_planif_pm  = str(row_list[0] if len(row_list) > 0 else '').strip()
@@ -444,6 +449,8 @@ def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
         pto_trabajo = clean_pto_trabajo(pto_trabajo_raw) if pto_trabajo_raw else 'N/A'
 
         if not proceso_raw or proceso_raw == 'nan':
+            gr_planif_col.append('N/A')
+            gr_planif_pm_col.append('N/A')
             continue
 
         proceso = get_safe_proceso(proceso_raw)
@@ -451,6 +458,9 @@ def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
             gr_planif = 'N/A'
         if not gr_planif_pm or gr_planif_pm == 'nan':
             gr_planif_pm = grupos_mapping.get(gr_planif, gr_planif or 'N/A')
+
+        gr_planif_col.append(gr_planif)
+        gr_planif_pm_col.append(gr_planif_pm)
 
         key = f"{proceso}||{gr_planif}||{gr_planif_pm}||{pto_trabajo}"
         group[key] = group.get(key, 0) + 1
@@ -464,6 +474,15 @@ def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
         if idx < len(headers):
             headers[idx] = name
     df_clean.columns = headers
+
+    # Sobrescribir posicionalmente col0 (Gr.planif.PM nativo) y col1 (Gr. Planif renombrada)
+    # con el valor enriquecido (nunca vacío). Sin crear columnas nuevas: esos headers
+    # ya existen en el archivo crudo de SAP y duplicarlos corrompe la tabla Excel.
+    if len(df_clean) == len(gr_planif_col):
+        if len(df_clean.columns) > 1:
+            df_clean.iloc[:, 1] = gr_planif_col
+        if len(df_clean.columns) > 0:
+            df_clean.iloc[:, 0] = gr_planif_pm_col
 
     for col_name in ('Gr. Planif', 'Gr. planif', 'Gr.planif'):
         if col_name in df_clean.columns:
@@ -576,8 +595,16 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
             gr_planif_pm = 'N/A'
 
         # Complementar con ots_mapping si todavía está vacío
-        if (gr_planif in ('N/A', '', 'nan') or gr_planif_pm in ('N/A', '', 'nan')) and orden in ots_mapping:
-            mapped_gp, mapped_gppm = ots_mapping[orden]
+        # Normalizar orden: SAP puede exportarla como '110415552.0' (float-string)
+        # mientras ots_mapping usa claves int-string '110415552' (ver main.py,
+        # construcción de ots_mapping); sin esto el lookup fallaba siempre.
+        try:
+            orden_norm = str(int(float(orden))) if orden and orden not in ('nan', '') else orden
+        except ValueError:
+            orden_norm = orden
+
+        if (gr_planif in ('N/A', '', 'nan') or gr_planif_pm in ('N/A', '', 'nan')) and orden_norm in ots_mapping:
+            mapped_gp, mapped_gppm = ots_mapping[orden_norm]
             if gr_planif in ('N/A', '', 'nan'):
                 gr_planif = mapped_gp
             if gr_planif_pm in ('N/A', '', 'nan'):
@@ -921,6 +948,7 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
     gr_planif_col = []
     gr_planif_pm_col = []
     nuevos_totales_col = []
+    nuevos_ejec_col = []
 
     # Detectar columna de orden en el encabezado (fila 1)
     col_orden = 8
@@ -938,6 +966,7 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
             gr_planif_col.append('')
             gr_planif_pm_col.append('')
             nuevos_totales_col.append(None)
+            nuevos_ejec_col.append(None)
             continue
 
         gr_planif_pm  = str(row_list[4] if len(row_list) > 4 else '').strip()
@@ -952,12 +981,14 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
             gr_planif_col.append('N/A')
             gr_planif_pm_col.append('N/A')
             nuevos_totales_col.append(None)
+            nuevos_ejec_col.append(None)
             continue
 
         # Los valores del PATTERN están en escala real (no × 1000)
         op_ejec = parse_sap_count(row_list[17] if len(row_list) > 17 else 0)
         # op_total base desde la columna 18 del PATTERN (escala real)
         op_total_base = parse_sap_count(row_list[18] if len(row_list) > 18 else 0)
+        nuevos_ejec_col.append(op_ejec)
 
         # Obtener orden para buscar en export_ops_mapping
         orden = str(row_list[col_orden] if len(row_list) > col_orden else '').strip()
@@ -1056,11 +1087,20 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
     df_clean['Gr.planif'] = gr_planif_col
     df_clean['Gr.planif.PM'] = gr_planif_pm_col
 
-    # Sobrescribir la columna 18 (Total Op original) con el nuevo conteo calculado
+    # Sobrescribir columnas R (17, Op.Ejec) y S (18, Op.Total) como número real,
+    # no texto — de lo contrario la suma en la tabla dinámica no funciona.
+    # Se reemplaza la columna completa (no .iloc in-place) porque el dtype
+    # original suele ser 'string' (pandas StringDtype) y rechaza floats in-place.
+    if 17 < len(df_clean.columns):
+        while len(nuevos_ejec_col) < len(df_clean):
+            nuevos_ejec_col.append(None)
+        col_r = df_clean.columns[17]
+        df_clean[col_r] = pd.to_numeric(pd.Series(nuevos_ejec_col), errors='coerce').values
     if 18 < len(df_clean.columns):
         while len(nuevos_totales_col) < len(df_clean):
             nuevos_totales_col.append(None)
-        df_clean.iloc[:, 18] = [str(v) if v is not None else None for v in nuevos_totales_col]
+        col_s = df_clean.columns[18]
+        df_clean[col_s] = pd.to_numeric(pd.Series(nuevos_totales_col), errors='coerce').values
     if puestos_mapping and 'Pto. Trabajo Descripcion' in df_clean.columns and 'Pto. Trabajo' in df_clean.columns:
         df_clean['Pto. Trabajo Descripcion'] = df_clean['Pto. Trabajo'].apply(lambda x: str(puestos_mapping.get(x)).capitalize() if puestos_mapping.get(x) else 'N/A')
 
@@ -1236,11 +1276,17 @@ def _add_pivot_tables_com(output_path, use_pto_trabajo):
 
     excel = None
     wb = None
+    excel_pid = None
     try:
         excel = win32.DispatchEx("Excel.Application")
         excel.Visible = False
         excel.DisplayAlerts = False
         excel.ScreenUpdating = False
+        try:
+            import win32process
+            excel_pid = win32process.GetWindowThreadProcessId(excel.Hwnd)[1]
+        except Exception:
+            excel_pid = None
 
         abs_path = os.path.abspath(output_path)
         if not os.path.exists(abs_path):
@@ -1293,9 +1339,9 @@ def _add_pivot_tables_com(output_path, use_pto_trabajo):
         pivot_defs = [
             ('Avisos',              'Avisos Pendientes',      None,       [('número de avisos pendientes', XL_COUNT, 'Cantidad')]),
             ('rdenes',              'Órdenes Pendientes',      None,       [('número de órdenes', XL_COUNT, 'Cantidad')]),
-            ('Trabajo Planificado', '% Trabajo Planificado', 'criterio', [('hh totales reales', XL_COUNT, ' Recuento HH Totales Reales')]),
-            ('Programa Semanal',    'Programa Semanal',      'criterio', [('total op. programadas', XL_COUNT, ' Recuento Total Op. Programadas')]),
-            ('Plan Matriz',         'Plan Matriz',           'criterio', [('cantidad de operaciones totales', XL_COUNT, ' Cantidad Ops')]),
+            ('Trabajo Planificado', '% Trabajo Planificado', 'criterio', [('hh totales reales', XL_SUM, 'Suma HH Totales Reales', '#,##0')]),
+            ('Programa Semanal',    'Programa Semanal',      'criterio', [('total op. programadas', XL_SUM, 'Suma Total Op. Programadas')]),
+            ('Plan Matriz',         'Plan Matriz',           'criterio', [('cantidad de operaciones totales', XL_SUM, 'Suma Cantidad Ops')]),
         ]
 
         for sheet_keyword, titulo, col_field_kw, data_defs in pivot_defs:
@@ -1378,7 +1424,7 @@ def _add_pivot_tables_com(output_path, use_pto_trabajo):
             if use_pto_trabajo:
                 col2_kw   = ['pto. trabajo']
                 col2_ex   = ['descripcion', 'desc']
-                col3_kw   = ['puesto de trabajo']
+                col3_kw   = ['pto. trabajo descripcion', 'puesto de trabajo']
                 col3_ex   = []
             else:
                 col2_kw   = ['gr. planif', 'gr.planif']
@@ -1406,22 +1452,33 @@ def _add_pivot_tables_com(output_path, use_pto_trabajo):
 
             # --- Data fields ---
             found_data = False
-            for dh_kw, dh_agg, dh_label in data_defs:
+            for data_def in data_defs:
+                dh_kw, dh_agg, dh_label = data_def[0], data_def[1], data_def[2]
+                dh_fmt = data_def[3] if len(data_def) > 3 else None
                 col_idx = _find_col_idx([dh_kw])
                 if col_idx is None:
                     continue
                 if _campo_existe(pt, col_idx):
                     try:
-                        pt.AddDataField(pt.PivotFields(col_idx), dh_label, dh_agg)
+                        pf_data = pt.AddDataField(pt.PivotFields(col_idx), dh_label, dh_agg)
+                        if dh_fmt:
+                            pf_data.NumberFormat = dh_fmt
                         found_data = True
                     except Exception:
                         pass
-            # Fallback: count por col2
-            if not found_data and col2_idx and _campo_existe(pt, col2_idx):
-                try:
-                    pt.AddDataField(pt.PivotFields(col2_idx), 'Cantidad', XL_COUNT)
-                except Exception:
-                    pass
+            # Fallback: contar por una columna que NO esté ya usada como row/col field.
+            # AddDataField sobre un campo que ya es RowField lo reconvierte a DataField
+            # y lo saca de las filas (por eso NO se puede reusar col2_idx/col3_idx aquí).
+            if not found_data:
+                ocupadas = {proceso_idx, col2_idx, col3_idx}
+                if col_field_kw:
+                    ocupadas.add(_find_col_idx([col_field_kw]))
+                fallback_idx = next((c for c in range(1, min(ult_c + 1, 40)) if c not in ocupadas), None)
+                if fallback_idx and _campo_existe(pt, fallback_idx):
+                    try:
+                        pt.AddDataField(pt.PivotFields(fallback_idx), 'Cantidad', XL_COUNT)
+                    except Exception:
+                        pass
 
             _aplicar_formato(pt, nombre_pt)
 
@@ -1456,10 +1513,40 @@ def _add_pivot_tables_com(output_path, use_pto_trabajo):
                 excel.Quit()
             except Exception:
                 pass
+        # Liberar referencias COM explícitamente antes de forzar el recolector
+        # cíclico: pywin32 no libera los objetos COM solo con Quit() si Python
+        # aún los referencia (pt, pc, rng, src_ws, tablas_ws siguen vivos en
+        # este frame hasta que el finally termina), dejando EXCEL.EXE huérfano
+        # en segundo plano y bloqueando el archivo generado.
+        wb = None
+        excel = None
+        pt = None
+        pc = None
+        rng = None
+        src_ws = None
+        tablas_ws = None
+        try:
+            import gc
+            gc.collect()
+        except Exception:
+            pass
         try:
             pythoncom.CoUninitialize()
         except Exception:
             pass
+        # Red de seguridad: si pese al cleanup anterior EXCEL.EXE sigue vivo
+        # (referencia COM oculta en algún helper), forzar su cierre por PID
+        # para no dejar el archivo bloqueado.
+        if excel_pid:
+            try:
+                import time as _time, subprocess as _subprocess, win32process as _win32process, win32con as _win32con
+                _time.sleep(1.0)
+                handle = _win32process.OpenProcess(_win32con.PROCESS_QUERY_INFORMATION, False, excel_pid)
+                still_alive = _win32process.GetExitCodeProcess(handle) == _win32con.STILL_ACTIVE
+                if still_alive:
+                    _subprocess.run(["taskkill", "/F", "/PID", str(excel_pid)], capture_output=True)
+            except Exception:
+                pass
 
 def process_kpi_excels(file_paths, semana_num, output_path,
                        ots_mapping=None, export_ops_mapping=None,
