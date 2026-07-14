@@ -256,8 +256,12 @@ def parse_sap_count_div1000(val):
 
 
 def is_resultado_row(row):
-    """Verifica si la fila es una fila de total/subtotal SAP ('Resultado' o 'Resultado total')."""
-    for val in list(row)[:10]:
+    """Verifica si la fila es una fila de total/subtotal SAP ('Resultado' o 'Resultado total').
+    Revisa TODAS las columnas: en hojas anchas (Trabajo Planificado, Programa
+    Semanal, Plan Matriz, con columnas hasta la 18+) la etiqueta puede no
+    caer en las primeras 10, y una fila de totales sin detectar se sumaba
+    junto con las filas de detalle, inflando los totales."""
+    for val in list(row):
         s = str(val).strip()
         if s in ('Resultado', 'Resultado total'):
             return True
@@ -269,7 +273,7 @@ def is_resultado_intermedio(row):
     Verifica si la fila es un subtotal intermedio de SAP ('Resultado').
     Las filas intermedias tienen exactamente 'Resultado' (no 'Resultado total').
     """
-    for val in list(row)[:10]:
+    for val in list(row):
         s = str(val).strip()
         if s == 'Resultado':
             return True
@@ -834,6 +838,8 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
         total_ind_cumple += ind_cumple
         total_ops        += total_op
 
+    # Cumplimiento = Indicador cumple sem / Total Op. Programadas (columnas
+    # del excel subido), no la clasificación cumple/no-cumple por fila.
     cumplimiento_total = total_ind_cumple / total_ops if total_ops > 0 else 0.0
 
     grupos = []
@@ -1695,11 +1701,12 @@ def preview_file(path, file_type):
         header_offset = 2 if file_type in double_header_types else 1
 
         data_rows = df.iloc[header_offset:-1] if len(df) > header_offset + 1 else df.iloc[header_offset:]
-        # Vectorizado: revisa las primeras 10 columnas de una vez en vez de
-        # iterar fila por fila en Python (is_resultado_row por .iterrows()
-        # era el cuello de botella con archivos SAP de miles de filas).
-        cols_to_check = data_rows.iloc[:, :10]
-        es_resultado = cols_to_check.apply(lambda col: col.astype(str).str.strip().isin(['Resultado', 'Resultado total'])).any(axis=1)
+        # Vectorizado: revisa todas las columnas de una vez en vez de iterar
+        # fila por fila en Python (is_resultado_row por .iterrows() era el
+        # cuello de botella con archivos SAP de miles de filas). Debe cubrir
+        # todas las columnas, no solo las primeras 10: en hojas anchas la
+        # etiqueta de fila de totales puede caer más allá de la columna 10.
+        es_resultado = data_rows.apply(lambda col: col.astype(str).str.strip().isin(['Resultado', 'Resultado total'])).any(axis=1)
         count = int((~es_resultado).sum())
 
         labels = {
@@ -2010,6 +2017,8 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
                 total_prog_total_ops  += total_op
                 total_prog_ind_cumple += ind_cumple
 
+    # Cumplimiento = Indicador cumple sem / Total Op. Programadas (columnas
+    # del excel subido), no la clasificación cumple/no-cumple por fila.
     total_prog_cumplimiento = (total_prog_ind_cumple / total_prog_total_ops
                                if total_prog_total_ops > 0 else 0.0)
     cump_programa_semanal = []
@@ -2082,6 +2091,8 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
 
                 total_mtz_totales += op_total
 
+    # Cumplimiento = Cantidad de Operaciones Ejecutadas / Cantidad de
+    # Operaciones totales (columnas del excel subido).
     total_mtz_cumplimiento = total_mtz_ejec / total_mtz_totales if total_mtz_totales > 0 else 0.0
     cump_plan_matriz = []
     for key in sorted(group_matriz.keys()):
@@ -2101,12 +2112,8 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
         'indicadores': {
             'avisosPendientes':  total_avisos_count,
             'ordenesPendientes': total_ordenes_count,
-            'trabajoPlanificado': int(round((total_tp_cumplimiento_value
-                                             if total_tp_cumplimiento_value is not None
-                                             else total_tp_cumplimiento) * 100)),
-            'programaSemanal':   int(round((total_prog_cumplimiento_value
-                                            if total_prog_cumplimiento_value is not None
-                                            else total_prog_cumplimiento) * 100)),
+            'trabajoPlanificado': int(round(total_tp_cumplimiento * 100)),
+            'programaSemanal':   int(round(total_prog_cumplimiento * 100)),
             'planMatriz':        int(round(total_mtz_cumplimiento * 100))
         },
         'resumenAvisos': {
@@ -2138,9 +2145,7 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
                 'sinHr':       total_tp_sin_hr,
                 'imprevistos': total_tp_imprevistos,
                 'total':       total_tp_total,
-                'cumplimiento': float(total_tp_cumplimiento_value
-                                      if total_tp_cumplimiento_value is not None
-                                      else total_tp_cumplimiento)
+                'cumplimiento': float(total_tp_cumplimiento)
             }
         },
         'programaSemanal': {
@@ -2149,9 +2154,7 @@ def process_ready_excel(file_path, semana_num, puestos_mapping=None):
                 'cumple':    total_prog_cumple,
                 'noCumple':  total_prog_no_cumple,
                 'total':     total_prog_total_ops,
-                'cumplimiento': float(total_prog_cumplimiento_value
-                                      if total_prog_cumplimiento_value is not None
-                                      else total_prog_cumplimiento)
+                'cumplimiento': float(total_prog_cumplimiento)
             }
         },
         'planMatriz': {
