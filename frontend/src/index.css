@@ -784,8 +784,9 @@ h1, h2, h3, h4 {
 }
 
 /* Table Premium styling */
-.premium-table-wrapper {
+.responsive-table-wrapper {
   overflow-x: auto;
+  max-width: 100%;
   border: 1px solid var(--bg-card-border);
   border-radius: var(--radius-md);
   background: var(--bg-input);
@@ -1002,6 +1003,17 @@ h1, h2, h3, h4 {
   border-radius: 50%;
   animation: spinner 1s linear infinite;
   margin-bottom: 1.5rem;
+}
+
+.spinner-mini {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid hsla(220, 85%, 45%, 0.25);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spinner 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 .brand-logo-glow {
