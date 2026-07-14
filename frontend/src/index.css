@@ -196,9 +196,13 @@ h1, h2, h3, h4 {
   gap: 2rem;
 }
 
+.dashboard-grid > div {
+  min-width: 0;
+}
+
 @media (min-width: 1024px) {
   .dashboard-grid {
-    grid-template-columns: 450px 1fr;
+    grid-template-columns: 380px minmax(0, 1fr);
   }
 }
 
@@ -965,6 +969,7 @@ h1, h2, h3, h4 {
 [data-theme="light"] .text-green { color: #059669 !important; }
 [data-theme="light"] .text-cyan { color: #0891b2 !important; }
 [data-theme="light"] .text-indigo { color: #4f46e5 !important; }
+[data-theme="light"] .file-preview-badge.badge-success { color: #15803d; }
 
 /* Splash Screen & Login Corporativo */
 .auth-splash {
