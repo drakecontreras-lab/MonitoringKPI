@@ -1695,8 +1695,12 @@ def preview_file(path, file_type):
         header_offset = 2 if file_type in double_header_types else 1
 
         data_rows = df.iloc[header_offset:-1] if len(df) > header_offset + 1 else df.iloc[header_offset:]
-        valid_rows = [row for _, row in data_rows.iterrows() if not is_resultado_row(list(row))]
-        count = len(valid_rows)
+        # Vectorizado: revisa las primeras 10 columnas de una vez en vez de
+        # iterar fila por fila en Python (is_resultado_row por .iterrows()
+        # era el cuello de botella con archivos SAP de miles de filas).
+        cols_to_check = data_rows.iloc[:, :10]
+        es_resultado = cols_to_check.apply(lambda col: col.astype(str).str.strip().isin(['Resultado', 'Resultado total'])).any(axis=1)
+        count = int((~es_resultado).sum())
 
         labels = {
             'avisos':            f'{count} avisos pendientes detectados',
