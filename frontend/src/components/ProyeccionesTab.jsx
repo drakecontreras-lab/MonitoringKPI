@@ -449,6 +449,11 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
                     <button className="btn btn-success flex-center gap-0.5" onClick={async () => { if (window.pywebview?.api) { const s = await window.pywebview.api.save_excel(proyData.filename); if (s) alert('Descargado.'); } else { window.location.href = proyData.downloadUrl; } }}><span className="material-icons">download</span><span>Descargar</span></button>
                   </div>
                 </div>
+                {generatingExcel && (
+                  <div className="progress-bar-wrapper" style={{ marginTop: '0.25rem' }}>
+                    <div className="progress-bar-fill-indeterminate"></div>
+                  </div>
+                )}
                 {renderAvisosP1Table()}
                 {renderProyDashboard()}
               </>
@@ -457,6 +462,11 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
                 <span className="material-icons text-muted" style={{ fontSize: '4rem', marginBottom: '1rem' }}>analytics</span>
                 <h3 className="text-muted-light">No hay reporte generado</h3>
                 <button className="btn btn-primary mt-1" onClick={generarExcel} disabled={generatingExcel}>{generatingExcel ? 'Generando...' : 'Generar Excel Consolidado'}</button>
+                {generatingExcel && (
+                  <div className="progress-bar-wrapper" style={{ maxWidth: '320px', width: '100%', marginTop: '1rem' }}>
+                    <div className="progress-bar-fill-indeterminate"></div>
+                  </div>
+                )}
               </div>
             )}
           </div>

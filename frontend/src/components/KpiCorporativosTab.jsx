@@ -885,6 +885,11 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                   <span className="flex-center gap-0.5"><span className="spinner-mini"></span><span>Procesando Archivos...</span></span>
                 ) : <span>Procesar y Generar Reporte</span>}
               </button>
+              {processing && (
+                <div className="progress-bar-wrapper" style={{ marginTop: '0.5rem' }}>
+                  <div className="progress-bar-fill-indeterminate"></div>
+                </div>
+              )}
 
               {processingError && (
                 <div className="alert error"><span className="material-icons">error</span><span>{processingError}</span></div>
@@ -1403,6 +1408,9 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                 <span className="spinner-mini" style={{ width: '3rem', height: '3rem', borderWidth: '4px', marginBottom: '1.5rem' }}></span>
                 <h3 className="text-muted-light">Generando Reporte Consolidado...</h3>
                 <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>La automatización SAP finalizó. Consolidando datos y construyendo el Excel con tablas dinámicas.</p>
+                <div className="progress-bar-wrapper" style={{ maxWidth: '320px', width: '100%', marginTop: '1.25rem' }}>
+                  <div className="progress-bar-fill-indeterminate"></div>
+                </div>
               </div>
             ) : kpiRobotVisor ? (
               /* Última captura del robot — se mantiene visible después de finalizar la automatización */
