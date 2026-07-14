@@ -288,6 +288,51 @@ def filtrar_filas_resultado_intermedias(df):
     return df[mask]
 
 
+_WEEK_YEAR_RE = re.compile(r'^\d{1,2}\.\d{4}$')
+
+
+def _find_data_start_row(df, max_header_rows=6):
+    """
+    Detecta dinámicamente cuántas filas iniciales de un archivo SAP crudo son
+    título/encabezado, en vez de asumir un número fijo (que se rompe si SAP
+    cambia el layout — ej. una fila de encabezado de más hizo que se
+    descartaran 2 filas de datos reales en Trabajo Planificado).
+
+    Busca la primera fila que contenga, en cualquier columna, un valor con
+    forma 'semana.año' (ej. '28.2026', columna 'Año natural/Semana') — ese
+    valor solo aparece en filas de datos reales, nunca en encabezados/títulos.
+    Esa fila es la primera fila de datos; todo lo anterior es encabezado.
+
+    Si no encuentra ninguna coincidencia en las primeras `max_header_rows`
+    filas, hace fallback a 1 (comportamiento previo: un solo encabezado).
+    """
+    limit = min(max_header_rows, len(df))
+    for i in range(limit):
+        row_vals = [str(v).strip() for v in df.iloc[i].tolist()]
+        if any(_WEEK_YEAR_RE.match(v) for v in row_vals):
+            return i
+    return 1
+
+
+def _merge_header_rows(df, data_start):
+    """
+    Fusiona las filas 0..data_start-1 (detectadas por _find_data_start_row)
+    en una única lista de encabezados: por columna, gana el primer valor no
+    vacío recorriendo las filas en orden (generaliza el merge de 2 filas fijas
+    que se usaba antes a N filas detectadas dinámicamente).
+    """
+    ncols = df.shape[1]
+    headers = [None] * ncols
+    for i in range(max(data_start, 1)):
+        row = list(df.iloc[i])
+        for c in range(min(ncols, len(row))):
+            if headers[c] is None:
+                v = str(row[c]).strip()
+                if v not in ('nan', ''):
+                    headers[c] = v
+    return [h if h is not None else f'Col_{i}' for i, h in enumerate(headers)]
+
+
 def aplicar_formato_tabla_openpyxl(ws, sheet_name):
     """
     Aplica formato tabla de Excel a la hoja dada en un Workbook de openpyxl.
@@ -350,7 +395,8 @@ def extract_avisos(path, puestos_mapping=None, grupos_mapping=None):
     group = {}
     total = 0
 
-    data_rows = df.iloc[1:-1]
+    data_start = _find_data_start_row(df)
+    data_rows = df.iloc[data_start:]
 
     for _, row in data_rows.iterrows():
         row_list = list(row)
@@ -380,8 +426,8 @@ def extract_avisos(path, puestos_mapping=None, grupos_mapping=None):
     # Construir DataFrame limpio para exportación al XLSX consolidado
     df_clean = data_rows.copy()
 
-    # Aplicar headers del archivo SAP (fila 0) y renombrar columnas clave
-    headers = _make_unique_headers(list(df.iloc[0]))
+    # Aplicar headers del archivo SAP (fusión dinámica de filas de título/encabezado) y renombrar columnas clave
+    headers = _make_unique_headers(_merge_header_rows(df, data_start))
     rename_map = {5: 'Txt. breve', 11: 'Gr. Planif', 13: 'Denom', 15: 'Pto. Trabajo'}
     for idx, name in rename_map.items():
         if idx < len(headers):
@@ -433,7 +479,8 @@ def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
     group = {}
     total = 0
 
-    data_rows = df.iloc[1:-1]
+    data_start = _find_data_start_row(df)
+    data_rows = df.iloc[data_start:]
 
     gr_planif_col = []
     gr_planif_pm_col = []
@@ -472,7 +519,7 @@ def extract_ordenes(path, puestos_mapping=None, grupos_mapping=None):
 
     # DataFrame limpio
     df_clean = data_rows.copy()
-    headers = _make_unique_headers(list(df.iloc[0]))
+    headers = _make_unique_headers(_merge_header_rows(df, data_start))
     rename_map = {1: 'Gr. Planif', 6: 'Txt. breve', 12: 'Pto. Trabajo Descripcion', 13: 'Pto. Trabajo'}
     for idx, name in rename_map.items():
         if idx < len(headers):
@@ -537,7 +584,8 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
     total_sin_horizonte = 0.0
     total_imprevistos   = 0.0
 
-    data_rows = df.iloc[2:-1]  # Saltar 2 filas de encabezado (title/vacía + headers) + última de total
+    data_start = _find_data_start_row(df)
+    data_rows = df.iloc[data_start:]
 
     criterios_col = []
     gr_planif_col = []
@@ -695,19 +743,8 @@ def extract_trabajo_planificado(path, ots_mapping=None, puestos_mapping=None, gr
     # Construir DataFrame limpio para exportación
     df_clean = data_rows.copy()
 
-    # Encabezados: combinar fila 0 (cols numéricas) y fila 1 (texto)
-    h0 = list(df.iloc[0])
-    h1 = list(df.iloc[1])
-    merged = []
-    for i, (a, b) in enumerate(zip(h0, h1)):
-        a_s, b_s = str(a).strip(), str(b).strip()
-        if a_s not in ('nan', ''):
-            merged.append(a_s)
-        elif b_s not in ('nan', ''):
-            merged.append(b_s)
-        else:
-            merged.append(f'Col_{i}')
-    merged = _make_unique_headers(merged)
+    # Encabezados: fusión dinámica de todas las filas de título/encabezado detectadas
+    merged = _make_unique_headers(_merge_header_rows(df, data_start))
     df_clean.columns = merged
 
     # Renombrar explícitamente col 15 a % Trabajo Planificado y 4 y 5 a Puesto de Trabajo
@@ -783,7 +820,8 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
     total_ind_cumple = 0.0
     total_ops        = 0.0
 
-    data_rows   = df.iloc[2:-1]
+    data_start = _find_data_start_row(df)
+    data_rows   = df.iloc[data_start:]
     criterios_col = []
     gr_planif_col = []
     gr_planif_pm_col = []
@@ -860,18 +898,7 @@ def extract_programa_semanal(path, puestos_mapping=None, grupos_mapping=None):
 
     # DataFrame limpio
     df_clean = data_rows.copy()
-    h0 = list(df.iloc[0])
-    h1 = list(df.iloc[1])
-    merged = []
-    for i, (a, b) in enumerate(zip(h0, h1)):
-        a_s, b_s = str(a).strip(), str(b).strip()
-        if a_s not in ('nan', ''):
-            merged.append(a_s)
-        elif b_s not in ('nan', ''):
-            merged.append(b_s)
-        else:
-            merged.append(f'Col_{i}')
-    merged = _make_unique_headers(merged)
+    merged = _make_unique_headers(_merge_header_rows(df, data_start))
     df_clean.columns = merged
 
     # Renombrar explícitamente columnas
@@ -951,21 +978,21 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
     total_ejec    = 0.0
     total_totales = 0.0
 
-    data_rows     = df.iloc[2:-1]
+    data_start    = _find_data_start_row(df)
+    data_rows     = df.iloc[data_start:]
     criterios_col = []
     gr_planif_col = []
     gr_planif_pm_col = []
     nuevos_totales_col = []
     nuevos_ejec_col = []
 
-    # Detectar columna de orden en el encabezado (fila 1)
+    # Detectar columna de orden en el encabezado (fusión dinámica de filas de título/encabezado)
     col_orden = 8
-    if len(df) > 1:
-        header_row = [str(v).strip() for v in list(df.iloc[1])]
-        for i, h in enumerate(header_row):
-            if 'orden' in h.lower() and 'mantenimiento' in h.lower():
-                col_orden = i
-                break
+    header_row = _merge_header_rows(df, data_start)
+    for i, h in enumerate(header_row):
+        if 'orden' in h.lower() and 'mantenimiento' in h.lower():
+            col_orden = i
+            break
 
     for _, row in data_rows.iterrows():
         row_list = list(row)
@@ -1060,18 +1087,7 @@ def extract_plan_matriz(path, export_ops_mapping=None, puestos_mapping=None, gru
 
     # DataFrame limpio
     df_clean = data_rows.copy()
-    h0 = list(df.iloc[0])
-    h1 = list(df.iloc[1])
-    merged = []
-    for i, (a, b) in enumerate(zip(h0, h1)):
-        a_s, b_s = str(a).strip(), str(b).strip()
-        if a_s not in ('nan', ''):
-            merged.append(a_s)
-        elif b_s not in ('nan', ''):
-            merged.append(b_s)
-        else:
-            merged.append(f'Col_{i}')
-    merged = _make_unique_headers(merged)
+    merged = _make_unique_headers(_merge_header_rows(df, data_start))
     df_clean.columns = merged
 
     # Renombrar columnas 12 y 13 para Puesto de Trabajo
@@ -1698,11 +1714,10 @@ def preview_file(path, file_type):
     try:
         df = read_raw_sap_file(path)
 
-        # Determinar offset de encabezado según tipo
-        double_header_types = ('trabajoPlanificado', 'programaSemanal', 'planMatriz')
-        header_offset = 2 if file_type in double_header_types else 1
-
-        data_rows = df.iloc[header_offset:-1] if len(df) > header_offset + 1 else df.iloc[header_offset:]
+        # Detección dinámica de filas de título/encabezado (misma lógica que
+        # los extractores reales, para que el conteo de preview coincida).
+        header_offset = _find_data_start_row(df)
+        data_rows = df.iloc[header_offset:]
         # Vectorizado: revisa todas las columnas de una vez en vez de iterar
         # fila por fila en Python (is_resultado_row por .iterrows() era el
         # cuello de botella con archivos SAP de miles de filas). Debe cubrir
