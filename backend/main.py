@@ -376,6 +376,8 @@ def post_config():
             state.config_data["recipient_lists"] = req_data["recipient_lists"]
         if "email_layouts" in req_data:
             state.config_data["email_layouts"] = req_data["email_layouts"]
+        if "theme" in req_data:
+            state.config_data["theme"] = req_data["theme"]
 
         state.guardar_config()
         return jsonify({"success": True, "message": "Configuración guardada correctamente."})

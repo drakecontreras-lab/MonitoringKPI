@@ -120,6 +120,7 @@ export default function App() {
             navegador: data.navegador || { url_base: '', headless: false }
           });
           if (data.email_settings) setEmailSettings(prev => ({ ...prev, ...data.email_settings }));
+          if (data.theme === 'dark' || data.theme === 'light') setTheme(data.theme);
         }
       } catch (e) { console.error('Error al cargar configuración:', e); }
 
@@ -204,7 +205,7 @@ export default function App() {
       {/* HEADER */}
       <header className="app-header glass-panel" style={{ position: 'relative' }}>
         <div className="brand-section">
-          <MonitoringLogo height="42px" />
+          <MonitoringLogo height="63px" />
           <div className="brand-subtitle">KPI's Corporativos</div>
         </div>
 
@@ -226,9 +227,13 @@ export default function App() {
         </nav>
 
         <div className="user-section">
-          <button 
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
-            className="btn-logout" 
+          <button
+            onClick={() => {
+              const nextTheme = theme === 'dark' ? 'light' : 'dark';
+              setTheme(nextTheme);
+              fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: nextTheme }) }).catch(() => {});
+            }}
+            className="btn-logout"
             title="Alternar Tema"
             style={{ marginRight: '0.5rem' }}
           >
