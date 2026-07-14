@@ -16,9 +16,9 @@ const REQUIRED_FILES = [
 /**
  * Pestaña KPIs Corporativos.
  * Estado COMPLETAMENTE independiente de ProyeccionesTab.
- * Props recibidas de App.jsx: smtpConfig, onOpenSettings, user, defaultSemana, emailSettings, setEmailSettings
+ * Props recibidas de App.jsx: onOpenSettings, user, defaultSemana, emailSettings, setEmailSettings
  */
-export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, defaultSemana, emailSettings, setEmailSettings }) {
+export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana, emailSettings, setEmailSettings }) {
   // ─── Estado KPI ───
   const [kpiSubTab, setKpiSubTab] = useState('visualizacion');
   const [semana, setSemana] = useState(defaultSemana || '23');
@@ -359,9 +359,8 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
 
   const handleSendTestEmail = async () => {
     setEmailStatus({ success: false, error: '', message: '' });
-    if (!smtpConfig.email || !smtpConfig.password) {
-      onOpenSettings();
-      setEmailStatus({ success: false, error: 'Debe configurar sus credenciales SMTP.', message: '' });
+    if (!user?.preferred_username) {
+      setEmailStatus({ success: false, error: 'Debe iniciar sesión con su cuenta Microsoft.', message: '' });
       return;
     }
     if (!testRecipients) {
@@ -373,7 +372,6 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
       const response = await fetch('/api/send-report', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: smtpConfig.email, password: smtpConfig.password,
           recipients: testRecipients, cc: cc,
           subject: subject.startsWith('[PRUEBA]') ? subject : `[PRUEBA] ${subject}`,
           kpiData: kpiData, templateId: selectedTemplate,
@@ -392,9 +390,8 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
 
   const handleSendRealEmail = async () => {
     setEmailStatus({ success: false, error: '', message: '' });
-    if (!smtpConfig.email || !smtpConfig.password) {
-      onOpenSettings();
-      setEmailStatus({ success: false, error: 'Debe configurar sus credenciales SMTP.', message: '' });
+    if (!user?.preferred_username) {
+      setEmailStatus({ success: false, error: 'Debe iniciar sesión con su cuenta Microsoft.', message: '' });
       return;
     }
     if (!recipients) {
@@ -406,7 +403,6 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
       const response = await fetch('/api/send-report', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: smtpConfig.email, password: smtpConfig.password,
           recipients: recipients, cc: cc, subject: subject,
           kpiData: kpiData, templateId: selectedTemplate,
           emailSettings: emailSettings, includePowerBI: includePowerBI,
@@ -861,6 +857,24 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                             <div className="progress-bar-fill" style={{ width: `${pbiStatus.progreso * 100}%` }}></div>
                           </div>
 
+                          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: '#0b0f19', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {pbiStatus.visor ? (
+                              <img src={`data:image/jpeg;base64,${pbiStatus.visor}`} alt="Transmisión Power BI" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            ) : (
+                              <div className="flex-col flex-center text-muted" style={{ gap: '0.4rem' }}>
+                                <span className="material-icons" style={{ fontSize: '1.8rem' }}>tv_off</span>
+                                <span style={{ fontSize: '0.75rem' }}>Esperando transmisión...</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="hud-console font-mono" style={{ maxHeight: '110px', minHeight: '60px' }}>
+                            {(pbiStatus.logs || []).length > 0 ? pbiStatus.logs.slice(-20).map((log, idx) => (
+                              <div key={idx} className={`console-line ${log.level}`} style={{ fontSize: '0.72rem' }}><span className="line-time">[{log.time}]</span><span className="line-text">{log.text}</span></div>
+                            )) : (
+                              <div className="console-placeholder text-center text-muted" style={{ fontSize: '0.75rem' }}>Esperando mensajes del robot...</div>
+                            )}
+                          </div>
 
                           <div className="flex gap-0.5" style={{ marginTop: '0.5rem' }}>
                             <button type="button" onClick={async () => { await fetch('/api/pausar-modulo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo_id: 'powerbi' }) }); }} className="btn btn-secondary flex-1" style={{ fontSize: '0.75rem', padding: '0.35rem' }}>Pausar</button>
@@ -1067,6 +1081,19 @@ export default function KpiCorporativosTab({ smtpConfig, onOpenSettings, user, d
                     </div>
                   )}
                 </div>
+                <div className="hud-console font-mono" style={{ maxHeight: '140px', minHeight: '80px', marginTop: '0.5rem' }}>
+                  {kpiRobotLogs.length > 0 ? kpiRobotLogs.slice(-30).map((log, idx) => (
+                    <div key={idx} className={`console-line ${log.level}`}><span className="line-time">[{log.time}]</span><span className="line-text">{log.text}</span></div>
+                  )) : (
+                    <div className="console-placeholder text-center text-muted">Esperando mensajes del robot...</div>
+                  )}
+                </div>
+              </div>
+            ) : processing ? (
+              <div className="glass-card flex-center flex-col h-full" style={{ minHeight: '400px' }}>
+                <span className="spinner-mini" style={{ width: '3rem', height: '3rem', borderWidth: '4px', marginBottom: '1.5rem' }}></span>
+                <h3 className="text-muted-light">Generando Reporte Consolidado...</h3>
+                <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>La automatización SAP finalizó. Consolidando datos y construyendo el Excel con tablas dinámicas.</p>
               </div>
             ) : kpiRobotVisor ? (
               /* Última captura del robot — se mantiene visible después de finalizar la automatización */
