@@ -214,12 +214,10 @@ export default function App() {
             <span className="material-icons">query_stats</span>
             <span>KPIs Corporativos</span>
           </button>
-          {/* Ocultado a pedido del usuario
           <button className={`tab-btn ${activeTab === 'proyecciones' ? 'active' : ''}`} onClick={() => setActiveTab('proyecciones')}>
             <span className="material-icons">precision_manufacturing</span>
             <span>Proyecciones</span>
           </button>
-          */}
           <button className={`tab-btn ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>
             <span className="material-icons">settings</span>
             <span>Configuración</span>
