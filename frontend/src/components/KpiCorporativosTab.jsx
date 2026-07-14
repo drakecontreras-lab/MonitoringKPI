@@ -31,6 +31,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   const [showArchivosApoyo, setShowArchivosApoyo] = useState(false);
   const [dialog, setDialog] = useState(null);
   const [expandedImage, setExpandedImage] = useState(null);
+  const [visSubTab, setVisSubTab] = useState('resumen');
   const pbiConsoleRef = useRef(null);
   const kpiConsoleRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -938,11 +939,24 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
             {kpiData ? (
               <>
                 <div className="glass-card flex-col gap-1.5">
-                  <h2 className="card-title">
-                    <span className="material-icons text-cyan">dashboard</span>
-                    <span>2. Visualización de Indicadores</span>
-                  </h2>
+                  <div className="flex-between">
+                    <h2 className="card-title">
+                      <span className="material-icons text-cyan">dashboard</span>
+                      <span>2. Visualización de Indicadores</span>
+                    </h2>
+                    <div className="sub-tab-navigation flex gap-0.5">
+                      <button type="button" className={`btn ${visSubTab === 'resumen' ? 'btn-primary' : 'btn-outline'}`} style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }} onClick={() => setVisSubTab('resumen')}>
+                        <span className="material-icons" style={{ fontSize: '1.05rem' }}>view_agenda</span> Resumen
+                      </button>
+                      <button type="button" className={`btn ${visSubTab === 'graficos' ? 'btn-primary' : 'btn-outline'}`} style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }} onClick={() => setVisSubTab('graficos')}>
+                        <span className="material-icons" style={{ fontSize: '1.05rem' }}>bar_chart</span> Gráficos
+                      </button>
+                    </div>
+                  </div>
 
+                  {visSubTab === 'graficos' ? (
+                    <IndicatorCharts kpiData={kpiData} />
+                  ) : (<>
                   <div className="kpis-summary-grid">
                     {(() => {
                       const av = kpiData.indicadores.avisosPendientes;
@@ -984,8 +998,6 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                       </>);
                     })()}
                   </div>
-
-                  <IndicatorCharts kpiData={kpiData} />
 
                   {/* Descarga Excel y Power BI */}
                   <div className="excel-download-bar" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', alignItems: 'stretch' }}>
@@ -1094,6 +1106,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                       )}
                     </div>
                   </div>
+                  </>)}
                 </div>
 
                 {/* Tablas Editables de Detalle */}
