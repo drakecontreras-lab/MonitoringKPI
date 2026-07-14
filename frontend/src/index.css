@@ -1681,3 +1681,19 @@ h1, h2, h3, h4 {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+.drag-handle-col {
+  width: 32px;
+}
+
+.drag-handle-cell {
+  width: 32px;
+  text-align: center;
+  cursor: grab;
+  color: var(--text-muted);
+  touch-action: none;
+}
+
+.drag-handle-cell:active {
+  cursor: grabbing;
+}
