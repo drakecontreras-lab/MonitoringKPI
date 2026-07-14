@@ -3,6 +3,7 @@ import EmailPreview from './EmailPreview';
 import SettingsModal from './SettingsModal';
 import { createPortal } from 'react-dom';
 import KpiDashboardCharts from './KpiDashboardCharts';
+import ConfirmDialog from './ConfirmDialog';
 import SortableRow from './SortableRow';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -27,6 +28,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   const [semana, setSemana] = useState(defaultSemana || '23');
   const [uploadMode, setUploadMode] = useState('raw');
   const [showArchivosApoyo, setShowArchivosApoyo] = useState(false);
+  const [dialog, setDialog] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [files, setFiles] = useState({
     avisos: null, ordenes: null, trabajoPlanificado: null,
@@ -450,8 +452,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     } finally { setSavingReport(false); }
   };
 
-  const handleResetReport = () => {
-    if (!window.confirm('¿Reiniciar reporte? Se limpiarán todos los archivos cargados y datos procesados.')) return;
+  const doResetReport = () => {
     setFiles({ avisos: null, ordenes: null, trabajoPlanificado: null, programaSemanal: null, planMatriz: null, proyOts: null, proy37n: null });
     setFilesStatus({});
     setReadyFile(null);
@@ -467,6 +468,16 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     setIncludePowerBI(false);
   };
 
+  const handleResetReport = () => {
+    setDialog({
+      mode: 'confirm', icon: 'restart_alt', danger: true,
+      title: 'Reiniciar reporte',
+      message: 'Se limpiarán todos los archivos cargados y datos procesados.',
+      confirmLabel: 'Reiniciar',
+      onConfirm: () => { doResetReport(); setDialog(null); }
+    });
+  };
+
   const persistRecipientLists = async (lists) => {
     try {
       await fetch('/api/config', {
@@ -476,14 +487,20 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     } catch (e) {}
   };
 
-  const handleSaveRecipientList = async () => {
-    const name = window.prompt('Nombre para la lista de correo:');
-    if (!name) return;
-    const newList = { id: `rl_${Date.now()}`, name, recipients, cc, testRecipients };
-    const updated = [...recipientLists, newList];
-    setRecipientLists(updated);
-    setSelectedRecipientListId(newList.id);
-    await persistRecipientLists(updated);
+  const handleSaveRecipientList = () => {
+    setDialog({
+      mode: 'prompt', icon: 'save', title: 'Guardar lista de correo',
+      message: 'Ingresa un nombre para esta lista de destinatarios.',
+      confirmLabel: 'Guardar',
+      onConfirm: async (name) => {
+        const newList = { id: `rl_${Date.now()}`, name, recipients, cc, testRecipients };
+        const updated = [...recipientLists, newList];
+        setRecipientLists(updated);
+        setSelectedRecipientListId(newList.id);
+        await persistRecipientLists(updated);
+        setDialog(null);
+      }
+    });
   };
 
   const handleUpdateRecipientList = async () => {
@@ -504,13 +521,20 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     }
   };
 
-  const handleDeleteRecipientList = async () => {
+  const handleDeleteRecipientList = () => {
     if (!selectedRecipientListId) return;
-    if (!window.confirm('¿Eliminar la lista de correo seleccionada?')) return;
-    const updated = recipientLists.filter(l => l.id !== selectedRecipientListId);
-    setRecipientLists(updated);
-    setSelectedRecipientListId('');
-    await persistRecipientLists(updated);
+    setDialog({
+      mode: 'confirm', icon: 'delete', danger: true, title: 'Eliminar lista de correo',
+      message: '¿Eliminar la lista de correo seleccionada? Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        const updated = recipientLists.filter(l => l.id !== selectedRecipientListId);
+        setRecipientLists(updated);
+        setSelectedRecipientListId('');
+        await persistRecipientLists(updated);
+        setDialog(null);
+      }
+    });
   };
 
   const persistEmailLayouts = async (layouts) => {
@@ -522,14 +546,20 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     } catch (e) {}
   };
 
-  const handleSaveEmailLayout = async () => {
-    const name = window.prompt('Nombre para el layout de plantilla:');
-    if (!name) return;
-    const newLayout = { id: `el_${Date.now()}`, name, settings: { ...emailSettings } };
-    const updated = [...emailLayouts, newLayout];
-    setEmailLayouts(updated);
-    setSelectedEmailLayoutId(newLayout.id);
-    await persistEmailLayouts(updated);
+  const handleSaveEmailLayout = () => {
+    setDialog({
+      mode: 'prompt', icon: 'save', title: 'Guardar layout de plantilla',
+      message: 'Ingresa un nombre para este layout de correo.',
+      confirmLabel: 'Guardar',
+      onConfirm: async (name) => {
+        const newLayout = { id: `el_${Date.now()}`, name, settings: { ...emailSettings } };
+        const updated = [...emailLayouts, newLayout];
+        setEmailLayouts(updated);
+        setSelectedEmailLayoutId(newLayout.id);
+        await persistEmailLayouts(updated);
+        setDialog(null);
+      }
+    });
   };
 
   const handleUpdateEmailLayout = async () => {
@@ -546,13 +576,20 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
     if (layout) setEmailSettings(prev => ({ ...prev, ...layout.settings }));
   };
 
-  const handleDeleteEmailLayout = async () => {
+  const handleDeleteEmailLayout = () => {
     if (!selectedEmailLayoutId) return;
-    if (!window.confirm('¿Eliminar el layout seleccionado?')) return;
-    const updated = emailLayouts.filter(l => l.id !== selectedEmailLayoutId);
-    setEmailLayouts(updated);
-    setSelectedEmailLayoutId('');
-    await persistEmailLayouts(updated);
+    setDialog({
+      mode: 'confirm', icon: 'delete', danger: true, title: 'Eliminar layout',
+      message: '¿Eliminar el layout de plantilla seleccionado? Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        const updated = emailLayouts.filter(l => l.id !== selectedEmailLayoutId);
+        setEmailLayouts(updated);
+        setSelectedEmailLayoutId('');
+        await persistEmailLayouts(updated);
+        setDialog(null);
+      }
+    });
   };
 
   const handleSaveEmailSettings = async () => {
@@ -1426,6 +1463,19 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
             />
           </div>
         </div>
+      )}
+
+      {dialog && (
+        <ConfirmDialog
+          mode={dialog.mode}
+          icon={dialog.icon}
+          danger={dialog.danger}
+          title={dialog.title}
+          message={dialog.message}
+          confirmLabel={dialog.confirmLabel}
+          onConfirm={dialog.onConfirm}
+          onCancel={() => setDialog(null)}
+        />
       )}
     </div>
   );
