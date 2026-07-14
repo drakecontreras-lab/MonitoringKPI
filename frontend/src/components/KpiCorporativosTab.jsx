@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import EmailPreview from './EmailPreview';
 import SettingsModal from './SettingsModal';
 import { createPortal } from 'react-dom';
@@ -29,6 +29,8 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   const [uploadMode, setUploadMode] = useState('raw');
   const [showArchivosApoyo, setShowArchivosApoyo] = useState(false);
   const [dialog, setDialog] = useState(null);
+  const pbiConsoleRef = useRef(null);
+  const kpiConsoleRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [files, setFiles] = useState({
     avisos: null, ordenes: null, trabajoPlanificado: null,
@@ -151,6 +153,14 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
   useEffect(() => {
     if (defaultSemana) setSemana(defaultSemana);
   }, [defaultSemana]);
+
+  useEffect(() => {
+    if (kpiConsoleRef.current) kpiConsoleRef.current.scrollTop = kpiConsoleRef.current.scrollHeight;
+  }, [kpiRobotLogs]);
+
+  useEffect(() => {
+    if (pbiConsoleRef.current) pbiConsoleRef.current.scrollTop = pbiConsoleRef.current.scrollHeight;
+  }, [pbiStatus.logs]);
 
   useEffect(() => {
     if (semana) setSubject(`Reporte Semanal KPI - Mantenimiento DCH - Semana ${semana}`);
@@ -1032,7 +1042,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                             )}
                           </div>
 
-                          <div className="hud-console font-mono" style={{ maxHeight: '110px', minHeight: '60px' }}>
+                          <div ref={pbiConsoleRef} className="hud-console font-mono" style={{ maxHeight: '110px', minHeight: '60px' }}>
                             {(pbiStatus.logs || []).length > 0 ? pbiStatus.logs.slice(-20).map((log, idx) => (
                               <div key={idx} className={`console-line ${log.level}`} style={{ fontSize: '0.72rem' }}><span className="line-time">[{log.time}]</span><span className="line-text">{log.text}</span></div>
                             )) : (
@@ -1356,7 +1366,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                     </div>
                   )}
                 </div>
-                <div className="hud-console font-mono" style={{ maxHeight: '140px', minHeight: '80px', marginTop: '0.5rem' }}>
+                <div ref={kpiConsoleRef} className="hud-console font-mono" style={{ maxHeight: '140px', minHeight: '80px', marginTop: '0.5rem' }}>
                   {kpiRobotLogs.length > 0 ? kpiRobotLogs.slice(-30).map((log, idx) => (
                     <div key={idx} className={`console-line ${log.level}`}><span className="line-time">[{log.time}]</span><span className="line-text">{log.text}</span></div>
                   )) : (

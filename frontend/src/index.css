@@ -805,17 +805,18 @@ h1, h2, h3, h4 {
 
 .premium-table th {
   background: var(--bg-btn-secondary);
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.6rem;
   font-weight: 700;
   color: var(--text-muted);
   border-bottom: 1px solid var(--bg-card-border);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .premium-table td {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.6rem;
   border-bottom: 1px solid var(--bg-card-border);
   color: var(--text-main);
   vertical-align: middle;

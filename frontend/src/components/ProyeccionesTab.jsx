@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 const PROJECTION_OPTIONS = [
@@ -29,6 +29,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
   const [proyProgress, setProyProgress] = useState(0.0);
   const [proyProgressText, setProyProgressText] = useState('Inactivo');
   const [proyLogs, setProyLogs] = useState([]);
+  const proyConsoleRef = useRef(null);
   const [proyVisor, setProyVisor] = useState('');
   const [solicitarMfa, setSolicitarMfa] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
@@ -46,6 +47,9 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
   const [emailStatus, setEmailStatus] = useState({ success: false, error: '', message: '' });
 
   useEffect(() => { if (defaultSemana) setProyParams(prev => ({ ...prev, semana: defaultSemana })); }, [defaultSemana]);
+  useEffect(() => {
+    if (proyConsoleRef.current) proyConsoleRef.current.scrollTop = proyConsoleRef.current.scrollHeight;
+  }, [proyLogs]);
   useEffect(() => { if (defaultFechaBase) setProyParams(prev => ({ ...prev, fecha_base: defaultFechaBase })); }, [defaultFechaBase]);
   useEffect(() => { setSubject(`Reporte de Proyecciones - GSYS Mantenimiento DCH - Semana ${proyParams.semana}`); }, [proyParams.semana]);
 
@@ -424,7 +428,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
             </div>
             <div className="glass-card flex-col gap-1" style={{ flex: 1, minHeight: '200px' }}>
               <h2 className="card-title"><span className="material-icons text-indigo">terminal</span><span>Consola HUD</span></h2>
-              <div className="hud-console font-mono">
+              <div ref={proyConsoleRef} className="hud-console font-mono">
                 {proyLogs.length > 0 ? proyLogs.map((log, idx) => (<div key={idx} className={`console-line ${log.level}`}><span className="line-time">[{log.time}]</span><span className="line-text">{log.text}</span></div>)) : (<div className="console-placeholder text-center text-muted">Consola HUD inactiva.</div>)}
               </div>
             </div>
