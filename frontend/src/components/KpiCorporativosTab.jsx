@@ -1036,25 +1036,50 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                       <h3>% Trabajo Planificado (HH)</h3>
                       <div className="responsive-table-wrapper">
                         <table className="premium-table">
-                          <thead><tr><th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Sin Hor.</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumplimiento</th></tr></thead>
-                          <tbody>
-                            {kpiData.trabajoPlanificado.grupos.map((g, idx) => (
-                              <tr key={idx}>
-                                <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajo : g.grPlanif} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
-                                <td>{isEditing ? <input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
-                                <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.planificado} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'planificado', e.target.value)} /> : Math.round(g.planificado)}</td>
-                                <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.sinHr} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHr', e.target.value)} /> : Math.round(g.sinHr)}</td>
-                                <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.sinHorizonte || 0} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHorizonte', e.target.value)} /> : Math.round(g.sinHorizonte || 0)}</td>
-                                <td className="text-right font-number">{isEditing ? <input type="number" className="cell-input text-right" value={g.imprevistos} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'imprevistos', e.target.value)} /> : Math.round(g.imprevistos)}</td>
-                                <td className="text-right font-number font-bold">{isEditing ? <input type="number" className="cell-input text-right" value={g.total} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'total', e.target.value)} /> : Math.round(g.total)}</td>
-                                <td className="text-center">{isEditing ? <div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(g.cumplimiento * 100)} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'cumplimiento', e.target.value)} /><span>%</span></div> : renderCumpPill(g.cumplimiento)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
+                          <thead><tr>{isEditing && <th className="drag-handle-col"></th>}<th>Proceso</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-right">Planificado</th><th className="text-right">Sin HR</th><th className="text-right">Sin Hor.</th><th className="text-right">Imprevistos</th><th className="text-right">Total HH</th><th className="text-center">Cumplimiento</th></tr></thead>
+                          {isEditing ? (
+                            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd('trabajoPlanificado', 'grupos', e)}>
+                              <SortableContext items={kpiData.trabajoPlanificado.grupos.map(g => g._rowId)} strategy={verticalListSortingStrategy}>
+                                <tbody>
+                                  {kpiData.trabajoPlanificado.grupos.map((g, idx) => (
+                                    <SortableRow key={g._rowId} id={g._rowId}>
+                                      {(listeners) => (<>
+                                        <td className="drag-handle-cell" {...listeners}><span className="material-icons">drag_indicator</span></td>
+                                        <td><input type="text" className="cell-input" value={g.proceso} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'proceso', e.target.value)} /></td>
+                                        <td><input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajo : g.grPlanif} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /></td>
+                                        <td><input type="text" className="cell-input text-center" value={usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM} onChange={(e) => handleTableChange('trabajoPlanificado', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /></td>
+                                        <td className="text-right font-number"><input type="number" className="cell-input text-right" value={g.planificado} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'planificado', e.target.value)} /></td>
+                                        <td className="text-right font-number"><input type="number" className="cell-input text-right" value={g.sinHr} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHr', e.target.value)} /></td>
+                                        <td className="text-right font-number"><input type="number" className="cell-input text-right" value={g.sinHorizonte || 0} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'sinHorizonte', e.target.value)} /></td>
+                                        <td className="text-right font-number"><input type="number" className="cell-input text-right" value={g.imprevistos} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'imprevistos', e.target.value)} /></td>
+                                        <td className="text-right font-number font-bold"><input type="number" className="cell-input text-right" value={g.total} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'total', e.target.value)} /></td>
+                                        <td className="text-center"><div className="flex-center gap-0.25"><input type="number" className="cell-input text-center w-60" value={Math.round(g.cumplimiento * 100)} onChange={(e) => handleTableChange('trabajoPlanificado', idx, 'cumplimiento', e.target.value)} /><span>%</span></div></td>
+                                      </>)}
+                                    </SortableRow>
+                                  ))}
+                                </tbody>
+                              </SortableContext>
+                            </DndContext>
+                          ) : (
+                            <tbody>
+                              {kpiData.trabajoPlanificado.grupos.map((g, idx) => (
+                                <tr key={g._rowId || idx}>
+                                  <td>{g.proceso}</td>
+                                  <td>{usePtoTrabajo ? g.ptoTrabajo : g.grPlanif}</td>
+                                  <td>{usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM}</td>
+                                  <td className="text-right font-number">{Math.round(g.planificado)}</td>
+                                  <td className="text-right font-number">{Math.round(g.sinHr)}</td>
+                                  <td className="text-right font-number">{Math.round(g.sinHorizonte || 0)}</td>
+                                  <td className="text-right font-number">{Math.round(g.imprevistos)}</td>
+                                  <td className="text-right font-number font-bold">{Math.round(g.total)}</td>
+                                  <td className="text-center">{renderCumpPill(g.cumplimiento)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          )}
                           <tfoot>
                             <tr className="footer-row">
-                              <td colSpan="3">TOTAL GENERAL</td>
+                              <td colSpan={isEditing ? 4 : 3}>TOTAL GENERAL</td>
                               <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.planificado)}</td>
                               <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.sinHr)}</td>
                               <td className="text-right font-number">{Math.round(kpiData.trabajoPlanificado.total.sinHorizonte || 0)}</td>
