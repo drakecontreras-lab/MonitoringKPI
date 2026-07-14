@@ -951,18 +951,38 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                         <h3>Avisos Pendientes</h3>
                         <div className="responsive-table-wrapper">
                           <table className="premium-table">
-                            <thead><tr><th>Proceso Mantenimiento</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cantidad</th></tr></thead>
-                            <tbody>
-                              {(kpiData.resumenAvisos.distribucion || []).map((g, idx) => (
-                                <tr key={idx}>
-                                  <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajo : g.grPlanif) || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM) || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
-                                  <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={g.cantidad || 0} onChange={(e) => handleTableChange('resumenAvisos', idx, 'cantidad', e.target.value)} /> : Math.round(g.cantidad || 0)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot><tr className="footer-row"><td colSpan="3">TOTAL GENERAL</td><td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={kpiData.resumenAvisos.total || 0} onChange={(e) => handleTotalChange('resumenAvisos', 'total', e.target.value)} /> : Math.round(kpiData.resumenAvisos.total || 0)}</td></tr></tfoot>
+                            <thead><tr>{isEditing && <th className="drag-handle-col"></th>}<th>Proceso Mantenimiento</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cantidad</th></tr></thead>
+                            {isEditing ? (
+                              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd('resumenAvisos', 'distribucion', e)}>
+                                <SortableContext items={(kpiData.resumenAvisos.distribucion || []).map(g => g._rowId)} strategy={verticalListSortingStrategy}>
+                                  <tbody>
+                                    {(kpiData.resumenAvisos.distribucion || []).map((g, idx) => (
+                                      <SortableRow key={g._rowId} id={g._rowId}>
+                                        {(listeners) => (<>
+                                          <td className="drag-handle-cell" {...listeners}><span className="material-icons">drag_indicator</span></td>
+                                          <td><input type="text" className="cell-input" value={g.proceso || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, 'proceso', e.target.value)} /></td>
+                                          <td><input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajo : g.grPlanif) || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /></td>
+                                          <td><input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM) || ''} onChange={(e) => handleTableChange('resumenAvisos', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /></td>
+                                          <td className="text-center font-number"><input type="number" className="cell-input text-center w-80" value={g.cantidad || 0} onChange={(e) => handleTableChange('resumenAvisos', idx, 'cantidad', e.target.value)} /></td>
+                                        </>)}
+                                      </SortableRow>
+                                    ))}
+                                  </tbody>
+                                </SortableContext>
+                              </DndContext>
+                            ) : (
+                              <tbody>
+                                {(kpiData.resumenAvisos.distribucion || []).map((g, idx) => (
+                                  <tr key={g._rowId || idx}>
+                                    <td>{g.proceso}</td>
+                                    <td>{usePtoTrabajo ? g.ptoTrabajo : g.grPlanif}</td>
+                                    <td>{usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM}</td>
+                                    <td className="text-center font-number">{Math.round(g.cantidad || 0)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            )}
+                            <tfoot><tr className="footer-row"><td colSpan={isEditing ? 4 : 3}>TOTAL GENERAL</td><td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={kpiData.resumenAvisos.total || 0} onChange={(e) => handleTotalChange('resumenAvisos', 'total', e.target.value)} /> : Math.round(kpiData.resumenAvisos.total || 0)}</td></tr></tfoot>
                           </table>
                         </div>
                       </div>
@@ -974,18 +994,38 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
                         <h3>Órdenes Pendientes</h3>
                         <div className="responsive-table-wrapper">
                           <table className="premium-table">
-                            <thead><tr><th>Proceso Mantenimiento</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cantidad</th></tr></thead>
-                            <tbody>
-                              {(kpiData.resumenOrdenes.distribucion || []).map((g, idx) => (
-                                <tr key={idx}>
-                                  <td>{isEditing ? <input type="text" className="cell-input" value={g.proceso || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'proceso', e.target.value)} /> : g.proceso}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajo : g.grPlanif) || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajo : g.grPlanif)}</td>
-                                  <td>{isEditing ? <input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM) || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /> : (usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM)}</td>
-                                  <td className="text-center font-number">{isEditing ? <input type="number" className="cell-input text-center w-80" value={g.cantidad || 0} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'cantidad', e.target.value)} /> : Math.round(g.cantidad || 0)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot><tr className="footer-row"><td colSpan="3">TOTAL GENERAL</td><td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={kpiData.resumenOrdenes.total || 0} onChange={(e) => handleTotalChange('resumenOrdenes', 'total', e.target.value)} /> : Math.round(kpiData.resumenOrdenes.total || 0)}</td></tr></tfoot>
+                            <thead><tr>{isEditing && <th className="drag-handle-col"></th>}<th>Proceso Mantenimiento</th><th>{usePtoTrabajo ? 'Pto. Trabajo' : 'Gr. Planif'}</th><th>{usePtoTrabajo ? 'Desc. Pto. Trabajo' : 'Gr. planif.PM'}</th><th className="text-center">Cantidad</th></tr></thead>
+                            {isEditing ? (
+                              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd('resumenOrdenes', 'distribucion', e)}>
+                                <SortableContext items={(kpiData.resumenOrdenes.distribucion || []).map(g => g._rowId)} strategy={verticalListSortingStrategy}>
+                                  <tbody>
+                                    {(kpiData.resumenOrdenes.distribucion || []).map((g, idx) => (
+                                      <SortableRow key={g._rowId} id={g._rowId}>
+                                        {(listeners) => (<>
+                                          <td className="drag-handle-cell" {...listeners}><span className="material-icons">drag_indicator</span></td>
+                                          <td><input type="text" className="cell-input" value={g.proceso || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'proceso', e.target.value)} /></td>
+                                          <td><input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajo : g.grPlanif) || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, usePtoTrabajo ? 'ptoTrabajo' : 'grPlanif', e.target.value)} /></td>
+                                          <td><input type="text" className="cell-input text-center" value={(usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM) || ''} onChange={(e) => handleTableChange('resumenOrdenes', idx, usePtoTrabajo ? 'ptoTrabajoDesc' : 'grPlanifPM', e.target.value)} /></td>
+                                          <td className="text-center font-number"><input type="number" className="cell-input text-center w-80" value={g.cantidad || 0} onChange={(e) => handleTableChange('resumenOrdenes', idx, 'cantidad', e.target.value)} /></td>
+                                        </>)}
+                                      </SortableRow>
+                                    ))}
+                                  </tbody>
+                                </SortableContext>
+                              </DndContext>
+                            ) : (
+                              <tbody>
+                                {(kpiData.resumenOrdenes.distribucion || []).map((g, idx) => (
+                                  <tr key={g._rowId || idx}>
+                                    <td>{g.proceso}</td>
+                                    <td>{usePtoTrabajo ? g.ptoTrabajo : g.grPlanif}</td>
+                                    <td>{usePtoTrabajo ? g.ptoTrabajoDesc : g.grPlanifPM}</td>
+                                    <td className="text-center font-number">{Math.round(g.cantidad || 0)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            )}
+                            <tfoot><tr className="footer-row"><td colSpan={isEditing ? 4 : 3}>TOTAL GENERAL</td><td className="text-center font-number font-bold">{isEditing ? <input type="number" className="cell-input text-center w-80 font-bold" value={kpiData.resumenOrdenes.total || 0} onChange={(e) => handleTotalChange('resumenOrdenes', 'total', e.target.value)} /> : Math.round(kpiData.resumenOrdenes.total || 0)}</td></tr></tfoot>
                           </table>
                         </div>
                       </div>
