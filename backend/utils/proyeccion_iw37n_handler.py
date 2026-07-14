@@ -154,10 +154,27 @@ class ProyeccionIw37nHandler:
                 except Exception as e:
                     self.log(f"⚠️ Error en Grupo Planif IW37N: {e}")
 
-            # 3. Limpieza de campo Período
-            self.log("🧹 Limpiando Período...")
+            # 3. Limpieza de campo Período + FECHAS (pestaña General/Gestión).
+            # Sin esta fecha, IW37N queda sin filtro de periodo y trae TODO el
+            # historial disponible -> consulta gigantesca. Misma lógica que el
+            # handler DIEA (proyeccion_iw37n_diea_handler.py), que sí la aplica.
+            self.log("🧹 Limpiando Período y configurando fechas...")
             await ctx.get_by_role("textbox", name="Período").click()
             await ctx.get_by_role("textbox", name="Período").fill("")
+
+            await ctx.get_by_role("tablist").get_by_text("General/Gestión").first.click()
+            await asyncio.sleep(1)
+
+            hoy = datetime.now()
+            lunes = hoy - timedelta(days=hoy.weekday())
+            domingo = lunes + timedelta(days=6)
+            f_ini = lunes.strftime("%d.%m.%Y")
+            f_fin = domingo.strftime("%d.%m.%Y")
+
+            await ctx.get_by_role("textbox", name="Fecha inicio extrema").first.fill(f_ini)
+            await ctx.get_by_title("Fecha de inicio extrema").nth(1).fill(f_fin)
+            await self.page.keyboard.press("Tab")
+            self.log(f"📅 Rango de fechas configurado: {f_ini} - {f_fin}")
 
             # 4. Layout: pestaña Otros -> campo Layout
             self.log("🎨 Seleccionando Layout...")

@@ -487,7 +487,7 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
             <div className="glass-card" style={{ flexGrow: 1, minHeight: '500px' }}>
               <div className="preview-header-bar"><h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Previsualización del Correo</h3></div>
               <div className="preview-frame-wrapper" style={{ flexGrow: 1, height: '600px' }}>
-                <iframe title="Preview Proyecciones" srcDoc={generateProyPreviewHtml(proyData, avisosP1, proyParams.semana)} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 0 }} />
+                <iframe title="Preview Proyecciones" srcDoc={generateProyPreviewHtml(proyData, avisosP1, proyParams.semana, usePtoTrabajo)} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 0 }} />
               </div>
             </div>
           )}
@@ -520,13 +520,98 @@ export default function ProyeccionesTab({ defaultSemana, defaultFechaBase, onOpe
   );
 }
 
-function generateProyPreviewHtml(proyData, avisosP1, semana) {
+/**
+ * Genera el HTML de previsualización del correo de Proyecciones.
+ * Replica exactamente las tablas que arma el backend (proy_email_sender.py,
+ * generate_proy_email_template): Pendientes (Avisos/Órdenes) y Cumplimiento
+ * (%), agrupadas por Grupo de Planificación o Puesto de Trabajo según
+ * usePtoTrabajo — mismas columnas que usa KPI Corporativos.
+ */
+function generateProyPreviewHtml(proyData, avisosP1, semana, usePtoTrabajo) {
+  const labelGrupo = usePtoTrabajo ? 'Puesto de Trabajo' : 'Grupo de Planificación';
+  const resumen = proyData?.resumen || {};
+
   const p1Rows = avisosP1.map(a => `<tr><td style="padding:8px;text-align:center;">${a.aviso}</td><td style="padding:8px;text-align:center;color:#c62828;font-weight:bold;">${a.prioridad}</td><td style="padding:8px;">${a.ut}</td><td style="padding:8px;">${a.descripcion}</td><td style="padding:8px;text-align:center;">${a.fecha_aviso}</td><td style="padding:8px;text-align:center;color:#c62828;font-weight:bold;">${a.dias_transcurridos}</td><td style="padding:8px;text-align:center;background:#c62828;color:#fff;font-weight:bold;">${a.estado}</td></tr>`).join('');
+
+  const p1TableHtml = avisosP1.length > 0
+    ? `<table width="100%" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;"><tr style="background:#c62828;color:#fff;"><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Aviso</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Pri.</td><td style="padding:8px;font-size:10px;font-weight:bold;">UT</td><td style="padding:8px;font-size:10px;font-weight:bold;">Descripción</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Fecha</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Días</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Estado</td></tr>${p1Rows}</table>`
+    : '<p style="color:#166534;font-weight:bold;">✓ No hay avisos de prioridad 1.</p>';
+
+  // ── Tabla 1: Pendientes (Avisos y Órdenes) por grupo ──
+  const avisosDist = {};
+  (resumen.avisos?.distribucion || []).forEach(item => { avisosDist[item.grupo] = item.cantidad; });
+  const ordenesDist = {};
+  (resumen.ordenes?.distribucion || []).forEach(item => { ordenesDist[item.grupo] = item.cantidad; });
+  const gruposPendientes = Array.from(new Set([...Object.keys(avisosDist), ...Object.keys(ordenesDist)])).sort();
+
+  const pendientesRows = gruposPendientes.map(grupo => `
+    <tr>
+      <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${grupo}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#c62828;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${avisosDist[grupo] || 0}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#e96c28;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${ordenesDist[grupo] || 0}</td>
+    </tr>`).join('') + `
+    <tr style="background-color:#f0f4f8;font-weight:bold;">
+      <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</td>
+      <td style="padding:9px 8px;font-size:11px;color:#c62828;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${resumen.avisos?.total || 0}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#e96c28;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${resumen.ordenes?.total || 0}</td>
+    </tr>`;
+
+  const pendientesTableHtml = `
+    <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;margin-bottom:20px;">
+      <tr bgcolor="#E55302" style="background-color:#E55302;">
+        <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">${labelGrupo}</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">Avisos</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">Órdenes</td>
+      </tr>
+      ${pendientesRows}
+    </table>`;
+
+  // ── Tabla 2: Cumplimiento (%) por grupo ──
+  const tpGrupos = {};
+  (resumen.trabajoPlanificado?.grupos || []).forEach(item => { tpGrupos[item.grupo] = item.cumplimiento; });
+  const psGrupos = {};
+  (resumen.programaSemanal?.grupos || []).forEach(item => { psGrupos[item.grupo] = item.cumplimiento; });
+  const pmGrupos = {};
+  (resumen.planMatriz?.grupos || []).forEach(item => { pmGrupos[item.grupo] = item.cumplimiento; });
+  const gruposCumpl = Array.from(new Set([...Object.keys(tpGrupos), ...Object.keys(psGrupos), ...Object.keys(pmGrupos)])).sort();
+
+  const fmtPct = (v) => (v === undefined || v === null) ? '—' : `${Math.round(v * 100)}%`;
+
+  const cumplimientoRows = gruposCumpl.map(grupo => `
+    <tr>
+      <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">${grupo}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${fmtPct(tpGrupos[grupo])}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${fmtPct(psGrupos[grupo])}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${fmtPct(pmGrupos[grupo])}</td>
+    </tr>`).join('') + `
+    <tr style="background-color:#f0f4f8;font-weight:bold;">
+      <td style="padding:9px 12px;font-size:11px;color:#334155;border-bottom:1px solid #e2e8f0;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:right;font-family:Arial,sans-serif;">${fmtPct(resumen.trabajoPlanificado?.cumplimiento)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${fmtPct(resumen.programaSemanal?.cumplimiento)}</td>
+      <td style="padding:9px 8px;font-size:11px;color:#334155;font-weight:bold;border-bottom:1px solid #e2e8f0;text-align:center;font-family:Arial,sans-serif;">${fmtPct(resumen.planMatriz?.cumplimiento)}</td>
+    </tr>`;
+
+  const cumplimientoTableHtml = `
+    <table width="100%" cellpadding="0" cellspacing="0" border="1" bordercolor="#dde3ea" style="border-collapse:collapse;border:1px solid #dde3ea;margin-bottom:20px;">
+      <tr bgcolor="#E55302" style="background-color:#E55302;">
+        <td style="padding:10px 12px;font-size:10px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">${labelGrupo}</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:right;font-family:Arial,sans-serif;">% Trab. Plan.</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">% Prog. Sem.</td>
+        <td style="padding:10px 8px;font-size:10px;font-weight:bold;color:#ffffff;text-align:center;font-family:Arial,sans-serif;">% Plan Matriz</td>
+      </tr>
+      ${cumplimientoRows}
+    </table>`;
+
+  const areaTableHtml = Object.keys(resumen).length > 0 ? (pendientesTableHtml + cumplimientoTableHtml) : '<p style="font-family:Arial,sans-serif;font-size:11px;color:#64748b;">No hay datos de resumen.</p>';
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:0;font-family:Arial;}</style></head><body>
     <div style="background:#e8edf2;padding:24px;"><table width="816" style="max-width:816px;width:100%;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;">
       <tr><td style="background:#0d7a8c;padding:18px 20px;"><div style="color:#7fd8e8;font-size:9px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">DIVISIÓN CHUQUICAMATA · GSYS</div><div style="color:#fff;font-size:19px;font-weight:bold;">Reporte de Proyecciones de Planificación</div><div style="color:#a8dde8;font-size:11px;margin-top:3px;">Semana ${semana}</div></td></tr>
-      <tr><td style="padding:20px;"><div style="font-size:11px;color:#c62828;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-left:3px solid #c62828;padding-left:8px;">Avisos Prioridad 1 (${avisosP1.length})</div>
-        ${avisosP1.length > 0 ? `<table width="100%" border="1" bordercolor="#cbd5e1" style="border-collapse:collapse;"><tr style="background:#c62828;color:#fff;"><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Aviso</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Pri.</td><td style="padding:8px;font-size:10px;font-weight:bold;">UT</td><td style="padding:8px;font-size:10px;font-weight:bold;">Descripción</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Fecha</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Días</td><td style="padding:8px;text-align:center;font-size:10px;font-weight:bold;">Estado</td></tr>${p1Rows}</table>` : '<p style="color:#166534;font-weight:bold;">✓ No hay avisos de prioridad 1.</p>'}
+      <tr><td style="padding:20px;">
+        <div style="font-size:11px;color:#c62828;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-left:3px solid #c62828;padding-left:8px;">Avisos Prioridad 1 (${avisosP1.length})</div>
+        ${p1TableHtml}
+        <div style="font-size:11px;color:#64748b;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;margin-top:20px;border-left:3px solid #0d7a8c;padding-left:8px;">Resumen por ${labelGrupo}</div>
+        ${areaTableHtml}
       </td></tr>
       <tr><td style="background:#bb5726;padding:16px 20px;"><div style="color:#ffd4b8;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Fuente de datos</div><div style="color:#fff;font-size:10px;font-weight:bold;margin-top:4px;">Semana ${semana} · Monitoring</div></td></tr>
     </table></div>
