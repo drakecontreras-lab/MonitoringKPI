@@ -268,23 +268,14 @@ def is_resultado_row(row):
     return False
 
 
-def is_resultado_intermedio(row):
-    """
-    Verifica si la fila es un subtotal intermedio de SAP ('Resultado').
-    Las filas intermedias tienen exactamente 'Resultado' (no 'Resultado total').
-    """
-    for val in list(row):
-        s = str(val).strip()
-        if s == 'Resultado':
-            return True
-    return False
-
 
 def filtrar_filas_resultado_intermedias(df):
     """
-    Elimina filas de subtotal intermedio SAP ('Resultado'), conservando solo laúltima fila 'Resultado total'.
+    Elimina filas de subtotal/total SAP ('Resultado' y 'Resultado total') de la
+    hoja de detalle exportada. Ninguna de las dos debe quedar visible como fila
+    de datos: son agregados de SAP, no operaciones individuales.
     """
-    mask = ~df.apply(lambda r: is_resultado_intermedio(r), axis=1)
+    mask = ~df.apply(lambda r: is_resultado_row(list(r)), axis=1)
     return df[mask]
 
 
