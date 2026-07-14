@@ -7,7 +7,7 @@ import os
 from .paths import get_output_dir
 import re
 
-class ProyeccionIw37nDieaHandler:
+class ProyeccionOrdenesDieaHandler:
     def __init__(self, page, log_func, url_base=""):
         self.page = page
         self.log = log_func

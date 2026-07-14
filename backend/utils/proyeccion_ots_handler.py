@@ -110,26 +110,15 @@ class ProyeccionOtsHandler:
             else:
                 self.log("⚠️ No se encontraron órdenes válidas en el Excel. Continuando sin selección múltiple.")
 
-        # 3. Limpieza de Período + Fecha Final (fecha de corte, NO vacía).
-        # Dejar "A fecha" en blanco quita el límite superior de fecha y trae
-        # TODO el historial pendiente -> consulta gigantesca. Misma fecha de
-        # corte que proyeccion_ots_proy_handler.py (14 días atrás).
-        self.log("🧹 Limpiando Período y configurando Fecha Final...")
+        # 3. Limpieza de Período y Fecha Final
+        self.log("🧹 Limpiando Período y Fecha Final...")
         try:
             await ctx.get_by_role("textbox", name="Período").click()
             await ctx.get_by_role("textbox", name="Período").fill("")
-
-            hoy = datetime.now()
-            lunes_pasado = hoy - timedelta(days=hoy.weekday() + 14)
-            f_corte = lunes_pasado.strftime("%d.%m.%Y")
-
-            campo_fecha = ctx.get_by_role("textbox", name="a", description="Ayuda para entrada disponible A fecha", exact=True)
-            await campo_fecha.click()
-            await campo_fecha.fill(f_corte)
-            self.log(f"📅 Fecha de corte calculada: {f_corte}")
-            await self.page.keyboard.press("Tab")
+            await ctx.get_by_role("textbox", name="a", description="Ayuda para entrada disponible A fecha", exact=True).click()
+            await ctx.get_by_role("textbox", name="a", description="Ayuda para entrada disponible A fecha", exact=True).fill("")
         except Exception as e:
-            self.log(f"⚠️ Error configurando fechas: {e}")
+            self.log(f"⚠️ Error limpiando fechas: {e}")
 
         # 4. Layout: Escribir el nombre completo y presionar Enter
         self.log(f"🎨 Aplicando Layout: {layout}")
