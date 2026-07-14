@@ -48,7 +48,7 @@ export default function KpiCorporativosTab({ onOpenSettings, user, defaultSemana
           ? `${item.proceso}||${item.ptoTrabajo}` 
           : `${item.proceso}||${item.grPlanif}||${item.grPlanifPM}`;
         if (!mapa[clave]) {
-          mapa[clave] = { ...item };
+          mapa[clave] = { ...item, _rowId: clave };
           propsNum.forEach(p => mapa[clave][p] = 0);
         }
         propsNum.forEach(p => mapa[clave][p] += (Number(item[p]) || 0));
