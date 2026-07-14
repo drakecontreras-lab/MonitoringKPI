@@ -106,16 +106,22 @@ class KpiAutoModule(BaseModule):
             self.log("🗂️ Ejecutando batch de KPIs (OTs + Órdenes) en una misma sesión...")
             
             # IW39
-            await h_ots.ejecutar(lista_uts=None, excel_trab_plan=excel_trab_plan)
+            # suffix="_KPI" evita colisión de nombre de archivo con la automatización
+            # de Proyecciones (proy_auto_module), que usa el mismo handler y guarda
+            # en el mismo OUTPUT_DIR con el nombre genérico "Proy_ots"/"Proy_37N".
+            # Sin este sufijo, main.py podía tomar por error el archivo de la otra
+            # automatización (el más reciente por ctime), corrompiendo el mapping
+            # gr_planif usado para enriquecer Trabajo Planificado y Plan Matriz.
+            await h_ots.ejecutar(lista_uts=None, excel_trab_plan=excel_trab_plan, suffix="_KPI")
             self.actualizar_progreso(0.50)
             await self.manejar_pausa()
-            
+
             # Pausa para asegurar que SAP termine de procesar IW39 antes de IW37N
             self.log("⏳ Esperando estabilización de SAP antes de IW37N...")
             await asyncio.sleep(4)
-            
+
             # IW37N
-            await h_ordenes.ejecutar(lista_uts=None, excel_plan_matriz=excel_plan_matriz)
+            await h_iw37n.ejecutar(lista_uts=None, excel_plan_matriz=excel_plan_matriz, suffix="_KPI")
             self.actualizar_progreso(1.0)
 
             self.log("✅ Descargas batch de KPIs Corporativos finalizadas.", "ok")

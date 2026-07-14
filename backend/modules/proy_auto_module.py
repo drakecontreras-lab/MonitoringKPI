@@ -149,6 +149,7 @@ class ProyAutoModule(BaseModule):
                 activar_grupos = params.get("activar_grupos", True)
                 dias_venc_avisos = int(params.get("dias_venc_avisos", 7))
                 dias_venc_ordenes = int(params.get("dias_venc_ordenes", 21))
+                use_pto_trabajo = bool(params.get("use_pto_trabajo", False))
                 semana_proy = params.get("semana", "")
                 fecha_base_proy = params.get("fecha_base", "")
 
@@ -228,7 +229,7 @@ class ProyAutoModule(BaseModule):
                     def _hilo_macro():
                         try:
                             post = PostProcesador(log_fn=self.log)
-                            ok = post.ejecutar(semana_proy, fecha_base_proy, rutas, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes)
+                            ok = post.ejecutar(semana_proy, fecha_base_proy, rutas, dias_venc_avisos=dias_venc_avisos, dias_venc_ordenes=dias_venc_ordenes, use_pto_trabajo=use_pto_trabajo)
                             if ok:
                                 self.log("✨ Reporte consolidado con éxito.", "ok")
                                 self.actualizar_progreso(1.0)
