@@ -162,19 +162,22 @@ def main():
     cx, cy = _get_screen_center(splash_w, splash_h)
     _log(f"center=({cx},{cy}) splash={splash_w}x{splash_h}")
 
-    window = webview.create_window(
+    # Ventana de splash propia, sin marco de ventana tradicional (frameless).
+    # Se destruye una vez la app principal está lista; la app principal se
+    # crea como una ventana nueva (con marco normal, título y controles OS).
+    splash = webview.create_window(
         title="Monitoring KPIs Corporativos",
         html=SPLASH_HTML,
-        js_api=NativeApi(),
         width=splash_w,
         height=splash_h,
         x=cx,
         y=cy,
-        resizable=True,
+        resizable=False,
+        frameless=True,
         text_select=False,
         confirm_close=False
     )
-    _log("ventana splash creada")
+    _log("ventana splash creada (frameless)")
 
     def bootstrap():
         try:
@@ -186,11 +189,21 @@ def main():
             _log("bootstrap: flask_thread iniciado")
             ready = _wait_flask_ready("http://127.0.0.1:3001")
             _log(f"bootstrap: flask ready={ready}")
-            window.load_url("http://127.0.0.1:3001")
-            _log("bootstrap: load_url llamado")
-            window.set_title("Monitoring KPI's Corporativos")
-            window.maximize()
-            _log("bootstrap: maximize llamado - DONE")
+
+            main_window = webview.create_window(
+                title="Monitoring KPI's Corporativos",
+                url="http://127.0.0.1:3001",
+                js_api=NativeApi(),
+                width=1280,
+                height=800,
+                resizable=True,
+                confirm_close=False
+            )
+            main_window.maximize()
+            _log("bootstrap: ventana principal creada y maximizada")
+
+            splash.destroy()
+            _log("bootstrap: splash destruido - DONE")
         except Exception as e:
             _log(f"bootstrap ERROR: {e}")
             import traceback
